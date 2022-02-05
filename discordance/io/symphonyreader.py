@@ -1,0 +1,237 @@
+"""
+From HDF to other formats for simpler data analysis
+Datable structure: index := Index, ExperimentName, CellName, ProtocolName, SplitVariable, ResponseVariable
+Index, ExperimentName, CellName, ProtocolName, SplitVariable, ResponseVariable, Time, ResponseValue
+MetaData structure:
+Index, ExperimentName, Device, Gain, Etc...
+"""
+from typing import Dict, List
+import datetime
+from os import path
+import json
+
+from ..funks import detect_spikes
+
+import h5py
+import numpy as np
+
+class SymphonyReader:
+	"""
+	Convert "raw" h5 files from Symphony for data to be used by dissonance.
+	"""
+	time_map = {
+		'startTimeDotNetDateTimeOffsetTicks': 'startDate',
+		'endTimeDotNetDateTimeOffsetTicks': 'endDate',
+		'creationTimeDotNetDateTimeOffsetTicks':'creationDate',
+	}
+
+	meta_excludes = (
+		'startTimeDotNetDateTimeOffsetOffsetHours',
+		'uuid',
+		'creationTimeDotNetDateTimeOffsetOffsetHours',
+		'endTimeDotNetDateTimeOffsetOffsetHours'
+	)
+
+	def __init__(self, symphonyfilepath):
+		self.symphonyfilepath = symphonyfilepath
+
+	def _to_datetime(self, dotNetTime):
+		if isinstance(dotNetTime, str):
+			dotNetTime = int(dotNetTime)
+		return datetime.datetime(1,1,1) + datetime.timedelta(microseconds= int(dotNetTime // 10))
+
+	def _read_file(self, filename):
+		try:
+			f = h5py.File(filename, "r")
+		except FileNotFoundError:
+			raise Exception(f"File {filename} not found. Redirect.")
+		except Exception as e:
+			raise e
+		else:
+			return f
+
+	def _cells(self):
+		exp_name = [x for x in list(self.f) if "experiment" in x][0]
+		path_epochgroups = path.join(exp_name, 'epochGroups')
+
+		for cell in self.f[path_epochgroups]: # cellName
+			path_cell = path.join(path_epochgroups, cell)
+			yield self.f[path_cell]
+
+	def _protocols(self, cell):
+		for protocol in cell['epochBlocks']:
+			path_protocol = path.join('epochBlocks', protocol)
+			yield cell[path_protocol]
+
+	def _epochs(self, protocol):
+		for epoch in protocol['epochs']:
+			path_epoch = path.join('epochs', epoch)
+			yield protocol[path_epoch]
+
+	def _reader(self):
+		processed = set()
+		for cell in self._cells():
+			meta_cell = self._get_all_metadata(cell)
+			cellname = meta_cell.get("epochGroup:source:label")
+			for p, protocol in enumerate(self._protocols(cell)):
+				meta_protocol = self._get_all_metadata(protocol)
+
+				if key := f"{cellname}_{p}" in processed: 
+					raise Exception("Swirling!")
+				else: 
+					processed.add(key)
+
+				for i, epoch in enumerate(self._epochs(protocol)):
+					# grab responses (sub folders with recursion)
+					# grab stimulus
+					# grab backgrounds
+					meta_epoch = self._get_all_metadata(epoch)
+					response_dict  = self._get_responses(epoch['responses'])
+
+					yield {
+						'path': epoch.name,
+						'responses': response_dict,
+						'attrs': {
+							**meta_epoch,
+							**meta_protocol,
+							#**meta_cell
+					}}
+				
+				print(f"{cellname}, Protocol {p}: {i} epochs.")
+
+	def _get_responses(self, responses) -> Dict:
+		response_dict = {}
+		for response in responses:
+			grp = responses[response]
+
+			name = self._group_name(grp)
+			metadata = self._get_all_metadata(grp)
+
+			response_dict[name] = {
+				'path': grp.name,
+				'attrs': metadata
+			}
+		return response_dict
+
+	def _get_group_metadata(self, group, metadata, level):
+		for key,val in group.attrs.items():
+			if key in self.meta_excludes:
+				continue
+			elif key in self.time_map.keys(): 
+				new_key = self.time_map[key]
+				if level == '':
+					metadata[f"{new_key}"] = self._to_datetime(val)
+				else:
+					metadata[f"{level}:{new_key}"] = self._to_datetime(val)
+			elif level:
+				if type(val) is np.bytes_:
+					metadata[f"{level}:{key}"] = val.decode()
+				else: 
+					metadata[f"{level}:{key}"] = val
+			else: 
+				metadata[f"{new_key}"] = val
+		return metadata
+
+	def _convert_vals(self, val):
+		try:
+			return val.decode()
+		except (UnicodeDecodeError, AttributeError):
+			return val
+
+	def _get_all_metadata(self, group, metadata=None, level=None):
+
+		if level:
+			tlevel = self._group_name(group)
+			if tlevel!=level:
+				level = ":".join([level,self._group_name(group)])
+			if level[0] == ":":
+				level = level[1:]
+
+		else:
+			level = self._group_name(group)
+			level = '' if level == 'epoch' else level
+			try: 
+				if level[0] == ":":
+					level = level[1:]
+			except IndexError:
+				pass
+
+		metadata = metadata if metadata else dict()
+		metadata =self._get_group_metadata(group, metadata, level)
+		for name in group:
+			subgroup = group[name]
+			if self._is_group(subgroup):
+				metadata = self._get_all_metadata(subgroup, metadata, level)
+		return metadata
+
+	def _group_name(self,group):
+		name = group.name.split("/")[-1].split("-")[0]
+		if 'edu.washington.riekelab.protocols' in name:
+			name = name.split('.')[-1]
+		return name
+
+	def _is_group(self, group):
+		name = self._group_name(group)
+		is_link = name in ('epoch', 'experiment', 'epochBlocks', 'epochBlock', 'epochGroup', 'epochGroups', 'parent', 'sources')
+		is_group = isinstance(group, h5py._hl.group.Group)
+
+		return bool(bool(is_group) & ~bool(is_link))
+
+	def to_json(self, outputpath):
+		self.f = h5py.File(self.symphonyfilepath, "r")
+		try:
+			traces = []
+			# HACK one for each response? only one response now 
+			# TODO add spike detection output for spike cells
+			for ii, epochdict in enumerate(self._reader()):
+				#if ii > 5: break
+				outtrace = dict()
+				outtrace["path"] = epochdict["path"]
+				outtrace["parameters"] = epochdict["attrs"]
+
+
+				# NOTE Do I need response attributes?
+				respdict = dict()
+				# stores amp1
+				for responsename, val in epochdict['responses'].items():
+					if float(outtrace["parameters"]["backgrounds:Amp1:value"]) == 0.0:
+						data = self.f[val["path"]]['data'][:]
+						values = np.fromiter([x[0] for x in data], dtype=float)
+
+						spikeinfo = detect_spikes(values)
+						try:
+							spikedict = dict(
+								sp=spikeinfo.sp.tolist(),
+								spike_amps=spikeinfo.spike_amps.tolist(),
+								max_noise_peak_time=spikeinfo.max_noise_peak_time.tolist(),
+								min_spike_peak_idx=spikeinfo.min_spike_peak_idx.tolist(),
+								violation_idx=spikeinfo.violation_idx.tolist()
+							)
+						except AttributeError as e:
+							spikedict = dict(
+								sp=None,
+								spike_amps=None,
+								max_noise_peak_time=None,
+								min_spike_peak_idx=None,
+								violation_idx=None
+							)
+
+						respdict[responsename] = dict(
+							path=val['path'],
+							spikes=spikedict)
+					else:
+						respdict[responsename] = dict(
+							path=val['path'])
+
+				outtrace['responses'] = respdict
+
+				traces.append(outtrace)
+
+			with open(outputpath, "w+") as fout:
+				json.dump(traces, fout,
+					indent=4, sort_keys=True, default=str)
+		except Exception as e:
+			raise e
+		finally:
+			self.f.close()
+			
