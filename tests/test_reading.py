@@ -19,7 +19,7 @@ dr = DiscordanceReader(filemap)
 df = dr.to_epochs()
 
 # %%
-epoch = df.Epoch.iloc[50]
+epoch = df.Epoch.iloc[55]
 # %%
 charting.plt_trace(epoch)
 charting.plt_spikes(epoch)
