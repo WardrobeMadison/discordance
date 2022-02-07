@@ -1,9 +1,18 @@
 import h5py
 from typing import Dict 
 import numpy as np
+from dataclasses import dataclass
 
 from .basetrace import BaseTrace
-from ..funks.spike_detection import TraceSpikeResult
+
+@dataclass
+class TraceSpikeResult:
+    sp: np.array
+    spike_amps: np.array
+    min_spike_peak_idx: np.array
+    max_noise_peak_time: np.array
+    violation_idx: np.array
+
 
 class SpikeTrace(BaseTrace):
 

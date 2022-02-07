@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from ...epochtypes import SpikeTrace, WholeTrace
 
 def plt_trace(epoch:Union[SpikeTrace, WholeTrace], outputfile:Path=None):
-	fig = plt.subplot()
+	fig, ax = plt.subplots()
 	plt.plot(epoch.values)
 	plt.title(epoch.startdate)
 	plt.grid(True)

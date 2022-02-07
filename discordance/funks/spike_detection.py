@@ -11,9 +11,9 @@ from dataclasses import dataclass
 
 import numpy as np
 from sklearn.cluster import KMeans
-from .psth import calculate_psth
 
 from .passfilters import low_pass_filter, high_pass_filter
+from ..epochtypes import TraceSpikeResult
 
 HIGHPASSCUT_DRIFT = 70
 HIGHPASSCUT_SPIKES = 500
@@ -22,16 +22,6 @@ REF_PERIOD = 2e-3
 SEARCH_INTERVAL = 1e-3
 REF_PERIOD_POINTS = round(REF_PERIOD / SAMPLE_INTERVAL)
 SEARCH_INTERVAL_POINTS = round(SEARCH_INTERVAL / SAMPLE_INTERVAL)
-
-
-@dataclass
-class TraceSpikeResult:
-    sp: np.array
-    spike_amps: np.array
-    min_spike_peak_idx: np.array
-    max_noise_peak_time: np.array
-    violation_idx: np.array
-
 
 def detect_spikes(R: np.array) -> TraceSpikeResult:
     # PASS FILTERS
@@ -75,13 +65,7 @@ def detect_spikes(R: np.array) -> TraceSpikeResult:
         [*peak_times_res_even, *peak_times_res_odd])))  # could be trouble
     peaks = trace[peak_times]
 
-    sp = []
-    violation_idx = []
-    spike_amps = []
-    max_noise_peak_time = []
-    min_spike_peak_idx = []
-    max_noise_peak_idx = []
-
+    # CLUSTER PEAKS
     if len(peaks):
         # CHECK FOR REBOUNDS ON THE OTHER SIDE
         rebounds = get_rebounds(peak_times, trace, SEARCH_INTERVAL_POINTS)

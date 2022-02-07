@@ -1,2 +1,2 @@
-from .spiketrace import SpikeTrace
+from .spiketrace import SpikeTrace, TraceSpikeResult
 from .wholetrace import WholeTrace

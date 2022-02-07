@@ -36,8 +36,16 @@ class DiscordanceReader:
 						epoch["parameters"], 
 						epoch["responses"])
 	
-				data.append([trace.epochpath, trace])	
+				data.append([
+					trace.epochpath, 
+					trace.type,
+					trace.cellname,
+					trace.lightamplitude,
+					trace.lightmean,
+					trace
+				])	
 
 		# What should this be?
-		df = pd.DataFrame(columns=["Name", "Epoch"], data=data)
+		columns = "EpochPath Type CellName LightAmplitude LightMean Epoch".split()
+		df = pd.DataFrame(columns=columns, data=data)
 		return df

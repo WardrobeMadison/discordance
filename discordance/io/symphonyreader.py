@@ -87,15 +87,16 @@ class SymphonyReader:
 					# grab backgrounds
 					meta_epoch = self._get_all_metadata(epoch)
 					response_dict  = self._get_responses(epoch['responses'])
-
 					yield {
 						'path': epoch.name,
 						'responses': response_dict,
 						'attrs': {
 							**meta_epoch,
 							**meta_protocol,
+							"CellName": cellname
 							#**meta_cell
-					}}
+						}
+					}
 				
 				print(f"{cellname}, Protocol {p}: {i} epochs.")
 

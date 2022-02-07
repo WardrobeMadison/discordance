@@ -1,5 +1,6 @@
 from abc import ABC, abstractproperty, abstractmethod
 from typing import Dict, Union
+from datetime import datetime
 
 from h5py._hl.files import File
 import numpy as np
@@ -14,6 +15,8 @@ class BaseTrace:
 		self.parameters = parameters
 		self.responses = responses
 
+		# TODO change protocol path parsed to just protocl parameters. Portcol itself will change
+		self.cellname = self.parameters.get("CellName")
 		self.lightamplitude = self.parameters.get("edu.wisc.sinhalab.protocols.LedPulse:protocolParameters:lightAmplitude")
 		self.lightmean = self.parameters.get("edu.wisc.sinhalab.protocols.LedPulse:protocolParameters:lightMean")
 		self.pretime = self.parameters.get("edu.wisc.sinhalab.protocols.LedPulse:protocolParameters:preTime")
@@ -23,6 +26,9 @@ class BaseTrace:
 
 		self.startdate = self.parameters["startDate"]
 		self.enddate = self.parameters["endDate"]
+
+	def __str__(self):
+		return f"Epoch(cell_name={self.cellname}, start_date={self.startdate})"
 
 	@property
 	def values(self):
