@@ -1,42 +1,65 @@
-import h5py
-from typing import Dict 
-import numpy as np
+from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import List
 
-from .basetrace import BaseTrace
+import numpy as np
+from discordance.funks.psth import calculate_psth
+from h5py._hl.dataset import Dataset
 
-@dataclass
-class TraceSpikeResult:
-    sp: np.array
-    spike_amps: np.array
-    min_spike_peak_idx: np.array
-    max_noise_peak_time: np.array
-    violation_idx: np.array
+from .ns_epochtypes import DiscordanceParams, TraceSpikeResult
+from .basetrace import ITrace, Traces
 
+class SpikeTrace(ITrace):
 
-class SpikeTrace(BaseTrace):
+	def __init__(self, epochpath: str,
+			parameters:DiscordanceParams=None, 
+			spikes:TraceSpikeResult=None,
+			response: Dataset=None):
 
-	type = "SpikeTrace"
-
-	def __init__(self, h5file: h5py.File, epochpath: str,
-			parameters:Dict[str, object]=None, responses: Dict=None):
-
-		super().__init__(h5file, epochpath, parameters, responses)
-		self.epochresponsepath = responses["Amp1"]["path"]
-		self._spikes = None
+		super().__init__(epochpath, parameters, response)
+		self._spikes = spikes
+		self._psth = None
 
 	@property
 	def spikes(self) -> TraceSpikeResult:
-		...
-		if self._spikes is None: 
-			spikedict = self.responses["Amp1"]["spikes"]
-			self._spikes = TraceSpikeResult(
-				spikedict["sp"],
-				spikedict["spike_amps"],
-				spikedict["min_spike_peak_idx"],
-				spikedict["max_noise_peak_time"],
-				spikedict["violation_idx"]
-			)
 		return self._spikes
 
+	@property
+	def psth(self) -> np.array:
+		if self._psth is None:
+			self._psth = calculate_psth(self)
+		return self._psth
+
+	@property
+	def type(self) -> str:
+		return "spiketrace"
+
+class SpikeTraces(Traces):
+
+	type = "spiketrace"
+
+	def __init__(self, key, traces: List[SpikeTrace]):
+		super().__init__(traces)
+
+		self.key = key
+		self._psth:np.array = None
+
+	@property
+	def psth(self):
+		inc = 100
+		if self._psth is None:
+			# FILL TAIL OF PSTH'S WITH 0'S SO ALL OF SAME SIZE
+
+			cnt = 0
+			for trace in self._traces:
+				if len(trace.psth) > 0 and trace.psth is not None:
+					cpsth = np.pad(trace.psth, (0, int(self.trace_len // inc - len(trace.psth))))
+					if cnt == 0: psths = cpsth
+					else: psths += cpsth
+					cnt += 1
+
+			if cnt != 0: self._psth = psths / cnt
+
+		return self._psth
 

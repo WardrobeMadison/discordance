@@ -12,22 +12,36 @@ class ParamsTable(QTableWidget):
 
 	params = [
 		"cellname",
+		"startdate",
+		"celltype",
+		"protocolname",
+		"enddate",
+		"interpulseinterval",
+		"led",
 		"lightamplitude",
 		"lightmean",
 		"pretime",
-		"samplerate",
 		"stimtime",
-		"tailtime",
-		"startdate",
-		"enddate"
-	]
+		"samplerate",
+		"tailtime"]
 
 	def __init__(self, epoch: Union[et.SpikeTrace, et.WholeTrace]):
 		super().__init__()
 
 		self.update(epoch)
-		# TABLE SELECTION CHANGE
-		self.doubleClicked.connect(self.on_click)
+	
+	@pyqtSlot()
+	def update_mean(self, epochs):
+		self.setRowCount(0)
+		self.setRowCount(len(self.params))
+		self.setColumnCount(2)
+
+		for ii, paramname in enumerate(self.params):
+			self.setItem(ii,0,
+				QTableWidgetItem(paramname))
+			text = set(getattr(epochs, paramname+"s"))
+			self.setItem(ii,1, 
+				QTableWidgetItem(",".join(map(str,text))))
 
 	@pyqtSlot()
 	def update(self, epoch):
@@ -48,9 +62,3 @@ class ParamsTable(QTableWidget):
 					QTableWidgetItem(paramname))
 				self.setItem(ii,1, 
 					QTableWidgetItem(str(getattr(epoch, paramname))))
-
-	@pyqtSlot()
-	def on_click(self):
-		print("\n")
-		for currentQTableWidgetItem in self.selectedItems():
-			print(currentQTableWidgetItem.row(), currentQTableWidgetItem.column(), currentQTableWidgetItem.text())

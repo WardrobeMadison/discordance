@@ -1,51 +1,50 @@
-import json
-import h5py
-import pandas as pd
-from typing import List, Union
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import List
 
-from .symphonyreader import SymphonyReader
-from .. import epochtypes
-from . filemap import FileMap
+import h5py
+
+from .. import epochtypes as et
 
 class DiscordanceReader:
 
-	def __init__(self, filemaps: Union[FileMap, List[FileMap]]):
-		if not isinstance(filemaps, list):
-			filemaps = [filemaps]
+	def __init__(self, filepaths: List[Path]):
+		self.experimentpaths = filepaths
 
-		self.experiments = dict()
-		for filemap in filemaps:
-			experiment = json.load(open(filemap.discordancefilepath))
-			self.experiments[filemap.symphonyfilepath] = experiment
+	def to_epochs(self) -> List:
+		traces = []
+		for filepath in self.experimentpaths:
+			h5file = h5py.File(filepath, "r")
 
-	def to_epochs(self):
-		data = []
-		for symphfilepath, epochs in self.experiments.items():
-			h5file = h5py.File(symphfilepath)
-			for epoch in epochs:
-				if epoch["parameters"]["backgrounds:Amp1:value"] == 0.0:
-					trace = epochtypes.SpikeTrace(
-						h5file,
-						epoch["path"],
-						epoch["parameters"], 
-						epoch["responses"])
+			experiment = h5file["experiment"]	
+			for epochname in experiment:
+				epoch = experiment[epochname]
+				params = et.DiscordanceParams()
+				
+				# GET PARAMETERS
+				for key, val in epoch.attrs.items():
+					setattr(params, key.lower(), val)
+
+				# SEPARATE TRACES
+				if params.celltype == "spiketrace":
+					resp = epoch["Amp1"]
+					spikes = et.TraceSpikeResult(
+						resp.attrs["sp"],
+						resp.attrs["spike_amps"],
+						resp.attrs["min_spike_peak_idx"],
+						resp.attrs["max_noise_peak_time"],
+						resp.attrs["violation_idx"]
+					)
+
+					trace = et.SpikeTrace(
+						epoch.name,
+						params,
+						spikes,
+						resp)
 				else:
-					trace = epochtypes.WholeTrace(
-						h5file,
-						epoch["path"],
-						epoch["parameters"], 
-						epoch["responses"])
-	
-				data.append([
-					trace.epochpath, 
-					trace.type,
-					trace.cellname,
-					trace.lightamplitude,
-					trace.lightmean,
-					trace
-				])	
-
-		# What should this be?
-		columns = "EpochPath Type CellName LightAmplitude LightMean Epoch".split()
-		df = pd.DataFrame(columns=columns, data=data)
-		return df
+					trace = et.WholeTrace(
+						epoch.name,
+						params,
+						resp)
+				traces.append(trace)
+		return traces

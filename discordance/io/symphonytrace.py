@@ -1,8 +1,26 @@
+from typing import Dict
 from dataclasses import dataclass
-from h5py._hl.files import File
+
+import numpy as np
 
 @dataclass
-class SymphonyTrace:
+class SymphonyEpoch:
 
-	filepath: File
-	tracepath: str
+	path: str
+	cellname: str
+	startdate: float
+	protocolname:str
+	celltype:str
+	enddate: float
+	interpulseinterval:float
+	led: str
+	lightamplitude: float
+	lightmean: float
+	numberofaverages: float
+	pretime: float
+	stimtime: float
+	samplerate: float
+	tailtime: float
+	responses: Dict
+
+

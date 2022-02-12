@@ -1,2 +1,2 @@
 from .paramstable import ParamsTable
-from .epochtree import EpochTree
+from . import epochtree as et

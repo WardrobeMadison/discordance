@@ -1,9 +1,7 @@
-from .basetrace import BaseTrace
+from .basetrace import ITrace
 
 
-class WholeTrace(BaseTrace):
-
-	type = "WholeTrace"
+class WholeTrace(ITrace):
 
 	@property
 	def timetopeak(self):
@@ -12,3 +10,7 @@ class WholeTrace(BaseTrace):
 	@property
 	def width_at_half_max(self):
 		...
+
+	@property
+	def type(self) -> str:
+		return "WholeTrace"

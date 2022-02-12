@@ -1,16 +1,15 @@
-from discordance import viewer, io
+from pathlib import Path
+from discordance import viewer, io, epochtypes
 
 
 def test_window():
 	try:
-		path = "tests/data/2020-07-21A.h5"
-		outpath = "tests/output/2020-07-21A.json"
-
-		filemap = io.FileMap(path, outpath)
-
-		dr = io.DiscordanceReader(filemap)
+		path = Path(r"tests/output/2020-07-21A.h5")
+		dr = io.DiscordanceReader([path])
 		epochs = dr.to_epochs()
-		viewer.run(epochs)
+		traces = epochtypes.Traces(epochs)
+		groupbykeys = ["protocolname", "celltype", "cellname", "lightamplitude", "lightmean"]
+		viewer.run(traces, groupbykeys=groupbykeys)
 
 	except SystemExit as e:
 		...

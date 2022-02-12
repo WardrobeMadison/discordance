@@ -5,12 +5,17 @@ Index, ExperimentName, CellName, ProtocolName, SplitVariable, ResponseVariable, 
 MetaData structure:
 Index, ExperimentName, Device, Gain, Etc...
 """
-from typing import Dict, List
+from typing import Dict, List, Iterator
 import datetime
 from os import path
 import json
+import re
+
+RE_PID = re.compile(r"^edu.wisc.sinhalab.protocols.(\w+):protocolID$")
+RE_PP = re.compile(r"^edu.wisc.sinhalab.protocols.(\w+):protocolParameters:(\w+)")
 
 from ..funks import detect_spikes
+from . symphonytrace import SymphonyEpoch
 
 import h5py
 import numpy as np
@@ -51,12 +56,12 @@ class SymphonyReader:
 			return f
 
 	def _cells(self):
-		exp_name = [x for x in list(self.f) if "experiment" in x][0]
+		exp_name = [x for x in list(self.fin) if "experiment" in x][0]
 		path_epochgroups = path.join(exp_name, 'epochGroups')
 
-		for cell in self.f[path_epochgroups]: # cellName
+		for cell in self.fin[path_epochgroups]: # cellName
 			path_cell = path.join(path_epochgroups, cell)
-			yield self.f[path_cell]
+			yield self.fin[path_cell]
 
 	def _protocols(self, cell):
 		for protocol in cell['epochBlocks']:
@@ -68,36 +73,49 @@ class SymphonyReader:
 			path_epoch = path.join('epochs', epoch)
 			yield protocol[path_epoch]
 
-	def _reader(self):
-		processed = set()
+	def _reader(self) -> Iterator[SymphonyEpoch]:
 		for cell in self._cells():
 			meta_cell = self._get_all_metadata(cell)
 			cellname = meta_cell.get("epochGroup:source:label")
 			for p, protocol in enumerate(self._protocols(cell)):
 				meta_protocol = self._get_all_metadata(protocol)
+				protocoldict = dict()
 
-				if key := f"{cellname}_{p}" in processed: 
-					raise Exception("Swirling!")
-				else: 
-					processed.add(key)
+				# HACK CONVERT PROTOCOL PARAMETERS. Do this in meta_protocol on first pass
+				for key, val in meta_protocol.items():
+					if RE_PID.match(key) is not None:
+						protocoldict["protocolname"] = RE_PID.match(key)[1]
+					elif RE_PP.match(key) is not None:
+						protocoldict[RE_PP.match(key)[2].lower()] = val
 
+				# TRAVERSE EPOCHS
 				for i, epoch in enumerate(self._epochs(protocol)):
 					# grab responses (sub folders with recursion)
 					# grab stimulus
 					# grab backgrounds
 					meta_epoch = self._get_all_metadata(epoch)
 					response_dict  = self._get_responses(epoch['responses'])
-					yield {
-						'path': epoch.name,
-						'responses': response_dict,
-						'attrs': {
-							**meta_epoch,
-							**meta_protocol,
-							"CellName": cellname
-							#**meta_cell
-						}
-					}
-				
+
+
+					yield SymphonyEpoch(
+						path=epoch.name,
+						cellname=cellname,
+						celltype = "spiketrace" if meta_epoch["backgrounds:Amp1:value"] == 0.0 else "wholetrace",
+						protocolname = protocoldict["protocolname"],
+						startdate=str(meta_epoch["startDate"]),
+						enddate=str(meta_epoch["endDate"]),
+						interpulseinterval=protocoldict["interpulseinterval"],
+						led=protocoldict["interpulseinterval"],
+						lightamplitude=protocoldict.get("lightamplitude"),
+						lightmean=protocoldict["lightmean"],
+						numberofaverages=protocoldict["numberofaverages"],
+						pretime=protocoldict["pretime"],
+						stimtime=protocoldict["stimtime"],
+						samplerate=protocoldict["samplerate"],
+						tailtime=protocoldict["tailtime"],
+						responses = response_dict
+					)
+
 				print(f"{cellname}, Protocol {p}: {i} epochs.")
 
 	def _get_responses(self, responses) -> Dict:
@@ -178,27 +196,87 @@ class SymphonyReader:
 
 		return bool(bool(is_group) & ~bool(is_link))
 
-	def to_json(self, outputpath):
-		self.f = h5py.File(self.symphonyfilepath, "r")
+	def to_h5(self, outputpath):
 		try:
+			self.fin = h5py.File(self.symphonyfilepath, "r")
+			fout = h5py.File(outputpath, "w")
+			params = [
+					"path",
+					"cellname",
+					"startdate",
+					"celltype",
+					"protocolname",
+					"enddate",
+					"interpulseinterval",
+					"led",
+					"lightamplitude",
+					"lightmean",
+					"numberofaverages",
+					"pretime",
+					"stimtime",
+					"samplerate",
+					"tailtime"]
+
+			expgrp = fout.create_group("experiment")
+			for ii, symepoch in enumerate(self._reader()):
+
+				# CREATE NEW GROUP
+				epochgrp = expgrp.create_group(f"epoch{ii}")
+
+				# ADD PARAMS FROM SYMPHONY TRACE
+				# TODO JUST CONVERT DATACLASS TO DICT
+				for param in params:
+					try:
+						epochgrp.attrs[param] = getattr(symepoch, param)
+					except TypeError:
+						epochgrp.attrs[param] = str(getattr(symepoch, param))
+
+				# WRITE OUT RESPONSES
+				for responsename, val in symepoch.responses.items():
+	 				# CREATE DATASET FOR A RESPONSE
+					data = np.array(self.fin[val["path"]]['data'])
+					values = np.fromiter([x[0] for x in data], dtype=float)
+
+					ds = epochgrp.create_dataset(
+						name=responsename, data=values, dtype=float)
+					ds.attrs["path"] = val["path"] 
+
+	 				#CREATE SPIKE DATASET FOR A RESPONSE
+					if symepoch.celltype == "spiketrace":
+						epochgrp.attrs["celltype"] = "spiketrace"
+						spikeinfo = detect_spikes(values)
+						ds.attrs["sp"]=spikeinfo.sp.astype(float)
+						ds.attrs["spike_amps"]=spikeinfo.spike_amps.astype(float)
+						ds.attrs["max_noise_peak_time"]=spikeinfo.max_noise_peak_time.astype(float)
+						ds.attrs["min_spike_peak_idx"]=spikeinfo.min_spike_peak_idx.astype(float)
+						ds.attrs["violation_idx"]=spikeinfo.violation_idx.astype(float)
+
+		except Exception as e:
+			raise e
+		finally:
+			fout.close()
+
+
+	def to_json(self, outputpath):
+		try:
+			self.fin = h5py.File(self.symphonyfilepath, "r")
 			traces = []
 			# HACK one for each response? only one response now 
-			# TODO add spike detection output for spike cells
 			for ii, epochdict in enumerate(self._reader()):
 				#if ii > 5: break
+				# ADD TOP LEVEL PARAMETERS
 				outtrace = dict()
 				outtrace["path"] = epochdict["path"]
 				outtrace["parameters"] = epochdict["attrs"]
+				outtrace["EpochNumber"] = ii
+				outtrace["Id"] = outtrace["parameters"]["startDate"].strftime(r"%Y%m%d") + "_" + str(ii)
 
-
-				# NOTE Do I need response attributes?
 				respdict = dict()
-				# stores amp1
 				for responsename, val in epochdict['responses'].items():
+					# CALCULATE SPIKES
 					if float(outtrace["parameters"]["backgrounds:Amp1:value"]) == 0.0:
 						data = self.f[val["path"]]['data'][:]
 						values = np.fromiter([x[0] for x in data], dtype=float)
-
 						spikeinfo = detect_spikes(values)
 						try:
 							spikedict = dict(

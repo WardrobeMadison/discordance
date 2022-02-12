@@ -13,7 +13,8 @@ import numpy as np
 from sklearn.cluster import KMeans
 
 from .passfilters import low_pass_filter, high_pass_filter
-from ..epochtypes import TraceSpikeResult
+from .. import epochtypes as et
+
 
 HIGHPASSCUT_DRIFT = 70
 HIGHPASSCUT_SPIKES = 500
@@ -23,7 +24,7 @@ SEARCH_INTERVAL = 1e-3
 REF_PERIOD_POINTS = round(REF_PERIOD / SAMPLE_INTERVAL)
 SEARCH_INTERVAL_POINTS = round(SEARCH_INTERVAL / SAMPLE_INTERVAL)
 
-def detect_spikes(R: np.array) -> TraceSpikeResult:
+def detect_spikes(R: np.array) -> et.TraceSpikeResult:
     # PASS FILTERS
     R_no_spikes = low_pass_filter(
         high_pass_filter(
@@ -99,11 +100,11 @@ def detect_spikes(R: np.array) -> TraceSpikeResult:
                     or
                     len(spike_ind_log) == 0):
                 print(f"Epoch: no spikes.")
-                sp = None
-                spike_amps = None
-                min_spike_peak_idx = None
-                max_noise_peak_time = None
-                violation_idx = None
+                sp = np.array([0.0],dtype=float)
+                spike_amps = np.array([0.0],dtype=float)
+                min_spike_peak_idx = np.array([0.0],dtype=float)
+                max_noise_peak_time = np.array([0.0],dtype=float)
+                violation_idx = np.array([0.0],dtype=float)
             # SPIKES ARE FOUND
             else:
 
@@ -127,13 +128,13 @@ def detect_spikes(R: np.array) -> TraceSpikeResult:
         # NO SPIKES
         else:
             print(f"Epoch: no spikes.")
-            sp = None
-            spike_amps = None
-            min_spike_peak_idx = None
-            max_noise_peak_time = None
-            violation_idx = None
+            sp = np.array([0.0], dtype=float)
+            spike_amps = np.array([0.0],dtype=float)
+            min_spike_peak_idx = np.array([0.0],dtype=float)
+            max_noise_peak_time = np.array([0.0],dtype=float)
+            violation_idx = np.array([0.0],dtype=float)
 
-    return TraceSpikeResult(
+    return et.TraceSpikeResult(
         sp=sp,
         spike_amps=spike_amps,
         min_spike_peak_idx=min_spike_peak_idx,
