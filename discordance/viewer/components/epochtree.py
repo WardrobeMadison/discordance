@@ -10,110 +10,109 @@ from PyQt5.QtGui import QColor, QFont
 from PyQt5.QtWidgets import QApplication, QMainWindow, QTreeView
 
 from ...epochtypes import ITrace, Traces, SpikeTraces, groupby
-from ...trees.base import Tree
-
-class HeaderItem(QStandardItem):
-	def __init__(self, name, color=QColor(0, 0, 0)):
-		super().__init__()
-
-		fnt = QFont()
-		fnt.setBold(True)
-		fnt.setPixelSize(12)
-
-		self.setEditable(False)
-		self.setForeground(color)
-		self.setFont(fnt)
-		self.setText(str(name))
-
-		self.setFlags(self.flags() | Qt.ItemIsSelectable)
+from ...trees.base import Tree, Node
 
 class GroupItem(QStandardItem):
-	def __init__(self, name, epochs: Traces, color=QColor(0, 0, 0)):
-		super().__init__()
-
-		self.epochs = epochs
-
+	def __init__(self, node: Node, color=QColor(0, 0, 0)):
+		super(QStandardItem, self).__init__()
+		self.node = node
 		fnt = QFont()
 		fnt.setBold(True)
 		fnt.setPixelSize(11)
 
+		self.label = ", ".join(map(str,self.node.path.values()))
+
 		self.setEditable(False)
 		self.setForeground(color)
 		self.setFont(fnt)
-		self.setText(str(name))
+		self.setText(self.label)
 
 		self.setFlags(self.flags() | Qt.ItemIsSelectable)
 
-
 class EpochItem(QStandardItem):
-	def __init__(self, epoch: ITrace, color=QColor(0, 0, 0)):
+	def __init__(self, node: Node, color=QColor(0, 0, 0)):
 		super().__init__()
 
-		self.epoch = epoch
-
+		self.node = node
 		fnt = QFont()
 		fnt.setPixelSize(10)
+		self.label = node.uid
 
 		self.setEditable(False)
 		self.setForeground(color)
 		self.setBackground(QColor(187,177,189))
 		self.setFont(fnt)
-		self.setText(epoch.startdate)
+		#self.setText(epoch.startdate)
+		self.setText(node.uid)
 
 		self.setFlags(self.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsSelectable)
 		self.setCheckState(Qt.Checked)
 
 class EpochTree(QTreeView):
 
-	def __init__(self, epochs: Traces, groupkeys=["protocolname", "celltype", "cellname", "lightamplitude", "lightmean"], unchecked:set=None):
+	def __init__(self, at:Tree, unchecked:set=None):
 		super().__init__()
 
-		self.setHeaderHidden(True)
 		self.unchecked = set() if unchecked is None else unchecked
+		self.at = at
 
+		# TRANSLATE TREE TO Qt Items ITEMS
+		self.setHeaderHidden(True)
 		treeModel = QStandardItemModel()
 		rootNode = treeModel.invisibleRootItem()
 
-		for name, grp in groupby(epochs, groupkeys):
-			print(name)
-			# HEAD NODE 
-			head = GroupItem(name, grp)
+		root = GroupItem(at[0])
+		self.add_items(at[0], root)
+		rootNode.appendRow(root)
 
-			for epoch in grp.traces:
-				subitem = EpochItem(epoch)
-				if unchecked is not None:
-					if epoch.startdate in unchecked:
-						subitem.setCheckState(Qt.Unchecked)
-				head.appendRow(subitem)
-
-			rootNode.appendRow(head)
-		# TODO change to on selection, not item changed
-		#self.expandAll()
 		self.setModel(treeModel)
 		treeModel.itemChanged.connect(self.toggle_check)
-		self.model()
+
+		self.expandAll()
 
 	def toggle_check(self, item:QStandardItem):
-		if item.checkState() == Qt.Checked:
-			# ADD TRACE TO PARENT
-			traces = [trace for trace in item.parent().epochs.traces]
-			traces.append(item.epoch)
-			if item.parent().epochs.type=="spiketrace":
-				item.parent().epochs = SpikeTraces(item.parent().epochs.key, traces)
-			else:
-				...
+		"""Update unchecked list on toggle
 
-			if item.epoch.startdate in self.unchecked:
-				self.unchecked.remove(item.epoch.startdate)
+		Args:
+			item (QStandardItem): Selected tree node
+		"""
+		# INCLUDE EPOCH
+		if item.checkState() == Qt.Checked:
+			if item.label in self.unchecked:
+				self.unchecked.remove(item.label)
+
+			self.at.frame.loc[
+				self.at.frame.index.get_level_values("startdate") == item.label,
+				"include"
+			] = True
 
 			item.setBackground(QColor(187,177,189))
+		# EXCLUDE EPOCH
 		else: 
-			# REMOVE TRACE TO PARENT
-			# TODO need to remove from all parent groups
-			traces = [trace for trace in item.parent().epochs.traces if trace != item.epoch]
-			if item.parent().epochs.type=="spiketrace":
-				item.parent().epochs = SpikeTraces(item.parent().epochs.key, traces)
-			else:
-				...
-			self.unchecked.add(item.epoch.startdate)
+			self.at.frame.loc[
+				self.at.frame.index.get_level_values("startdate") == item.label,
+				"include"
+			] = False
+			self.unchecked.add(item.label)
 			item.setBackground(QColor(255, 255, 255, 0))
+
+	def add_items(self, parentnode: Node, parentitem:QStandardItem):
+		"""Translate nodes of tree to QT items for treeview
+
+		Args:
+			parentnode (Node): Node in tree
+			parentitem (QStandardItem): Node in QtTreeView
+		"""
+		for node in parentnode:
+			if node.isleaf:
+				item = EpochItem(node)
+				if self.unchecked is not None:
+					if node.uid in self.unchecked:
+						item.setCheckState(Qt.Unchecked)
+				parentitem.appendRow(item)
+			else:
+				item = GroupItem(node)
+				parentitem.appendRow(item)
+				self.add_items(node, item)
+			
+

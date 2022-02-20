@@ -12,9 +12,10 @@ def test_to_json():
 
 				
 def test_to_h5():
-	path = "tests/data/2020-07-21A.h5"
-	outpath = "tests/output/2020-07-21A.h5"
-
+	#path = "tests/data/2021-10-21A.h5"
+	#outpath = "tests/output/2021-10-21A.h5"
+	path = "tests/data/pdr2021-07-12A.h5"
+	outpath = "tests/output/pdr2021-07-12A.h5"
 	sr = io.SymphonyReader(path)
 	sr.to_h5(outpath)
 

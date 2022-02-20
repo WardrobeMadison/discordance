@@ -2,7 +2,7 @@
 from pathlib import Path
 from typing import List, Union
 from dataclasses import dataclass, field
-from typing import Iterator
+from typing import Iterator, Dict
 
 class Node:
 	def __init__(self, label, uid):
@@ -31,19 +31,19 @@ class Node:
 		return f"Node({self.label}={self.uid}, nchildren={len(self.children)})"
 
 	def __getitem__(self, val):
-		if isinstance(val, str) or isinstance(val,float):
+		if isinstance(val, str) or isinstance(val,float) or (val is None):
 			idx = [child.uid for child in self.children].index(val)
 			return self.children[idx]
 		else:
 			return self.children[val]
 
 	@property
-	def path(self) -> str:
+	def path(self) -> Dict[str, str]:
 		if self.isroot:
-			self._path = [self.uid]
+			self._path = {self.label: self.uid}
 		else:
 			parpath = self._parent.path
-			parpath.append(self.uid)
+			parpath[self.label] = self.uid
 			self._path =  parpath
 		return self._path
 

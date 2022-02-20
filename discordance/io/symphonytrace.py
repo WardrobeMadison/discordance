@@ -11,6 +11,7 @@ class SymphonyEpoch:
 	startdate: float
 	protocolname:str
 	celltype:str
+	tracetype:str
 	enddate: float
 	interpulseinterval:float
 	led: str

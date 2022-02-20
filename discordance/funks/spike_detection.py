@@ -6,15 +6,14 @@ Spike detection algorithm
 4. Separate peaks with k means clustering
 5. Check for 4 sigma difference from noise
 """
-from typing import Tuple
 from dataclasses import dataclass
+from typing import Tuple
 
 import numpy as np
 from sklearn.cluster import KMeans
 
-from .passfilters import low_pass_filter, high_pass_filter
 from .. import epochtypes as et
-
+from .passfilters import high_pass_filter, low_pass_filter
 
 HIGHPASSCUT_DRIFT = 70
 HIGHPASSCUT_SPIKES = 500
@@ -23,6 +22,7 @@ REF_PERIOD = 2e-3
 SEARCH_INTERVAL = 1e-3
 REF_PERIOD_POINTS = round(REF_PERIOD / SAMPLE_INTERVAL)
 SEARCH_INTERVAL_POINTS = round(SEARCH_INTERVAL / SAMPLE_INTERVAL)
+
 
 def detect_spikes(R: np.array) -> et.TraceSpikeResult:
     # PASS FILTERS
@@ -95,19 +95,18 @@ def detect_spikes(R: np.array) -> et.TraceSpikeResult:
 
             # NO SPIKES CHECK - MUST HAVE 4 SIGMA DIFFERENCE
             if (
-                    (np.sqrt(spike_peaks).mean() < np.sqrt(
-                        nonspike_peaks).mean() + 4 * sigma)
-                    or
+                (np.sqrt(spike_peaks).mean() < np.sqrt(
+                    nonspike_peaks).mean() + 4 * sigma)
+                or
                     len(spike_ind_log) == 0):
                 print(f"Epoch: no spikes.")
-                sp = np.array([0.0],dtype=float)
-                spike_amps = np.array([0.0],dtype=float)
-                min_spike_peak_idx = np.array([0.0],dtype=float)
-                max_noise_peak_time = np.array([0.0],dtype=float)
-                violation_idx = np.array([0.0],dtype=float)
+                sp = np.array([0.0], dtype=float)
+                spike_amps = np.array([0.0], dtype=float)
+                min_spike_peak_idx = np.array([0.0], dtype=float)
+                max_noise_peak_time = np.array([0.0], dtype=float)
+                violation_idx = np.array([0.0], dtype=float)
             # SPIKES ARE FOUND
             else:
-
                 overlaps = len(np.where(spike_peaks < max(nonspike_peaks)))
                 if overlaps < 0:
                     print(
@@ -129,18 +128,27 @@ def detect_spikes(R: np.array) -> et.TraceSpikeResult:
         else:
             print(f"Epoch: no spikes.")
             sp = np.array([0.0], dtype=float)
-            spike_amps = np.array([0.0],dtype=float)
-            min_spike_peak_idx = np.array([0.0],dtype=float)
-            max_noise_peak_time = np.array([0.0],dtype=float)
-            violation_idx = np.array([0.0],dtype=float)
+            spike_amps = np.array([0.0], dtype=float)
+            min_spike_peak_idx = np.array([0.0], dtype=float)
+            max_noise_peak_time = np.array([0.0], dtype=float)
+            violation_idx = np.array([0.0], dtype=float)
+
+    if len(sp) == 1:  # HACK IF ONLY ONE SPIKE SET TO NO SPIKE
+        sp = peak_times[spike_ind_log]
+        spike_amps = peak_amps[spike_ind_log] / noise_std
+        min_spike_peak_idx = np.flatnonzero(
+            spike_peaks == min(spike_peaks))
+        max_noise_peak_idx = np.flatnonzero(
+            nonspike_peaks == max(nonspike_peaks))
+        max_noise_peak_time = peak_times[nonspike_idx[max_noise_peak_idx]]
+        violation_idx = peak_times[nonspike_idx[max_noise_peak_idx]]
 
     return et.TraceSpikeResult(
         sp=sp,
         spike_amps=spike_amps,
         min_spike_peak_idx=min_spike_peak_idx,
         max_noise_peak_time=max_noise_peak_time,
-        violation_idx=violation_idx
-    )
+        violation_idx=violation_idx)
 
 
 def get_rebounds(peaks_idx: np.array, trace_in: np.array, search_interval: float) -> np.array:

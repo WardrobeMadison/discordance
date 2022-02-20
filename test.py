@@ -1,53 +1,35 @@
-from pathlib import Path
-from discordance import viewer, io, epochtypes
-from discordance.trees import Tree
-from discordance.epochtypes import groupby
-from typing import List, Tuple
+from discordance import io
+from multiprocessing import Pool
 
-import seaborn as sns
+info = [
+#("2021-10-21A",	"GG2 KO"),
+#("g2021-07-12A2",	"DR"),
+#("pdr2021-07-12A",	"DR"),
+#("pdr2021-08-25A2","DR"),
+("2021-10-05A",	"WT"),
+("2021-09-23A",	"WT"),]
+#("2021-12-27A",	"WT"),
+#("2021-12-28A",	"WT"),]
 
+def read(filename):
+	print(f"Start. {filename}")
+	fin = f"tests/data/{filename}.h5"
+	fout = f"tests/output/{filename}.h5"
 
-path = Path(r"tests/output/2020-07-21A.h5")
-dr = io.DiscordanceReader([path])
+	sr = io.SymphonyReader(fin)
+	sr.to_h5(fout)
+	print(f"Done. {filename}")	
 
-epochs = dr.to_epochs()
-traces = epochtypes.Traces(epochs)
-traces = filter(traces, celltype="spiketrace")
+filenames = [x[0] for x in info]
 
-splitby = ("protocolname", "celltype", "cellname", "lightamplitude", "lightmean")
-keys = [x for x, _ in groupby(traces, splitby)]
+with Pool(5) as p:
+	for x in p.imap(read, filenames):
+		print(f"Read {info}")
 
-splitby
-keys
+#for filename, genotype in info:
+#	print(filename)
+#	try:
+#		io.add_genotype(f"tests/output/{filename}.h5", genotype)
+#	except OSError:
+#		print(f"Couldn't open {filename}")
 
-# %%
-t = Tree("Test", splitby, keys)
-t.visual
-
-for leaf in t.leaves: print(leaf.path)
-
-
-for key in keys: 
-	f = dict(zip(splitby, key))
-	print(len(filter(traces, **f)))
-
-
-class AnalysisTest(Tree):
-	name = "AnalysisTest"
-	labels = ("protocolname", "celltype", "cellname", "lightamplitude", "lightmean") 
-	
-	def __init__(self, epochs):
-		self.groupedvals = groupby(epochs, self.labels)
-		super().__init__(self.name, self.labels, self.groupedvals)
-
-		# Specify which node gets what analysis
-		# Group epochs at that level by traversing sub trees
-
-	def psth(self, scope, epochs):
-		...
-
-test = AnalysisTest(epochs)
-
-
-t
-t[]

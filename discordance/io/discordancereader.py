@@ -26,7 +26,7 @@ class DiscordanceReader:
 					setattr(params, key.lower(), val)
 
 				# SEPARATE TRACES
-				if params.celltype == "spiketrace":
+				if params.tracetype == "spiketrace":
 					resp = epoch["Amp1"]
 					spikes = et.TraceSpikeResult(
 						resp.attrs["sp"],

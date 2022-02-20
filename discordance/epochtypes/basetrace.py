@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractproperty
-from typing import Dict, List
+from typing import Dict, List, Any
 
 import numpy as np
 from h5py._hl.dataset import Dataset
@@ -18,6 +18,8 @@ class ITrace(ABC):
 		self.protocolname = params.protocolname
 		self.cellname = params.cellname
 		self.celltype = params.celltype
+		self.genotype = params.genotype
+		self.tracetype = params.tracetype
 		self.path = params.path
 		self.amp = params.amp
 		self.interpulseinterval = params.interpulseinterval
@@ -48,6 +50,15 @@ class ITrace(ABC):
 			print(e)
 			return 0.0
 
+	def update(self, paramname, value):
+		parent = self._response_ds.parent
+		parent.attrs[paramname] = value
+		try:
+			setattr(self, paramname, value)
+		except:
+			print(f"Couldn't set {paramname, value} on object {self}.")
+		return 
+
 	@property
 	def values(self):
 		return self._response_ds[:]
@@ -68,6 +79,8 @@ class Traces(ABC):
 		self._traces:List[ITrace]= traces
 		self._trace_len:int=None
 		self._celltypes:List[str] = None
+		self._tracetypes:List[str] = None
+		self._genotypes:List[str] = None
 		self._interpulseintervals = None
 		self._leds = None
 		self._cellnames:List[str] = None
@@ -82,6 +95,7 @@ class Traces(ABC):
 		self._startdates:List[str] = None
 		self._enddates:List[str] = None
 		self._values:np.array = None
+
 
 	def __str__(self):
 		return str(self.key)
@@ -122,6 +136,24 @@ class Traces(ABC):
 					lambda e: e.celltype,
 					self._traces))
 		return self._celltypes
+
+	@property
+	def tracetypes(self) -> List[str]:
+		if self._tracetypes is None:
+			self._tracetypes = list(
+				map(
+					lambda e: e.tracetypes,
+					self._traces))
+		return self._tracetypes
+
+	@property
+	def genotypes(self) -> List[str]:
+		if self._genotypes is None:
+			self._genotypes = list(
+				map(
+					lambda e: e.genotype,
+					self._traces))
+		return self._genotypes
 
 	@property
 	def protocolnames(self) -> List[str]:

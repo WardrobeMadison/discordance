@@ -27,6 +27,8 @@ class DiscordanceParams:
 	protocolname: str = field( default=None)
 	cellname: str = field( default=None)
 	celltype: str = field( default=None)
+	tracetype: str = field( default = None)
+	genotype: str = field( default = None)
 	path: str = field( default=None)
 	amp: float = field( default=None)
 	interpulseinterval: float = field( default=None)

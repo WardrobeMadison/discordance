@@ -75,8 +75,16 @@ class SymphonyReader:
 
 	def _reader(self) -> Iterator[SymphonyEpoch]:
 		for cell in self._cells():
+			
+			# PARSE CELL INFORMATION
 			meta_cell = self._get_all_metadata(cell)
 			cellname = meta_cell.get("epochGroup:source:label")
+			celltype = meta_cell.get('epochGroup:source:properties:type')
+
+			if not isinstance(celltype, str): 
+				print(f"Couldn't find celltype for {self.fin, cellname}.")
+				celltype = None
+
 			for p, protocol in enumerate(self._protocols(cell)):
 				meta_protocol = self._get_all_metadata(protocol)
 				protocoldict = dict()
@@ -96,21 +104,26 @@ class SymphonyReader:
 					meta_epoch = self._get_all_metadata(epoch)
 					response_dict  = self._get_responses(epoch['responses'])
 
+					# HACK CAN'T GET LIGHT AMPLITUDE PARSING WORKING
+					lightamp = protocoldict.get("lightamplitude")
+					if lightamp is None:
+						lightamp = meta_epoch.get("protocolParameters:lightAmplitude")
 
 					yield SymphonyEpoch(
 						path=epoch.name,
 						cellname=cellname,
-						celltype = "spiketrace" if meta_epoch["backgrounds:Amp1:value"] == 0.0 else "wholetrace",
+						celltype = celltype,
+						tracetype = "spiketrace" if meta_epoch["backgrounds:Amp1:value"] == 0.0 else "wholetrace",
 						protocolname = protocoldict["protocolname"],
 						startdate=str(meta_epoch["startDate"]),
 						enddate=str(meta_epoch["endDate"]),
 						interpulseinterval=protocoldict["interpulseinterval"],
 						led=protocoldict["interpulseinterval"],
-						lightamplitude=protocoldict.get("lightamplitude"),
+						lightamplitude=lightamp,
 						lightmean=protocoldict["lightmean"],
 						numberofaverages=protocoldict["numberofaverages"],
 						pretime=protocoldict["pretime"],
-						stimtime=protocoldict["stimtime"],
+						stimtime=protocoldict.get("stimtime"),
 						samplerate=protocoldict["samplerate"],
 						tailtime=protocoldict["tailtime"],
 						responses = response_dict
@@ -205,6 +218,7 @@ class SymphonyReader:
 					"cellname",
 					"startdate",
 					"celltype",
+					"tracetype",
 					"protocolname",
 					"enddate",
 					"interpulseinterval",
@@ -242,8 +256,8 @@ class SymphonyReader:
 					ds.attrs["path"] = val["path"] 
 
 	 				#CREATE SPIKE DATASET FOR A RESPONSE
-					if symepoch.celltype == "spiketrace":
-						epochgrp.attrs["celltype"] = "spiketrace"
+					if symepoch.tracetype == "spiketrace":
+						epochgrp.attrs["tracetype"] = "spiketrace"
 						spikeinfo = detect_spikes(values)
 						ds.attrs["sp"]=spikeinfo.sp.astype(float)
 						ds.attrs["spike_amps"]=spikeinfo.spike_amps.astype(float)

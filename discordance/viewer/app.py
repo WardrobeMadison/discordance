@@ -1,6 +1,7 @@
 import sys
 from typing import Union
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib.backends.backend_qt5agg import \
@@ -8,164 +9,113 @@ from matplotlib.backends.backend_qt5agg import \
 from matplotlib.backends.backend_qt5agg import \
     NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
-from PyQt5.QtCore import QModelIndex, pyqtSlot
 from PyQt5.Qt import Qt
+from PyQt5.QtCore import QModelIndex, pyqtSlot, pyqtSignal 
 from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QHeaderView, QLabel,
                              QPushButton, QVBoxLayout, QWidget)
-import matplotlib.pyplot as plt
-plt.style.use('seaborn-ticks')
 
-from ..epochtypes import Traces, SpikeTraces
+from .components import MplCanvas
+
+
+from ..epochtypes import SpikeTraces, Traces
 from . import components as cp
 
 
 class App(QWidget):
 
-    def __init__(self, epochs: Traces, groupkeys=["protocolname", "celltype", "cellname", "lightamplitude", "lightmean"], unchecked: set=None):
-        super().__init__()
-        self.unchecked = unchecked
-        self.groupkeys = groupkeys
-        self.epochs = epochs
-        self.left = 0
-        self.top = 0
-        self.width = 1200
-        self.height = 800
-        self.initUI()
-        
-    def initUI(self):
-        self.setWindowTitle("Discordance")
-        self.setGeometry(self.left, self.top, self.width, self.height)
+	def __init__(self, epochs, tree, unchecked: set=None, uncheckedpath=None):
+		super().__init__()
+		self.unchecked = unchecked
+		self.uncheckedpath = "unchecked.csv" if uncheckedpath is None else uncheckedpath
+		self.epochs = epochs
+		self.tree = tree
+		self.left = 0
+		self.top = 0
+		self.width = 1200
+		self.height = 800
+		self.initUI()
+		
+	def initUI(self):
+		self.setWindowTitle("Discordance")
+		self.setGeometry(self.left, self.top, self.width, self.height)
 
-        initepoch = self.epochs[0]
-        
-		# create params table
-        # TODO add signal from TreeView to update table on selection
-        self.tableWidget = cp.ParamsTable(initepoch)
-        # FILL TABLE TO SPACE
-        header = self.tableWidget.horizontalHeader()       
-        header.setSectionResizeMode(0, QHeaderView.Stretch)
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+		initepoch = self.epochs[0]
+		
+		# EPOCH TRACE INFORMATION TABLE
+		self.tableWidget = cp.ParamsTable(initepoch)
+		header = self.tableWidget.horizontalHeader()       
+		header.setStretchLastSection(True)
 
-        # CREATE FIGURE
-        # TODO move to class
-        # a figure instance to plot on
-        self.figure = Figure()
-        self.ax = None
+		# MATLAB NAVIGATION
+		self.canvas = MplCanvas(self)
+		self.toolbar = NavigationToolbar(self.canvas, self)
 
-        # this is the Canvas Widget that displays the `figure`
-        # it takes the `figure` instance as a parameter to __init__
-        self.canvas = FigureCanvas(self.figure)
+		# SAVE UNCHECKED FILTERS
+		savebttn = QPushButton("Save filters", self)
+		savebttn.clicked.connect(self.on_save_bttn_click)
 
-        # this is the Navigation widget
-        # it takes the Canvas widget and a parent
-        self.toolbar = NavigationToolbar(self.canvas, self)
-        self.plot_trace(initepoch)
+		# TRACE TREE VIEWER
+		treesplitlabel = QLabel(", ".join(self.tree.labels), self)
+		self.treeWidget = cp.et.EpochTree(self.tree, unchecked=self.unchecked)
+		self.treeWidget.selectionModel().selectionChanged.connect(self.on_tree_select)
 
-        # Treeview
-        col0 = QVBoxLayout()
-        # TODO add save button to save unchecked epochs
-        self.treeWidget = cp.et.EpochTree(self.epochs, groupkeys=self.groupkeys, unchecked=self.unchecked)
-        self.treeWidget.selectionModel().selectionChanged.connect(self.update_from_tree_selection)
+		# FIRST COLUMNS
+		col0 = QVBoxLayout()
+		col0.addWidget(savebttn)
+		col0.addWidget(treesplitlabel)
+		col0.addWidget(self.treeWidget,10)
+		col0.addWidget(self.tableWidget, 4) 
+		col0.minimumSize()
 
-        col0.addWidget(QLabel(
-            ", ".join(self.groupkeys),
-            self))
-        col0.addWidget(self.treeWidget)
+		# SECOND COLUMN
+		col1 = QVBoxLayout()
+		col1.addWidget(self.toolbar)
+		col1.addWidget(self.canvas)
+		col1.maximumSize()
 
-        # Add box layout, add table to box layout and add box layout to widget
-        col1 = QVBoxLayout()
-        col1.addWidget(self.toolbar)
-        col1.addWidget(self.canvas)
-        col1.addWidget(self.tableWidget) 
+		# COMBINE COLUMNS
+		self.layout = QHBoxLayout()
+		self.layout.addLayout(col0, 1)
+		self.layout.addLayout(col1, 2)
+		self.layout.addStretch()
+		self.setLayout(self.layout) 
 
-        # Combine columns
-        self.layout = QHBoxLayout()
-        self.layout.addLayout(col0)
-        self.layout.addLayout(col1)
-        self.setLayout(self.layout) 
+		# SHOW WIDGET
+		self.showMaximized()
+		self.show()
 
-        # Show widget
-        self.show()
+	def disconnect_edit(self):
+		# DISCCONECT TABLE EDIT SIGNAL WHEN UPDATING TABLE
+		#self.disconnect(self.tableWidget, PYQT_SIGNAL("cellChanged(int, int)"), self.DoSomething)
+		...
 
-    def toggle_check(self, item, column):
-        mdlindex = self.treeWidget.model().itemFromIndex(item)
-        if item.checkState(column) == Qt.Checked:
-            print(f'{item.text(column)} was checked')
-        else:
-            print(f'{item.text(column)} was unchecked')
+	def connect_edit(self):
+		# RECONNECT TABLE EDIT SIGNAL TO PICK UP EDITS FROM USER
+		#self.connect(self.tableWidget, PYQT_SIGNAL("cellChanged(int, int)"), self.DoSomething)
+		...
 
-    #@pyqtSlot() 
-    def update_from_tree_selection(self, item: QModelIndex):
-        # HACK only works with first item selected
-        treeitem = self.treeWidget.model().itemFromIndex(item.indexes()[0])
-        if isinstance(treeitem, cp.et.GroupItem):
-            # TODO TOGGLE BETWEEN WHOLE AND SPIKE CELL TO PLOIT MEAN TRACE
-            self.plot_psth(treeitem.epochs)
-            self.tableWidget.update_mean(treeitem.epochs)
-        else:
-            self.plot_trace(treeitem.epoch)
-            self.tableWidget.update(treeitem.epoch)
+	def on_table_edit(self, item):
+		# FROM TABLE WIDGET SEND TREE UPDATED PARAMS
+		...
+	def on_reload_tree_click(self):
+		# ON BTTN CLICK, RELOAD TREE WITH UPDATED PARAMS FROM TABLE INPUT
+		...
 
-    def plot_psth(self, epochs: SpikeTraces):
-        # TODO Add filters and apply from checks
-        psth = epochs.psth
-        self.ax.clear()
+	def on_tree_select(self, item: QModelIndex):
+		# UPDATE PLOT
+		treeitem = self.treeWidget.model().itemFromIndex(item.indexes()[0])
+		self.tree.plot(treeitem.node, self.canvas)
 
-        self.ax.grid(True)
-        self.ax.plot(np.arange(len(psth))+1, psth)
-        #self.ax.title("PSTH")
-        self.ax.set_ylabel("Number of spikes per second")
-        self.ax.set_xlabel("Bin 10ms increments")
+		epoch = self.tree.query(treeitem.node)
+		self.tableWidget.update(epoch)
 
-        self.canvas.draw()
-
-
-    def plot_mean_trace(self, epochs:Traces):
-
-        values = np.mean(
-            epochs.values,
-            axis=0)
-
-        if self.ax is None:
-            self.ax = self.figure.add_subplot(111)
-        else:
-            self.ax.clear()
-        self.ax.plot(values)
-        self.ax.grid(True)
-
-        #ax.title =  epoch.startdate
-        self.ax.set_ylabel("pA")
-        self.ax.set_xlabel("10e-4 seconds")
-
-        # refresh canvas
-        self.canvas.draw()
-
-    #@pyqtSlot()
-    def plot_trace(self, epoch):
-        ''' plot some random stuff '''
-
-        if self.ax is None:
-            self.ax = self.figure.add_subplot(111)
-        else:
-            self.ax.clear()
-        self.ax.plot(epoch.values)
-        self.ax.grid(True)
-
-        if (
-            epoch.type == "SpikeTrace"
-            and epoch.spikes.sp is not None):
-                y = epoch.values[epoch.spikes.sp]
-                self.ax.scatter(epoch.spikes.sp, y, marker="x", c="#FFA500")
-
-        #ax.title =  epoch.startdate
-        self.ax.set_ylabel("pA")
-        self.ax.set_xlabel("10e-4 seconds")
-
-        # refresh canvas
-        self.canvas.draw()
+	@pyqtSlot()
+	def on_save_bttn_click(self):
+		(self.tree.frame.query("include == False")
+			.index.get_level_values("startdate").to_series()
+			.to_csv(self.uncheckedpath, index=False))
  
-def run(epochs, groupbykeys=None, unchecked:set=None):
-    app = QApplication(sys.argv)
-    ex = App(epochs, groupbykeys, unchecked)
-    sys.exit(app.exec_())  
+def run(epochs, tree, unchecked:set=None):
+	app = QApplication(sys.argv)
+	ex = App(epochs, tree, unchecked)
+	sys.exit(app.exec_())  
