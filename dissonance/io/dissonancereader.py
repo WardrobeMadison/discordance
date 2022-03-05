@@ -6,7 +6,7 @@ import h5py
 
 from .. import epochtypes as et
 
-class DiscordanceReader:
+class DissonanceReader:
 
 	def __init__(self, filepaths: List[Path]):
 		self.experimentpaths = filepaths
@@ -19,7 +19,7 @@ class DiscordanceReader:
 			experiment = h5file["experiment"]	
 			for epochname in experiment:
 				epoch = experiment[epochname]
-				params = et.DiscordanceParams()
+				params = et.dissonanceParams()
 				
 				# GET PARAMETERS
 				for key, val in epoch.attrs.items():

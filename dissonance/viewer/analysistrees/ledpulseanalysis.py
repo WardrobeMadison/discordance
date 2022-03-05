@@ -3,6 +3,9 @@ from typing import List, Tuple, Union, Dict, Any
 import seaborn as sns
 import pandas as pd
 import numpy as np
+from matplotlib.lines import Line2D
+import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
 
 from ...trees import Tree, Node
 from ...epochtypes import groupby, Traces, ITrace, SpikeTraces
@@ -90,6 +93,10 @@ class LedPulseAnalysis(Tree):
 	
 	def __init__(self, epochs: Traces, unchecked:set=None):
 		# GROUP EPOCHS INTO FLAT LIST
+		self.unchecked = set() if unchecked is None else unchecked
+		self.plant(epochs)
+		
+	def plant(self, epochs):
 		self.create_groups(epochs)
 
 		# CREATE TREE STRUCTURE
@@ -99,7 +106,7 @@ class LedPulseAnalysis(Tree):
 		self.add_epoch_leaves()
 		
 		# CREATE DATAFRAME
-		self.create_frame(unchecked)
+		self.create_frame()
 
 	def create_groups(self, epochs):
 		self.keys, self.groupedvals = list(zip(*list(groupby(epochs, self.labels))))
@@ -110,10 +117,7 @@ class LedPulseAnalysis(Tree):
 			for epoch in group:
 				leaf.add(Node("startdate", epoch.startdate))
 
-	def create_frame(self, unchecked):
-		# SET WHICH EPOCHS ARE INCLUDED IN OPERATIONS
-		self.unchecked = set() if unchecked is None else unchecked
-
+	def create_frame(self):
 		# FLAG INCLUDED AND EXCLUDED EPOCHS
 		data =[]
 		for key, group in zip(self.keys, self.groupedvals):
@@ -213,8 +217,8 @@ class LedPulseAnalysis(Tree):
 		axii = 0
 		for (name, traces) in grps:
 			psth = traces.psth
-			self.plot_psth(psth, axes[axii]); axii += 1
-			self.plot_raster(traces, axes[axii]); axii += 1
+			self.plot_psth(psth, n=len(traces.traces), ax=axes[axii]); axii += 1
+			self.plot_raster(traces, ax=axes[axii]); axii += 1
 
 		canvas.draw()
 
@@ -252,7 +256,7 @@ class LedPulseAnalysis(Tree):
 		ax.set_ylabel("pA")
 		ax.set_xlabel("10e-4 seconds")
 
-	def plot_psth(self, psth: np.array, ax):
+	def plot_psth(self, psth: np.array, n:int=None, ax: Axes=None):
 		"""Psth plot
 
 		Args:
@@ -260,19 +264,30 @@ class LedPulseAnalysis(Tree):
 			ax ([type]): [description]
 		"""
 		ax.clear()
-		ax.grid(True)
 
-		ttp = (np.argmax(psth) + 1) / (10000 / 100)
-		x = (np.arange(len(psth)) + 1) / (10000/ 100)
-
+		# PLOT VEERTICAL LINE FOR PEAK TIME	
+		seconds_conversion = 10000 / 100
+		ttp = (np.argmax(psth) + 1) / (seconds_conversion) # IN SECONDSk
+		x = (np.arange(len(psth)) + 1) / (seconds_conversion) # IN SECONDS
 		ax.axvline(ttp, linestyle='--', color='k', alpha=0.4)
+
+		# PLOT PSTH
 		ax.plot(x, psth)
 
-		ax.title.set_text("PSTH")	
+		# LEGEND FOR TTP
+		custom_lines = [Line2D([0], [0], color='k', alpha = 0.4, linestyle="--")]
+		ax.legend(custom_lines, [f"Time = {ttp:0.2f}, Amp= {np.max(psth):.02f}"])
+
+		# SET AXIS LABELS
+		title = "PSTH"
+		if n:
+			title = f"{title} (n = {n})"
+
+		ax.set_title(title)	
 		ax.set_ylabel("Hz / s")
 		ax.set_xlabel("10ms bins")
 
-	def plot_raster(self, epochs, ax):
+	def plot_raster(self, epochs, ax: Axes):
 
 		toplt = []
 		for ii, epoch in enumerate(epochs):
@@ -282,6 +297,7 @@ class LedPulseAnalysis(Tree):
 
 		ax.clear()
 		ax.grid(False)
+		ax.axis
 
 		for x,y in toplt:
 			ax.scatter(x,y, marker="|", c="k")
@@ -290,3 +306,4 @@ class LedPulseAnalysis(Tree):
 		
 		ax.title.set_text(title)	
 		ax.axes.get_yaxis().set_visible(False)
+		ax.axis("off")

@@ -2,7 +2,7 @@
 
 ## TODO
 
-- [-] Add genotype and cell type to discordance h5 file :: Jenna needs' to send csv (symphony h5 file, cell label, genotype, cell type)
+- [-] Add genotype and cell type to dissonance h5 file :: Jenna needs' to send csv (symphony h5 file, cell label, genotype, cell type)
 - [X] Get cell type from symphony h5 file
 - [ ] Add Rstarr attribute (symphony h5 file name, cell label, lightmean, RStarr value)
 - [ ] Add start p values from Jenna

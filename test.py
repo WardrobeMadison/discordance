@@ -1,5 +1,7 @@
-from discordance import io
+from dissonance import io
 from multiprocessing import Pool
+from functools import cached_property
+import numpy as np
 
 info = [
 #("2021-10-21A",	"GG2 KO"),
@@ -33,3 +35,20 @@ with Pool(5) as p:
 #	except OSError:
 #		print(f"Couldn't open {filename}")
 
+class Test:
+
+	def __init__(self, data):
+
+		self._data = data
+
+	@cached_property
+	def std(self):
+		return np.std(self._data)
+
+t = Test(
+	np.array([1,2,3,4,5,6], dtype=float)
+)
+
+t.std
+
+t._data = np.random.random((1, 500))

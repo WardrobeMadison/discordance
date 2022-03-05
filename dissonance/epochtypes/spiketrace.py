@@ -4,16 +4,16 @@ from dataclasses import dataclass
 from typing import List
 
 import numpy as np
-from discordance.funks.psth import calculate_psth
+from dissonance.funks.psth import calculate_psth
 from h5py._hl.dataset import Dataset
 
-from .ns_epochtypes import DiscordanceParams, TraceSpikeResult
+from .ns_epochtypes import dissonanceParams, TraceSpikeResult
 from .basetrace import ITrace, Traces
 
 class SpikeTrace(ITrace):
 
 	def __init__(self, epochpath: str,
-			parameters:DiscordanceParams=None, 
+			parameters:dissonanceParams=None, 
 			spikes:TraceSpikeResult=None,
 			response: Dataset=None):
 

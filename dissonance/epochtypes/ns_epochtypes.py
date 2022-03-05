@@ -23,7 +23,7 @@ class TraceSpikeResult:
 		self.violation_idx = self.violation_idx.astype(int)
 
 @dataclass
-class DiscordanceParams:
+class dissonanceParams:
 	protocolname: str = field( default=None)
 	cellname: str = field( default=None)
 	celltype: str = field( default=None)

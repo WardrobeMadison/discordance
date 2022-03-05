@@ -1,6 +1,6 @@
 from pathlib import Path
-from discordance import viewer, io, epochtypes 
-from discordance .epochtypes import filter
+from dissonance import viewer, io, epochtypes 
+from dissonance.epochtypes import filter
 
 
 def test_window():
@@ -9,7 +9,7 @@ def test_window():
 			Path(r"tests/output/pdr2021-07-12A.h5"),
 			Path(r"tests/output/2021-10-05A.h5")
 		]
-		dr = io.DiscordanceReader(paths)
+		dr = io.DissonanceReader(paths)
 		epochs = dr.to_epochs()
 		traces = epochtypes.Traces(epochs)
 

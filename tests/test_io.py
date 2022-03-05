@@ -1,5 +1,5 @@
 from pathlib import Path
-from discordance import viewer, io, epochtypes
+from dissonance import viewer, io, epochtypes
 
 def test_to_json():
 	path = "tests/data/2020-07-21A.h5"
@@ -8,7 +8,7 @@ def test_to_json():
 	filemap = io.FileMap(path, outpath)
 
 	sr = io.SymphonyReader(filemap.symphonyfilepath)
-	sr.to_json(filemap.discordancefilepath)
+	sr.to_json(filemap.dissonancefilepath)
 
 				
 def test_to_h5():
@@ -21,7 +21,7 @@ def test_to_h5():
 
 def test_reader():
 	path = Path(r"tests/output/2020-07-21A.h5")
-	dr = io.DiscordanceReader([path])
+	dr = io.DissonanceReader([path])
 	epochs = dr.to_epochs()
 
 	print(epochs)

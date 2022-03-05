@@ -10,7 +10,7 @@ from . import ns_epochtypes as ns
 
 class ITrace(ABC):
 
-	def __init__(self, epochpath: str, params: ns.DiscordanceParams, response: Dataset):
+	def __init__(self, epochpath: str, params: ns.dissonanceParams, response: Dataset):
 
 		self._epochpath:str = epochpath
 		self._response_ds = response
@@ -51,13 +51,16 @@ class ITrace(ABC):
 			return 0.0
 
 	def update(self, paramname, value):
-		parent = self._response_ds.parent
-		parent.attrs[paramname] = value
-		try:
-			setattr(self, paramname, value)
-		except:
-			print(f"Couldn't set {paramname, value} on object {self}.")
-		return 
+		if paramname in set(["genotype", "celltype"]):
+			parent = self._response_ds.parent
+			parent.attrs[paramname] = value
+			try:
+				setattr(self, paramname, value)
+			except:
+				print(f"Couldn't set {paramname, value} on object {self}.")
+			return 
+		else:
+			print(f"Can't change {paramname} to {value}")
 
 	@property
 	def values(self):
@@ -130,11 +133,10 @@ class Traces(ABC):
 
 	@property
 	def celltypes(self) -> List[str]:
-		if self._celltypes is None:
-			self._celltypes = list(
-				map(
-					lambda e: e.celltype,
-					self._traces))
+		self._celltypes = list(
+			map(
+				lambda e: e.celltype,
+				self._traces))
 		return self._celltypes
 
 	@property
@@ -148,11 +150,10 @@ class Traces(ABC):
 
 	@property
 	def genotypes(self) -> List[str]:
-		if self._genotypes is None:
-			self._genotypes = list(
-				map(
-					lambda e: e.genotype,
-					self._traces))
+		self._genotypes = list(
+			map(
+				lambda e: e.genotype,
+				self._traces))
 		return self._genotypes
 
 	@property
@@ -276,11 +277,10 @@ class Traces(ABC):
 
 	@property
 	def leds(self) -> List[str]:
-		if self._leds is None:
-			self._leds = list(
-				map(
-					lambda e: 
-					e.led,
-					self._traces))
+		self._leds = list(
+			map(
+				lambda e: 
+				e.led,
+				self._traces))
 		return self._leds
 

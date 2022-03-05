@@ -3,7 +3,7 @@ import numpy as np
 import h5py
 import matplotlib.pyplot as plt
 
-from discordance.funks.spike_detection import detect_spikes
+from dissonance.funks.spike_detection import detect_spikes
 # %%
 path = "tests/data/2020-07-21A.h5"
 responsepath = "/experiment-b4de61ea-4027-46ba-bdd3-cc44f85bd683/epochGroups/epochGroup-00aefebb-b806-4e58-8573-a50519ca4783/epochBlocks/edu.wisc.sinhalab.protocols.LedPulse-4923f1e0-ef64-4392-b94d-23fe0ee28f35/epochs/epoch-533b6185-53c2-488b-b1f5-3dfc65b1510c/responses/Amp1-1dce0eb9-ca6c-4ea1-ac01-f64e037124ec"

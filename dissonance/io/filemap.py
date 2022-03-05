@@ -5,7 +5,7 @@ from dataclasses import dataclass
 @dataclass
 class FileMap:
 	symphonyfilepath: Path
-	discordancefilepath: Path
+	dissonancefilepath: Path
 	
 
 	

@@ -51,23 +51,32 @@ class EpochItem(QStandardItem):
 class EpochTree(QTreeView):
 
 	def __init__(self, at:Tree, unchecked:set=None):
-		super().__init__()
-
 		self.unchecked = set() if unchecked is None else unchecked
+		super().__init__()
+		self.setHeaderHidden(True)
+
+		self.plant(at)
+		self.model().itemChanged.connect(self.toggle_check)
+
+		self.set_initial_collapse()
+
+	def set_initial_collapse(self):
+		# TODO make expoch layer not collapsed
+		print("here")
+		...
+
+	def plant(self, at):
 		self.at = at
 
-		# TRANSLATE TREE TO Qt Items ITEMS
-		self.setHeaderHidden(True)
 		treeModel = QStandardItemModel()
 		rootNode = treeModel.invisibleRootItem()
 
+		# TRANSLATE TREE TO Qt Items ITEMS
 		root = GroupItem(at[0])
 		self.add_items(at[0], root)
 		rootNode.appendRow(root)
 
 		self.setModel(treeModel)
-		treeModel.itemChanged.connect(self.toggle_check)
-
 		self.expandAll()
 
 	def toggle_check(self, item:QStandardItem):

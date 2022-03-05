@@ -1,3 +1,4 @@
+from re import S
 import sys
 from typing import Union
 
@@ -5,17 +6,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib.backends.backend_qt5agg import \
-    FigureCanvasQTAgg as FigureCanvas
+	FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import \
-    NavigationToolbar2QT as NavigationToolbar
+	NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 from PyQt5.Qt import Qt
 from PyQt5.QtCore import QModelIndex, pyqtSlot, pyqtSignal 
 from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QHeaderView, QLabel,
-                             QPushButton, QVBoxLayout, QWidget)
+							 QPushButton, QVBoxLayout, QWidget, QScrollArea,
+							 QFileDialog)
 
 from .components import MplCanvas
-
 
 from ..epochtypes import SpikeTraces, Traces
 from . import components as cp
@@ -36,7 +37,7 @@ class App(QWidget):
 		self.initUI()
 		
 	def initUI(self):
-		self.setWindowTitle("Discordance")
+		self.setWindowTitle("dissonance")
 		self.setGeometry(self.left, self.top, self.width, self.height)
 
 		initepoch = self.epochs[0]
@@ -45,6 +46,8 @@ class App(QWidget):
 		self.tableWidget = cp.ParamsTable(initepoch)
 		header = self.tableWidget.horizontalHeader()       
 		header.setStretchLastSection(True)
+		
+		self.tableWidget.itemDelegate().closeEditor.connect(self.on_table_edit)
 
 		# MATLAB NAVIGATION
 		self.canvas = MplCanvas(self)
@@ -70,8 +73,14 @@ class App(QWidget):
 		# SECOND COLUMN
 		col1 = QVBoxLayout()
 		col1.addWidget(self.toolbar)
-		col1.addWidget(self.canvas)
-		col1.maximumSize()
+
+		self.scroll = QScrollArea()
+		self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+		self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+		self.scroll.setWidgetResizable(True)
+		self.scroll.setWidget(self.canvas)
+
+		col1.addWidget(self.scroll)
 
 		# COMBINE COLUMNS
 		self.layout = QHBoxLayout()
@@ -96,7 +105,23 @@ class App(QWidget):
 
 	def on_table_edit(self, item):
 		# FROM TABLE WIDGET SEND TREE UPDATED PARAMS
-		...
+		idx = self.tableWidget.selectionModel().currentIndex()
+		row, col = idx.row(), idx.column()
+		paramname = self.tableWidget.model().index(row, 0).data()
+		value = self.tableWidget.model().index(row, 1).data()
+		startdates = self.tableWidget.df.loc[self.tableWidget.df.Param == "startdate"].Val.values
+
+		# UPDATE EPOCHS
+		for epoch in self.epochs:
+			if epoch.startdate in startdates:
+				#epoch.update(paramname, value)
+				print(epoch.startdate, paramname,value)
+
+		# REFRESH TREE
+		self.tree.plant(self.epochs)
+		self.treeWidget.plant(self.tree)
+		print(item)
+
 	def on_reload_tree_click(self):
 		# ON BTTN CLICK, RELOAD TREE WITH UPDATED PARAMS FROM TABLE INPUT
 		...
@@ -111,9 +136,14 @@ class App(QWidget):
 
 	@pyqtSlot()
 	def on_save_bttn_click(self):
-		(self.tree.frame.query("include == False")
-			.index.get_level_values("startdate").to_series()
-			.to_csv(self.uncheckedpath, index=False))
+		options = QFileDialog.Options()
+		options |= QFileDialog.DontUseNativeDialog
+		fileName, _ = QFileDialog.getSaveFileName(self,"QFileDialog.getSaveFileName()","","All Files (*);;Text Files (*.txt)", options=options)
+		if fileName:
+			print(fileName)
+			(self.tree.frame.query("include == False")
+				.index.get_level_values("startdate").to_series()
+				.to_csv(fileName, index=False))
  
 def run(epochs, tree, unchecked:set=None):
 	app = QApplication(sys.argv)

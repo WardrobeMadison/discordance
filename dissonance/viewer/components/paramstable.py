@@ -29,8 +29,6 @@ class ParamsTable(QTableWidget):
 
 		self.update(epoch)
 
-
-	
 	@pyqtSlot()
 	def update(self, epoch: Union[et.ITrace, et.Traces]):
 		"""Update params table with epoch 
@@ -43,17 +41,25 @@ class ParamsTable(QTableWidget):
 		self.setRowCount(len(self.params))
 		self.setColumnCount(2)
 
+		data = []
 		if isinstance(epoch, et.Traces):
 			for ii, paramname in enumerate(self.params):
 				self.setItem(ii,0,
 					QTableWidgetItem(paramname))
-				text = set(getattr(epoch, paramname+"s"))
+				val = set(getattr(epoch, paramname+"s"))
+				text = ",".join(map(str,val))
 				self.setItem(ii,1, 
-					QTableWidgetItem(",".join(map(str,text))))
+					QTableWidgetItem(text))
+				data.append([paramname, text, val])
 		else:
 			for ii, paramname in enumerate(self.params):
 				self.setItem(ii,0,
 					QTableWidgetItem(paramname))
+				val = getattr(epoch, paramname)
+				text = str(val)
 				self.setItem(ii,1, 
-					QTableWidgetItem(str(getattr(epoch, paramname))))
+					QTableWidgetItem(text))
+				data.append([paramname, text, val])
+
+		self.df = pd.DataFrame(columns = "Param Text Val".split(), data=data)
 	
