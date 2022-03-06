@@ -1,17 +1,14 @@
 from dissonance import io
 from multiprocessing import Pool
-from functools import cached_property
-import numpy as np
 
 info = [
-#("2021-10-21A",	"GG2 KO"),
-#("g2021-07-12A2",	"DR"),
-#("pdr2021-07-12A",	"DR"),
-#("pdr2021-08-25A2","DR"),
+("2021-10-21A",	"GG2 KO"),
+("g2021-07-12A2",	"DR"),
+("pdr2021-07-12A",	"DR"),
+("pdr2021-08-25A2","DR"),
 ("2021-10-05A",	"WT"),
-("2021-09-23A",	"WT"),]
-#("2021-12-27A",	"WT"),
-#("2021-12-28A",	"WT"),]
+("2021-09-23A",	"WT"),
+]
 
 def read(filename):
 	print(f"Start. {filename}")
@@ -28,27 +25,3 @@ with Pool(5) as p:
 	for x in p.imap(read, filenames):
 		print(f"Read {info}")
 
-#for filename, genotype in info:
-#	print(filename)
-#	try:
-#		io.add_genotype(f"tests/output/{filename}.h5", genotype)
-#	except OSError:
-#		print(f"Couldn't open {filename}")
-
-class Test:
-
-	def __init__(self, data):
-
-		self._data = data
-
-	@cached_property
-	def std(self):
-		return np.std(self._data)
-
-t = Test(
-	np.array([1,2,3,4,5,6], dtype=float)
-)
-
-t.std
-
-t._data = np.random.random((1, 500))

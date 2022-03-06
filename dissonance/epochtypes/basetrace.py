@@ -10,7 +10,7 @@ from . import ns_epochtypes as ns
 
 class ITrace(ABC):
 
-	def __init__(self, epochpath: str, params: ns.dissonanceParams, response: Dataset):
+	def __init__(self, epochpath: str, params: ns.DissonanceParams, response: Dataset):
 
 		self._epochpath:str = epochpath
 		self._response_ds = response

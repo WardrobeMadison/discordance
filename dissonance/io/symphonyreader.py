@@ -118,7 +118,7 @@ class SymphonyReader:
 						startdate=str(meta_epoch["startDate"]),
 						enddate=str(meta_epoch["endDate"]),
 						interpulseinterval=protocoldict["interpulseinterval"],
-						led=protocoldict["interpulseinterval"],
+						led=protocoldict["led"],
 						lightamplitude=lightamp,
 						lightmean=protocoldict["lightmean"],
 						numberofaverages=protocoldict["numberofaverages"],

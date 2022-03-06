@@ -19,7 +19,7 @@ class DissonanceReader:
 			experiment = h5file["experiment"]	
 			for epochname in experiment:
 				epoch = experiment[epochname]
-				params = et.dissonanceParams()
+				params = et.DissonanceParams()
 				
 				# GET PARAMETERS
 				for key, val in epoch.attrs.items():

@@ -2,6 +2,7 @@ import itertools
 from dataclasses import dataclass, field
 from typing import Iterator, List, Tuple
 
+import pandas as pd
 import numpy as np
 
 from . import basetrace as bt 
@@ -23,7 +24,7 @@ class TraceSpikeResult:
 		self.violation_idx = self.violation_idx.astype(int)
 
 @dataclass
-class dissonanceParams:
+class DissonanceParams:
 	protocolname: str = field( default=None)
 	cellname: str = field( default=None)
 	celltype: str = field( default=None)
@@ -47,7 +48,6 @@ class dissonanceParams:
 def groupby(traces: bt.Traces, args):
 	# ALWAYS PROCESS TYPE FIRST, MAKE THE OTHERS PLURAL
 	args_traces = [x+"s" for x in args]
-
 
 	# GET SET OF KEY VALUES TO FILTER LIST
 	grpon = list()
@@ -73,9 +73,14 @@ def groupby(traces: bt.Traces, args):
 				break
 
 	# CONVERT TRACE LIST TO SPIKETRACES
+	data = []
 	for key, grp in zip(keys, grpd):
 		if len(grp) > 0:
-			yield key, st.SpikeTraces(key, grp)
+			data.append([*key, st.SpikeTraces(key, grp)])
+	
+	df = pd.DataFrame(columns = [*args, "trace"], data=data)
+
+	return df
 
 def filter(traces, **kwargs):
 	out = []

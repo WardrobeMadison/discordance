@@ -7,13 +7,13 @@ import numpy as np
 from dissonance.funks.psth import calculate_psth
 from h5py._hl.dataset import Dataset
 
-from .ns_epochtypes import dissonanceParams, TraceSpikeResult
+from .ns_epochtypes import DissonanceParams, TraceSpikeResult
 from .basetrace import ITrace, Traces
 
 class SpikeTrace(ITrace):
 
 	def __init__(self, epochpath: str,
-			parameters:dissonanceParams=None, 
+			parameters:DissonanceParams=None, 
 			spikes:TraceSpikeResult=None,
 			response: Dataset=None):
 
@@ -44,6 +44,7 @@ class SpikeTraces(Traces):
 
 		self.key = key
 		self._psth:np.array = None
+		self._psths:np.array = None
 
 	@property
 	def psth(self):
@@ -55,11 +56,24 @@ class SpikeTraces(Traces):
 			for trace in self._traces:
 				if len(trace.psth) > 0 and trace.psth is not None:
 					cpsth = np.pad(trace.psth, (0, int(self.trace_len // inc - len(trace.psth))))
-					if cnt == 0: psths = cpsth
-					else: psths += cpsth
+					if cnt == 0: psths_ = cpsth
+					else: psths_ += cpsth
 					cnt += 1
 
-			if cnt != 0: self._psth = psths / cnt
+			if cnt != 0: self._psth = psths_ / cnt
 
 		return self._psth
+
+	@property
+	def psths(self) -> np.array:
+		inc = 100
+		if self._psths is None:
+			self._psths = []
+			for trace in self._traces:
+				if len(trace.psth) > 0 and trace.psth is not None:
+					cpsth = np.pad(trace.psth, (0, int(self.trace_len // inc - len(trace.psth))))
+					self._psths.append(cpsth)
+		return np.array(self._psths, dtype=float)
+
+
 
