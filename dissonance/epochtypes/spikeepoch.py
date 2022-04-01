@@ -8,9 +8,9 @@ from dissonance.funks.psth import calculate_psth
 from h5py._hl.dataset import Dataset
 
 from .ns_epochtypes import DissonanceParams, TraceSpikeResult
-from .basetrace import ITrace, Traces
+from .baseepoch import IEpoch, Epochs
 
-class SpikeTrace(ITrace):
+class SpikeEpoch(IEpoch):
 
 	def __init__(self, epochpath: str,
 			parameters:DissonanceParams=None, 
@@ -35,14 +35,12 @@ class SpikeTrace(ITrace):
 	def type(self) -> str:
 		return "spiketrace"
 
-class SpikeTraces(Traces):
+class SpikeEpochs(Epochs):
 
 	type = "spiketrace"
 
-	def __init__(self, key, traces: List[SpikeTrace]):
+	def __init__(self, traces: List[SpikeEpoch]):
 		super().__init__(traces)
-
-		self.key = key
 		self._psth:np.array = None
 		self._psths:np.array = None
 

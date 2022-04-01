@@ -9,7 +9,7 @@ from PyQt5.QtCore import pyqtSlot
 from PyQt5.QtGui import QColor, QFont
 from PyQt5.QtWidgets import QApplication, QMainWindow, QTreeView
 
-from ...epochtypes import ITrace, Traces, SpikeTraces, groupby
+from ...epochtypes import IEpoch, Epochs, SpikeEpochs, groupby
 from ...trees.base import Tree, Node
 
 class GroupItem(QStandardItem):
@@ -72,8 +72,8 @@ class EpochTree(QTreeView):
 		rootNode = treeModel.invisibleRootItem()
 
 		# TRANSLATE TREE TO Qt Items ITEMS
-		root = GroupItem(at[0])
-		self.add_items(at[0], root)
+		root = GroupItem(at)
+		self.add_items(at, root)
 		rootNode.appendRow(root)
 
 		self.setModel(treeModel)

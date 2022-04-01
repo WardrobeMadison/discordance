@@ -8,7 +8,7 @@ from h5py._hl.dataset import Dataset
 
 from . import ns_epochtypes as ns
 
-class ITrace(ABC):
+class IEpoch(ABC):
 
 	def __init__(self, epochpath: str, params: ns.DissonanceParams, response: Dataset):
 
@@ -71,15 +71,15 @@ class ITrace(ABC):
 	def type(self):
 		...
 
-class Traces(ABC):
+class Epochs(ABC):
 
-	def __init__(self, traces = List[ITrace]):
+	def __init__(self, traces = List[IEpoch]):
 		# HACK key should be daterange, convert dates from string to datetimes
 		if len(traces) > 0:
 			self.key = traces[0].startdate 
 		else: 
 			self.key = None
-		self._traces:List[ITrace]= traces
+		self._traces:List[IEpoch]= traces
 		self._trace_len:int=None
 		self._celltypes:List[str] = None
 		self._tracetypes:List[str] = None
@@ -103,7 +103,7 @@ class Traces(ABC):
 	def __str__(self):
 		return str(self.key)
 
-	def __getitem__(self, val) -> ITrace:
+	def __getitem__(self, val) -> IEpoch:
 		return self._traces[val]
 
 	def __len__(self):
@@ -118,7 +118,7 @@ class Traces(ABC):
 		return self._trace_len
 
 	@property
-	def traces(self)-> List[ITrace]: return self._traces
+	def traces(self)-> List[IEpoch]: return self._traces
 
 	@property
 	def values(self) -> np.array:

@@ -18,17 +18,17 @@ from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QHeaderView, QLabel,
 
 from .components import MplCanvas
 
-from ..epochtypes import SpikeTraces, Traces
+from ..epochtypes import SpikeEpochs, Epochs
 from . import components as cp
 
 
 class App(QWidget):
 
-	def __init__(self, epochs, tree, unchecked: set=None, uncheckedpath=None):
+	def __init__(self, tree, unchecked: set=None, uncheckedpath=None):
 		super().__init__()
 		self.unchecked = unchecked
 		self.uncheckedpath = "unchecked.csv" if uncheckedpath is None else uncheckedpath
-		self.epochs = epochs
+		#self.epochs = epochs
 		self.tree = tree
 		self.left = 0
 		self.top = 0
@@ -40,7 +40,7 @@ class App(QWidget):
 		self.setWindowTitle("dissonance")
 		self.setGeometry(self.left, self.top, self.width, self.height)
 
-		initepoch = self.epochs[0]
+		initepoch = self.tree.frame.epoch.iloc[0]
 		
 		# EPOCH TRACE INFORMATION TABLE
 		self.tableWidget = cp.ParamsTable(initepoch)
@@ -104,23 +104,24 @@ class App(QWidget):
 		...
 
 	def on_table_edit(self, item):
-		# FROM TABLE WIDGET SEND TREE UPDATED PARAMS
-		idx = self.tableWidget.selectionModel().currentIndex()
-		row, col = idx.row(), idx.column()
-		paramname = self.tableWidget.model().index(row, 0).data()
-		value = self.tableWidget.model().index(row, 1).data()
-		startdates = self.tableWidget.df.loc[self.tableWidget.df.Param == "startdate"].Val.values
+		pass
+		## FROM TABLE WIDGET SEND TREE UPDATED PARAMS
+		#idx = self.tableWidget.selectionModel().currentIndex()
+		#row, col = idx.row(), idx.column()
+		#paramname = self.tableWidget.model().index(row, 0).data()
+		#value = self.tableWidget.model().index(row, 1).data()
+		#startdates = self.tableWidget.df.loc[self.tableWidget.df.Param == "startdate"].Val.values
 
-		# UPDATE EPOCHS
-		for epoch in self.epochs:
-			if epoch.startdate in startdates:
-				#epoch.update(paramname, value)
-				print(epoch.startdate, paramname,value)
+		## UPDATE EPOCHS
+		#for epoch in self.epochs:
+		#	if epoch.startdate in startdates:
+		#		#epoch.update(paramname, value)
+		#		print(epoch.startdate, paramname,value)
 
-		# REFRESH TREE
-		self.tree.plant(self.epochs)
-		self.treeWidget.plant(self.tree)
-		print(item)
+		## REFRESH TREE
+		#self.tree.plant(self.epochs)
+		#self.treeWidget.plant(self.tree)
+		#print(item)
 
 	def on_reload_tree_click(self):
 		# ON BTTN CLICK, RELOAD TREE WITH UPDATED PARAMS FROM TABLE INPUT
@@ -145,7 +146,7 @@ class App(QWidget):
 				.index.get_level_values("startdate").to_series()
 				.to_csv(fileName, index=False))
  
-def run(epochs, tree, unchecked:set=None):
+def run(tree, unchecked:set=None):
 	app = QApplication(sys.argv)
-	ex = App(epochs, tree, unchecked)
+	ex = App( tree, unchecked)
 	sys.exit(app.exec_())  

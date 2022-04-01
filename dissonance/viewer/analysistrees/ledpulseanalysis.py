@@ -8,11 +8,11 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from scipy.stats import ttest_ind
 
-from dissonance.epochtypes.spiketrace import SpikeTrace
+from dissonance.epochtypes.spikeepoch import SpikeEpoch
 
 from .baseanalysis import BaseAnalysis
 from ...trees import Node
-from ...epochtypes import groupby, Traces, ITrace, SpikeTraces, filter
+from ...epochtypes import groupby, Epochs, IEpoch, SpikeEpochs, filter
 from ..components.chart import MplCanvas
 
 def p_to_star(p):
@@ -27,9 +27,9 @@ def p_to_star(p):
 
 class LedPulseAnalysis(BaseAnalysis):
 
-	def __init__(self, epochs: Traces, unchecked:set=None):
+	def __init__(self, epochs: Epochs, unchecked:set=None):
 		# CONSTRUCT BASE, FILTER ON TRACE TYPE, LED AND PROTOCOL NAME
-		epochs_ = filter(epochs, led=self.led, protocolname = self.protocolname, tracetype="spiketrace"),
+		epochs_ = filter(epochs, led=self.led, protocolname = self.protocolname, tracetype="spiketrace")
 		super().__init__(
 			epochs_,
 			unchecked)
@@ -41,16 +41,16 @@ class LedPulseAnalysis(BaseAnalysis):
 	def protocolname(self): return "LedPulse"
 
 	@property
-	def led(self): return "Green"
+	def led(self): return "Green LED"
 
 	@property
 	def labels(self): return ("celltype", "genotype", "cellname", "lightamplitude", "lightmean") 
 
 	@property
-	def tracestype(self): return SpikeTraces
+	def tracestype(self): return SpikeEpochs
 
 	@property
-	def tracetype(self): return SpikeTrace
+	def tracetype(self): return SpikeEpoch
 	
 	def plot(self, node: Node, canvas: MplCanvas=None):
 		"""Map node level to analysis run & plots created.
@@ -71,10 +71,6 @@ class LedPulseAnalysis(BaseAnalysis):
 			self.grid_plot(epochs, canvas)
 		# ACROSS CELL ANALYSIS
 		elif (scope[1:] == ["celltype", "genotype"]):
-			# Check if UVLED
-			# CRF plots (pct contrast x avg peak amplitude)
-			# CRF plots (pct contrast x time to peak)
-			...
 
 			# GET ALL CHILD EPOCHS FROM SELECTION
 			epochs = self.query(node)
@@ -83,18 +79,22 @@ class LedPulseAnalysis(BaseAnalysis):
 			df = groupby(epochs, self.labels)
 
 			# ANALYSIS IS AT AVERAGE OF CELLS
-			idx = ["celltype", "genotype", "lightamplitude", "lightmean"]
-			n,m  = df.shape[0], 2
+			idx = ["celltype", "genotype", "cellname", "lightamplitude", "lightmean"]
+			n,m  = len(list(df.groupby(idx))), 1
 			axes = canvas.grid_axis(n,m)
-			for name, frame in df.groupby(idx):
-				self.plot_swarm("peakamplitude", frame)
+			for ii, (name, frame) in enumerate(df.groupby(idx)):
+				self.plot_epoch_swarm(frame, ax= axes[ii])
+
+			# CRF plots (pct contrast x avg peak amplitude)
+			# CRF plots (pct contrast x time to peak)
+			canvas.draw()
 
 		# COMPARE GENOTYPES
-		elif (scope[1:] == ["led", "celltype"]):
+		elif (scope[1:] == ["celltype"]):
 			epochs = self.query(node)
 			self.genotype_comparison(epochs, canvas)
 
-	def genotype_comparison(self, epochs: Traces, canvas: MplCanvas = None):
+	def genotype_comparison(self, epochs: Epochs, canvas: MplCanvas = None):
 		"""Compare epochs by genotype
 
 		Args:
@@ -105,18 +105,16 @@ class LedPulseAnalysis(BaseAnalysis):
 
 		# GROUP EPOCHS SELECTED BY LABELS
 		df = groupby(epochs, self.labels)
-		n,m  = df.shape[0], 2
+		n = len((df.lightmean.astype(str) + df.lightamplitude.astype(str)).unique())
+		n,m  = n, 1
 		axes = canvas.grid_axis(n,m)
 
-		# GROUP INTO GENOTYPES
+		for ii, (name, frame) in enumerate(df.groupby(["lightmean", "lightamplitude"])):
+			self.plot_swarm(frame, axes[ii])
 
-		genos = df.genotype.unique()
+		canvas.draw()
 
-		for name, frame in df.groupby(["lightmean", "lightamplitude"]):
-			epochs = dict(zip(genos, frame.trace.values))
-			self.plot_swarm(epochs, axes)
-
-	def grid_plot(self, epochs: SpikeTraces, canvas: MplCanvas=None):
+	def grid_plot(self, epochs: SpikeEpochs, canvas: MplCanvas=None):
 		"""Plot faceted mean psth
 		"""
 		# TODO fix scope of group by. Need to determine which ones to plot separately
@@ -133,7 +131,7 @@ class LedPulseAnalysis(BaseAnalysis):
 
 		canvas.draw()
 
-	def plot_spike_trace(self, epoch: SpikeTraces, canvas: MplCanvas=None):
+	def plot_spike_trace(self, epoch: SpikeEpochs, canvas: MplCanvas=None):
 		"""Plot trace with spikes and psth
 
 		Args:
@@ -146,7 +144,7 @@ class LedPulseAnalysis(BaseAnalysis):
 		self.plot_psth(epoch.psth, ax=axes[1])
 		canvas.draw()
 
-	def plot_trace(self, epoch:SpikeTraces, ax):
+	def plot_trace(self, epoch:SpikeEpochs, ax):
 		"""Plot traces
 
 		Args:
@@ -197,7 +195,7 @@ class LedPulseAnalysis(BaseAnalysis):
 		ax.set_ylabel("Hz / s")
 		ax.set_xlabel("10ms bins")
 
-	def plot_raster(self, epochs: Traces, ax: Axes=None):
+	def plot_raster(self, epochs: Epochs, ax: Axes=None):
 		"""Raster plots
 
 		Args:
@@ -224,7 +222,98 @@ class LedPulseAnalysis(BaseAnalysis):
 		ax.axes.get_yaxis().set_visible(False)
 		ax.axis("off")
 
-	def plot_swarm(self, epochs: pd.DataFrame, window: Tuple[int, int] = None, ax: Axes = None) -> None:
+	def plot_swarm(self, epochs: pd.DataFrame, ax: Axes = None) -> None:
+		"""Swarm plot :: bar graph of means with SEM and scatter. Show signficance
+
+		Args:
+			epochs (Dict[str,SpikeTraces]): Maps genos name to traces to plot.
+			ax (Axes, optional): Axis obj from parent figure, creates figure if not provided. Defaults to None.
+		"""
+		if ax is None: fig, ax, = plt.subplots()
+
+		# FOR EACH GENOTYPE
+		# FOR EACH CELL IN CELLS (each epoch stored as indiviudal cell)
+		toplt = []
+		ymax = 0.0
+		for ii, (name, frame) in enumerate(epochs.groupby("genotype")):
+			celltraces = frame.trace.values
+
+			peakamps = np.array([
+				np.max(cell.psth)
+				for cell in celltraces
+			], dtype=float)
+
+			meanpeakamp = np.mean(peakamps)
+			sem = np.std(peakamps) / np.sqrt(len(peakamps))
+
+			ymax = max(ymax, meanpeakamp) if meanpeakamp > 0 else min(ymax, meanpeakamp)
+
+			toplt.append(
+				dict(
+					label= name,
+					peakamps=peakamps,
+					meanpeakamp=meanpeakamp,
+					sem=sem))
+
+			ax.bar(ii,
+				height=meanpeakamp,
+				yerr=sem, 
+				capsize=12, 	
+				tick_label=name,
+				alpha=0.5)
+
+			# PLOT SCATTER
+			ax.scatter(
+				np.repeat(ii, len(peakamps)), 
+				peakamps, 
+				alpha = 0.25)
+			
+			# LABEL NUMBER OF CELLS 
+			ax.text(ii, 0, f"n={len(peakamps)}",
+				ha='center', va='bottom', color='k')
+
+		# CALCULATE SIGNIFICANCE
+		if len(toplt) > 1:
+			stat, p = ttest_ind(
+				toplt[0].peakamps, toplt[1].peakamps)
+
+			stars = p_to_star(p)
+			stars = f"p={p:0.03f}" if stars == "ns" and p < 0.06 else stars
+			x1, x2 = 0, 1 # ASSUME ONLY 2
+
+			# PLOT SIGNFICANCE LABEL
+			# HACK PERCENT TO PUT ABOVE MAX POINT. DOESN'T WORK WELL FOR SMALL VALUES
+			pct = 0.05 
+			ay, h, col = ymax + ymax * pct, ymax * pct, 'k'
+
+			ax.plot(
+				[x1, x1, x2, x2], 
+				[ay, ay+h, ay+h, ay], 
+				lw=1.5, c=col)
+
+			ax.text(
+				(x1+x2)*.5, 
+				ay+h, 
+				stars, 
+				ha='center', va='bottom', 
+				color=col)
+
+		# FIG SETTINGS
+		ax.grid(False)
+		ax.set_title("Background")
+
+		# X AXIS FORMAT
+		ax.xaxis.set_ticks_position('none') 
+		ax.set_xticks(np.arange(len(toplt)), dtype=float)
+		ax.set_xticklabels([x["label"] for x in toplt])
+		ax.set_xlabel("Background (R*/S-Cone/sec)")
+
+		# Y AXIS FORMAT
+		ax.set_ylabel("pA")
+		ax.set_ylim((0.0, ymax * 1.20))
+
+
+	def plot_epoch_swarm(self, epochs: pd.DataFrame, window: Tuple[int, int] = None, ax: Axes = None) -> None:
 		"""Swarm plot :: bar graph of means with SEM and scatter. Show signficance
 
 		Args:
@@ -235,80 +324,54 @@ class LedPulseAnalysis(BaseAnalysis):
 
 		# EPOCHS DF HAS ALL LABELS BUT SINGLE LIGHT MEAN AND LIGHT AMPLITUDE
 		# ASSUME TWO GENOTYPES FOR SWARM PLOT
-		assert len((epochs.lightmean.str + epochs.lighamplitude.str).unique()) == 1
-		assert len(epochs.genotype.unique()) == 2
 
 		# CALCULATE MEAN AND SEM. WANT TO AVERAGE ALL PSTHS BY CELL & REMOTE MEAN AND SEM ON THAT
-		labels = []
-		values = []
-		for name, frame in epochs.groupby("genotype"):
-			labels.append(name)
-			values_ = []
-			# GET PSTH FOR EACH CELL
-			celltraces = frame.trace.values
-			for traces in celltraces:
-				psth = traces.psth
-
-				# CALCULATE PSTH METRIC
-				metval = np.max(psth)
-				time = np.argmax(psth)
-
-				values_.append(metval)
-				#times_.append(time)
-			values.append(np.array(values_))
+		row = epochs.iloc[0,:]
 
 
-		for ii, (name, value) in zip(labels, values):
-			# PLOT BAR with MEAN and SEM
-			ax.bar(ii,
-				height=np.mean(value),
-				yerr=np.std(value) / np.sqrt(len(value)), 
-				capsize=12, 	
-				tick_label=labels[ii],
-				alpha=0.5)
+		psths = row["trace"].psths
+		startdates = row["trace"].startdates
 
-			# PLOT SCATTER
-			ax.scatter(
-				np.repeat(ii, len(value)), 
-				value, 
-				alpha = 0.25)
-			
-			# LABEL NUMBER OF CELLS 
-			ax.text(ii, 0, f"n={len(value)}",
-				ha='center', va='bottom', color='k')
+		peakamps = np.max(psths , axis = 1)
+		meanpeakamp = np.mean(peakamps)
+		ttps = np.argmax(psths,axis=1)
+		meanttp = np.mean(ttps)
 
-		# CALCULATE SIGNIFICANCE
-		stat, p = ttest_ind(
-			values[0][~np.isnan(values[0])], 
-			values[1][~np.isnan(values[1])])
-
-		print(p)
-		stars = p_to_star(p)
-		stars = f"p={p:0.03f}" if stars == "ns" and p < 0.06 else stars
-		x1, x2 = 0, 1 # ASSUME ONLY 2
-
-		#COMBINE FOR MAXIMUM CALCULATION FOR PLACEMENT OF HORIZONTAL SIG BAR
-		Ys = []
-		for y in values:
-			Ys.extend(y[~np.isnan(y)])
-		ymax = np.max(Ys)
-
-		# PLOT SIGNFICANCE LABEL
-		# HACK PERCENT TO PUT ABOVE MAX POINT. DOESN'T WORK WELL FOR SMALL VALUES
-		pct = 0.05 
-		ay, h, col = ymax + ymax * pct, ymax * pct, 'k'
+		nX = len(startdates)
+		X = np.arange(len(startdates))
+		# PLOT PA SCATTER
+		ax.plot(
+			X,	
+			peakamps,
+			c="red",
+			label="Peak Amp"
+		)
 
 		ax.plot(
-			[x1, x1, x2, x2], 
-			[ay, ay+h, ay+h, ay], 
-			lw=1.5, c=col)
+			X,
+			np.repeat(meanpeakamp, nX),
+			linestyle = "--",
+			c="red",
+			label="Mean Peak Amp"
+		)
 
-		ax.text(
-			(x1+x2)*.5, 
-			ay+h, 
-			stars, 
-			ha='center', va='bottom', 
-			color=col)
+		# PLOT TTP SCATTER
+		ax2 = ax.twinx()
+		ax2.plot(
+			X,	
+			ttps,
+			c="blue",
+			label="TTP"
+		)
+
+		ax2.plot(
+			X,
+			np.repeat(meanttp, nX),
+			linestyle = "--",
+			c="blue",
+			label="Mean TTP"
+		)
+		ax2.set_ylabel("Time (s)")
 
 		# FIG SETTINGS
 		ax.grid(False)
@@ -316,11 +379,15 @@ class LedPulseAnalysis(BaseAnalysis):
 
 		# X AXIS FORMAT
 		ax.xaxis.set_ticks_position('none') 
-		ax.set_xticks(np.array([1,2], dtype=float))
-		ax.set_xticklabels(labels)
-		ax.set_xlabel("Background (R*/S-Cone/sec)")
+		ax.set_xticks(np.arange(nX))
+		ax.set_xticklabels(startdates, rotation=20, ha='right', rotation_mode='anchor')
+		
+		# LEGEND AND TITLE
+		lines, labels = ax.get_legend_handles_labels()
+		lines2, labels2 = ax2.get_legend_handles_labels()
+		ax2.legend(lines + lines2, labels + labels2, loc="upper left")
+		ax.set_title(row["cellname"])
 
 		# Y AXIS FORMAT
-		ax.set_ylabel("pA")
-		ax.set_ylim((0.0, ymax * 1.20))
+		ax.set_ylabel("Peak Amplitude")
 

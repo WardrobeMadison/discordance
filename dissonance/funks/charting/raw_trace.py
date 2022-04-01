@@ -4,9 +4,9 @@ from typing import Union
 
 import matplotlib.pyplot as plt
 
-from ...epochtypes import SpikeTrace, WholeTrace
+from ...epochtypes import SpikeEpoch, WholeEpoch
 
-def plt_trace(epoch:Union[SpikeTrace, WholeTrace], outputfile:Path=None):
+def plt_trace(epoch:Union[SpikeEpoch, WholeEpoch], outputfile:Path=None):
 	fig, ax = plt.subplots()
 	plt.plot(epoch.values)
 	plt.title(epoch.startdate)

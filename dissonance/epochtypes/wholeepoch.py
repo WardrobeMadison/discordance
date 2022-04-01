@@ -1,7 +1,7 @@
-from .basetrace import ITrace
+from .baseepoch import IEpoch
 
 
-class WholeTrace(ITrace):
+class WholeEpoch(IEpoch):
 
 	@property
 	def timetopeak(self):

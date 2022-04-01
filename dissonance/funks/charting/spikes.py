@@ -1,7 +1,7 @@
 from pathlib import Path
 import matplotlib.pyplot as plt
 
-from ...epochtypes import SpikeTrace
+from ...epochtypes import SpikeEpoch
 from ..spike_detection import TraceSpikeResult
 
 def plt_psth(psth, nbins, outputfile:Path = None):
@@ -15,7 +15,7 @@ def plt_psth(psth, nbins, outputfile:Path = None):
 		plt.savefig(outputfile, dpi = 600)
 	plt.show()
 
-def plt_spikes(epoch:SpikeTrace, outputfile:Path=None):
+def plt_spikes(epoch:SpikeEpoch, outputfile:Path=None):
 	fig = plt.subplot()
 	plt.plot(epoch.values)
 	plt.grid(True)

@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 
 from ...trees import Node, Tree
-from ...epochtypes import groupby, Traces, ITrace
+from ...epochtypes import groupby, Epochs, IEpoch
 from ..components.chart import MplCanvas
 
 # AMP, MEAN
@@ -90,7 +90,7 @@ class BaseAnalysis(ABC, Tree):
     pctcntrst = PCTCNTRST
     rstrmap = RSTRMAP
 
-    def __init__(self, epochs: Traces, unchecked: set = None):
+    def __init__(self, epochs: Epochs, unchecked: set = None):
         # GROUP EPOCHS INTO FLAT LIST
         self.unchecked = set() if unchecked is None else unchecked
         self.plant(epochs)
@@ -117,12 +117,12 @@ class BaseAnalysis(ABC, Tree):
 
     @property
     @abstractproperty
-    def tracetype(self) -> ITrace:
+    def tracetype(self) -> IEpoch:
         ...
 
     @property
     @abstractproperty
-    def tracestype(self) -> Traces:
+    def tracestype(self) -> Epochs:
         ...
 
     @abstractproperty
@@ -181,7 +181,7 @@ class BaseAnalysis(ABC, Tree):
         epochs = self.frame.epoch.to_list()
         self.__init__(epochs, self.unchecked)
 
-    def query(self, node: Node, includeflag=True) -> Union[Traces, ITrace]:
+    def query(self, node: Node, includeflag=True) -> Union[Epochs, IEpoch]:
         """Relate nodes from tree to underlying dataframe. Only passes inclued nodes
 
         Args:
@@ -208,4 +208,4 @@ class BaseAnalysis(ABC, Tree):
                 vals = dff.loc[:, "epoch"].to_list()
             else:
                 vals = dff.loc[dff.include == includeflag, "epoch"].to_list()
-            return self.tracestype(self.labels, vals)
+            return self.tracestype(vals)

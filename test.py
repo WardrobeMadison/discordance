@@ -1,6 +1,8 @@
 from dissonance import io
 from multiprocessing import Pool
 
+from dissonance.io import add_genotype
+
 info = [
 ("2021-10-21A",	"GG2 KO"),
 ("g2021-07-12A2",	"DR"),
@@ -19,9 +21,15 @@ def read(filename):
 	sr.to_h5(fout)
 	print(f"Done. {filename}")	
 
-filenames = [x[0] for x in info]
+def threadread():
+	filenames = [x[0] for x in info]
 
-with Pool(5) as p:
-	for x in p.imap(read, filenames):
-		print(f"Read {info}")
+	with Pool(5) as p:
+		for x in p.imap(read, filenames):
+			print(f"Read {info}")
 
+def add_genotypes():
+	for key, val in info:
+		filepath = f"tests/output/{key}.h5"
+		print(filepath)
+		add_genotype(filepath, val)

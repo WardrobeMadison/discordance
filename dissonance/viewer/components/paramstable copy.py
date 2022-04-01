@@ -23,7 +23,7 @@ class ParamsTableModel(QAbstractTableModel):
 		"samplerate",
 		"tailtime"]
 
-	def __init__(self, epoch: Union[et.SpikeTrace, et.WholeTrace]):
+	def __init__(self, epoch: Union[et.SpikeEpoch, et.WholeEpoch]):
 		super().__init__()
 		self._data = epoch
 

@@ -36,13 +36,13 @@ class DissonanceReader:
 						resp.attrs["violation_idx"]
 					)
 
-					trace = et.SpikeTrace(
+					trace = et.SpikeEpoch(
 						epoch.name,
 						params,
 						spikes,
 						resp)
 				else:
-					trace = et.WholeTrace(
+					trace = et.WholeEpoch(
 						epoch.name,
 						params,
 						resp)

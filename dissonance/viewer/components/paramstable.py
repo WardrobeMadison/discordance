@@ -24,13 +24,13 @@ class ParamsTable(QTableWidget):
 		"samplerate",
 		"tailtime"]
 
-	def __init__(self, epoch: Union[et.SpikeTrace, et.WholeTrace]):
+	def __init__(self, epoch: Union[et.SpikeEpoch, et.WholeEpoch]):
 		super().__init__()
 
 		self.update(epoch)
 
 	@pyqtSlot()
-	def update(self, epoch: Union[et.ITrace, et.Traces]):
+	def update(self, epoch: Union[et.IEpoch, et.Epochs]):
 		"""Update params table with epoch 
 
 		Args:
@@ -42,7 +42,7 @@ class ParamsTable(QTableWidget):
 		self.setColumnCount(2)
 
 		data = []
-		if isinstance(epoch, et.Traces):
+		if isinstance(epoch, et.Epochs):
 			for ii, paramname in enumerate(self.params):
 				self.setItem(ii,0,
 					QTableWidgetItem(paramname))

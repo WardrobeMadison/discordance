@@ -5,9 +5,9 @@ from typing import Iterator, List, Tuple
 import pandas as pd
 import numpy as np
 
-from . import basetrace as bt 
-from . import spiketrace as st
-from . import wholetrace as wt
+from . import baseepoch as bt 
+from . import spikeepoch as st
+from . import wholeepoch as wt
 
 @dataclass
 class TraceSpikeResult:
@@ -45,7 +45,7 @@ class DissonanceParams:
 	enddate: str = field( default=None)
 
 
-def groupby(traces: bt.Traces, args):
+def groupby(traces: bt.Epochs, args):
 	# ALWAYS PROCESS TYPE FIRST, MAKE THE OTHERS PLURAL
 	args_traces = [x+"s" for x in args]
 
@@ -76,7 +76,7 @@ def groupby(traces: bt.Traces, args):
 	data = []
 	for key, grp in zip(keys, grpd):
 		if len(grp) > 0:
-			data.append([*key, st.SpikeTraces(key, grp)])
+			data.append([*key, st.SpikeEpochs(grp)])
 	
 	df = pd.DataFrame(columns = [*args, "trace"], data=data)
 
@@ -90,7 +90,8 @@ def filter(traces, **kwargs):
 			for key, val in kwargs.items()
 		])
 		if condition: out.append(trace)
-	return type(traces)(out)
+	tracetype = type(traces)
+	return tracetype(out)
 
 
 
