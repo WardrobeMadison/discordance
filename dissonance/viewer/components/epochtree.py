@@ -26,20 +26,21 @@ class GroupItem(QStandardItem):
 
 
 class EpochItem(QStandardItem):
-    def __init__(self, node: Node, color=QColor(0, 0, 0)):
+    def __init__(self, node: Node, number:int, color=QColor(0, 0, 0)):
         super().__init__()
 
         self.node = node
         fnt = QFont()
         fnt.setPixelSize(10)
         self.label = node.uid
+        self.number  = number
 
         self.setEditable(False)
         self.setForeground(color)
         self.setBackground(QColor(187, 177, 189))
         self.setFont(fnt)
         # self.setText(epoch.startdate)
-        self.setText(node.uid)
+        self.setText(f"Epoch{number}")
 
         self.setFlags(self.flags() | Qt.ItemIsUserCheckable |
                       Qt.ItemIsSelectable)
@@ -75,7 +76,7 @@ class EpochTree(QTreeView):
         rootNode.appendRow(root)
 
         self.setModel(treeModel)
-        self.expandAll()
+        #self.expandAll()
 
     def toggle_check(self, item: QStandardItem):
         """Update unchecked list on toggle
@@ -112,9 +113,9 @@ class EpochTree(QTreeView):
                 parentnode (Node): Node in tree
                 parentitem (QStandardItem): Node in QtTreeView
         """
-        for node in parentnode:
+        for ii, node in enumerate(parentnode):
             if node.isleaf:
-                item = EpochItem(node)
+                item = EpochItem(node, ii)
                 if self.unchecked is not None:
                     if node.uid in self.unchecked:
                         item.setCheckState(Qt.Unchecked)

@@ -1,6 +1,7 @@
 from typing import List, Tuple, Union, Dict, Any
 
 import seaborn as sns
+from datetime import date
 import pandas as pd
 import numpy as np
 from matplotlib.lines import Line2D
@@ -219,8 +220,9 @@ class LedPulseAnalysis(BaseAnalysis):
 		title = f"cellname={epochs.cellnames[0]}, lightamp={epochs.lightamplitudes[0]}, lightmean={epochs.lightmeans[0]}"
 		
 		ax.title.set_text(title)	
-		ax.axes.get_yaxis().set_visible(False)
-		ax.axis("off")
+		ax.set_yticklabels([f"{epoch.startdate}" for epoch in epochs])
+		#ax.axes.get_yaxis().set_visible(False)
+		ax.axes.get_xaxis().set_visible(False)
 
 	def plot_swarm(self, epochs: pd.DataFrame, ax: Axes = None) -> None:
 		"""Swarm plot :: bar graph of means with SEM and scatter. Show signficance
@@ -275,7 +277,7 @@ class LedPulseAnalysis(BaseAnalysis):
 		# CALCULATE SIGNIFICANCE
 		if len(toplt) > 1:
 			stat, p = ttest_ind(
-				toplt[0].peakamps, toplt[1].peakamps)
+				toplt[0]["peakamps"], toplt[1]["peakamps"])
 
 			stars = p_to_star(p)
 			stars = f"p={p:0.03f}" if stars == "ns" and p < 0.06 else stars

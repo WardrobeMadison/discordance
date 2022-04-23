@@ -98,7 +98,7 @@ def detect_spikes(R: np.array) -> et.EpochSpikeInfo:
                     nonspike_peaks).mean() + 4 * sigma)
                 or
                     len(spike_ind_log) == 0):
-                print(f"Epoch: no spikes.")
+                #print(f"Epoch: no spikes.")
                 sp = np.array([0.0], dtype=float)
                 spike_amps = np.array([0.0], dtype=float)
                 min_spike_peak_idx = np.array([0.0], dtype=float)
@@ -125,7 +125,7 @@ def detect_spikes(R: np.array) -> et.EpochSpikeInfo:
                 #	print(f"WARNING: {ref_violations} refactory violations.")
         # NO SPIKES
         else:
-            print(f"Epoch: no spikes.")
+            #print(f"Epoch: no spikes.")
             sp = np.array([0.0], dtype=float)
             spike_amps = np.array([0.0], dtype=float)
             min_spike_peak_idx = np.array([0.0], dtype=float)

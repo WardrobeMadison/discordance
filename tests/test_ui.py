@@ -5,14 +5,12 @@ from dissonance.epochtypes import filter
 
 def test_window():
 	try:
-		paths = [
-			Path(r"tests/output/2021-09-23A.h5"),
-			Path(r"tests/output/2021-10-05A.h5"),
-			Path(r"tests/output/2021-10-21A.h5"),
-			Path(r"tests/output/g2021-07-12A2.h5"),
-			Path(r"tests/output/g2021-07-12A2.h5"),
-			Path(r"tests/output/g2021-07-12A2.h5"),
-		]
+
+		root_dir = Path("/home/joe/Projects/DataStore/MappedData")
+
+		paths = [file for file in (root_dir/"DR").glob("*.h5")]
+		paths.extend([file for file in (root_dir / "WT").glob("*.h5")])
+
 		dr = io.DissonanceReader(paths)
 		epochs = dr.to_epochs()
 		epochs = [x for x in epochs if x.tracetype == "spiketrace"]

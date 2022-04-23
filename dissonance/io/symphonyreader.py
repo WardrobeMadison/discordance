@@ -9,6 +9,7 @@ import datetime
 import json
 import re
 from os import path
+from pathlib import Path
 from typing import Dict, Iterator
 
 import h5py
@@ -132,7 +133,7 @@ class SymphonyReader:
                         responses=response_dict
                     )
 
-                print(f"{cellname}, Protocol {p}: {i} epochs.")
+                #print(f"{cellname}, Protocol {p}: {i} epochs.")
 
     def _get_responses(self, responses) -> Dict:
         response_dict = {}
@@ -213,10 +214,10 @@ class SymphonyReader:
 
         return bool(bool(is_group) & ~bool(is_link))
 
-    def to_h5(self, outputpath):
+    def to_h5(self, outputpath: Path):
         try:
             self.fin = h5py.File(self.symphonyfilepath, "r")
-            fout = h5py.File(outputpath, "w")
+            fout = h5py.File(str(outputpath), "w")
             params = [
                 "path",
                 "cellname",
@@ -275,8 +276,6 @@ class SymphonyReader:
 
         except Exception as e:
             raise e
-        finally:
-            fout.close()
 
     def to_json(self, outputpath):
         try:

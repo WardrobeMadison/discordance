@@ -13,6 +13,7 @@ class ParamsTable(QTableWidget):
         "cellname",
         "startdate",
         "celltype",
+        "genotype",
         "protocolname",
         "enddate",
         "interpulseinterval",

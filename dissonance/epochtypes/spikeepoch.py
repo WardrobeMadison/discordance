@@ -4,8 +4,7 @@ import numpy as np
 from dissonance.funks.psth import calculate_psth
 from h5py._hl.dataset import Dataset
 
-from .baseepoch import Epochs, IEpoch
-from .ns_epochtypes import DissonanceParams, EpochSpikeInfo
+from .baseepoch import DissonanceParams, Epochs, EpochSpikeInfo, IEpoch
 
 
 class SpikeEpoch(IEpoch):
