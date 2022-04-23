@@ -1,9 +1,7 @@
 from typing import Union
-from PyQt5.QtWidgets import QTableWidgetItem, QTableView
+from PyQt5.QtWidgets import QTableWidgetItem 
 from PyQt5.QtCore import pyqtSlot, QAbstractTableModel, Qt
-import pandas as pd
 
-from ... import io
 from ... import epochtypes as et
 
 class ParamsTableModel(QAbstractTableModel):

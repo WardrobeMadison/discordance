@@ -10,7 +10,7 @@ from . import spikeepoch as st
 from . import wholeepoch as wt
 
 @dataclass
-class TraceSpikeResult:
+class EpochSpikeInfo:
 	sp: np.array
 	spike_amps: np.array
 	min_spike_peak_idx: np.array
@@ -45,9 +45,12 @@ class DissonanceParams:
 	enddate: str = field( default=None)
 
 
-def groupby(traces: bt.Epochs, args):
+def groupby(traces: bt.Epochs, grpkeys) -> pd.DataFrame:
+	"""
+	Convert Traces to table with Epochs grouped by grpkeys
+	"""
 	# ALWAYS PROCESS TYPE FIRST, MAKE THE OTHERS PLURAL
-	args_traces = [x+"s" for x in args]
+	args_traces = [x+"s" for x in grpkeys]
 
 	# GET SET OF KEY VALUES TO FILTER LIST
 	grpon = list()
@@ -67,7 +70,7 @@ def groupby(traces: bt.Epochs, args):
 			# CHECK THAT TRACE MATCHES ALL KEY VALUES
 			condition = all([
 				getattr(trace, arg) == keyval
-				for arg, keyval in zip(args,key)])
+				for arg, keyval in zip(grpkeys,key)])
 			if condition:
 				grpd[ii].append(trace)
 				break
@@ -78,7 +81,7 @@ def groupby(traces: bt.Epochs, args):
 		if len(grp) > 0:
 			data.append([*key, st.SpikeEpochs(grp)])
 	
-	df = pd.DataFrame(columns = [*args, "trace"], data=data)
+	df = pd.DataFrame(columns = [*grpkeys, "trace"], data=data)
 
 	return df
 

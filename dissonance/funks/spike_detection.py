@@ -6,7 +6,6 @@ Spike detection algorithm
 4. Separate peaks with k means clustering
 5. Check for 4 sigma difference from noise
 """
-from dataclasses import dataclass
 from typing import Tuple
 
 import numpy as np
@@ -24,7 +23,7 @@ REF_PERIOD_POINTS = round(REF_PERIOD / SAMPLE_INTERVAL)
 SEARCH_INTERVAL_POINTS = round(SEARCH_INTERVAL / SAMPLE_INTERVAL)
 
 
-def detect_spikes(R: np.array) -> et.TraceSpikeResult:
+def detect_spikes(R: np.array) -> et.EpochSpikeInfo:
     # PASS FILTERS
     R_no_spikes = low_pass_filter(
         high_pass_filter(
@@ -143,7 +142,7 @@ def detect_spikes(R: np.array) -> et.TraceSpikeResult:
         max_noise_peak_time = peak_times[nonspike_idx[max_noise_peak_idx]]
         violation_idx = peak_times[nonspike_idx[max_noise_peak_idx]]
 
-    return et.TraceSpikeResult(
+    return et.EpochSpikeInfo(
         sp=sp,
         spike_amps=spike_amps,
         min_spike_peak_idx=min_spike_peak_idx,

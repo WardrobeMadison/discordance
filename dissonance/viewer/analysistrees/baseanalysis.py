@@ -193,19 +193,22 @@ class BaseAnalysis(ABC, Tree):
         if node.isleaf:
             return self.frame.query(f"startdate == '{node.uid}'").epoch.iloc[0]
         else:
-            path = node.path  # dictionary of all values
-            #condition = " and ".join([f"{key}=='{val}'" for key,val in path.items()])
-            #df.loc[(slice(None), 5, slice(None))]
+            # DICTIONARY OF ALL VALUES
+            path = node.path  
+            # BUILD FILTER CONDITION
+            # FILTERED ON INDEX SO ONLY NEED VALUES IN LABEL ORDER
             condition = []
             for key in self.labels:
                 temp = path.get(key)
                 if temp is None:
                     temp = slice(None)
                 condition.append(temp)
-
             dff = self.frame.loc[tuple(condition), :]
+            
+            # FILTER FOR CHECKED VALUES
             if includeflag is None:
                 vals = dff.loc[:, "epoch"].to_list()
             else:
                 vals = dff.loc[dff.include == includeflag, "epoch"].to_list()
+
             return self.tracestype(vals)
