@@ -46,7 +46,7 @@ class DissonanceParams:
 
 class IEpoch(ABC):
 
-    def __init__(self, epochpath: str, params: DissonanceParams, response: Dataset):
+    def __init__(self, epochpath: str, params: DissonanceParams, response: Dataset, number:str="0"):
 
         self._epochpath: str = epochpath
         self._response_ds = response
@@ -69,6 +69,9 @@ class IEpoch(ABC):
         self.tailtime = params.tailtime * 10
         self.startdate = params.startdate
         self.enddate = params.enddate
+        self.number = number
+
+
 
     def __eq__(self, other) -> bool:
         return self.enddate == other.enddate
@@ -163,7 +166,7 @@ class Epochs(ABC):
         if self._values is None:
             self._values = np.vstack(
                 [
-                    np.pad(trace.values, (0, self._trace_len - len(trace)))
+                    np.pad(trace.values, (0, self.trace_len - len(trace)))
                     for trace in self._traces
                 ])
         return self._values

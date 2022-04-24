@@ -1,6 +1,5 @@
-from email.headerregistry import Group
-
-from PyQt5.Qt import QStandardItem, QStandardItemModel, Qt
+from datetime import datetime
+from PyQt5.Qt import QStandardItem, QStandardItemModel, Qt, QAbstractItemView
 from PyQt5.QtGui import QColor, QFont
 from PyQt5.QtWidgets import QTreeView
 
@@ -26,21 +25,21 @@ class GroupItem(QStandardItem):
 
 
 class EpochItem(QStandardItem):
-    def __init__(self, node: Node, number:int, color=QColor(0, 0, 0)):
+    def __init__(self, node: Node, color=QColor(0, 0, 0)):
         super().__init__()
 
         self.node = node
         fnt = QFont()
         fnt.setPixelSize(10)
         self.label = node.uid
-        self.number  = number
+        self.number  = node.number
 
         self.setEditable(False)
         self.setForeground(color)
         self.setBackground(QColor(187, 177, 189))
         self.setFont(fnt)
         # self.setText(epoch.startdate)
-        self.setText(f"Epoch{number}")
+        self.setText(f"Epoch{node.number}")
 
         self.setFlags(self.flags() | Qt.ItemIsUserCheckable |
                       Qt.ItemIsSelectable)
@@ -57,17 +56,11 @@ class EpochTree(QTreeView):
         self.plant(at)
         self.model().itemChanged.connect(self.toggle_check)
 
-        self.set_initial_collapse()
-
-    def set_initial_collapse(self):
-        # TODO make expoch layer not collapsed
-        print("here")
-        ...
-
     def plant(self, at):
         self.at = at
 
         treeModel = QStandardItemModel()
+        self.setSelectionMode(QAbstractItemView.ExtendedSelection)
         rootNode = treeModel.invisibleRootItem()
 
         # TRANSLATE TREE TO Qt Items ITEMS
@@ -115,7 +108,7 @@ class EpochTree(QTreeView):
         """
         for ii, node in enumerate(parentnode):
             if node.isleaf:
-                item = EpochItem(node, ii)
+                item = EpochItem(node)
                 if self.unchecked is not None:
                     if node.uid in self.unchecked:
                         item.setCheckState(Qt.Unchecked)

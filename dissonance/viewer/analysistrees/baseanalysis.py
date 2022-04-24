@@ -150,7 +150,7 @@ class BaseAnalysis(ABC, Tree):
         # ADD EPOCHS AS LEAVES TO TREE
         for leaf, group in zip(self.leaves, self.groupedvals):
             for epoch in group:
-                leaf.add(Node("startdate", epoch.startdate))
+                leaf.add(Node("startdate", epoch.startdate, epoch.number))
 
     def create_frame(self):
         # FLAG INCLUDED AND EXCLUDED EPOCHS
@@ -170,7 +170,7 @@ class BaseAnalysis(ABC, Tree):
             .sort_index())
 
     def update(self, node, paramname: str, value: Any):
-        epochs = self.query(node, includeflag=None)
+        epochs = self.query(node, useincludeflag=None)
         keys = node.path
 
         # UPDATE EACH EPOCH
@@ -181,7 +181,7 @@ class BaseAnalysis(ABC, Tree):
         epochs = self.frame.epoch.to_list()
         self.__init__(epochs, self.unchecked)
 
-    def query(self, node: Node, includeflag=True) -> Union[Epochs, IEpoch]:
+    def query(self, node: Node, useincludeflag=True) -> Union[Epochs, IEpoch]:
         """Relate nodes from tree to underlying dataframe. Only passes inclued nodes
 
         Args:
@@ -190,25 +190,38 @@ class BaseAnalysis(ABC, Tree):
         Returns:
                 Union[Traces, ITrace]: Traces or individual Trace for leaf node
         """
-        if node.isleaf:
-            return self.frame.query(f"startdate == '{node.uid}'").epoch.iloc[0]
-        else:
-            # DICTIONARY OF ALL VALUES
-            path = node.path  
-            # BUILD FILTER CONDITION
-            # FILTERED ON INDEX SO ONLY NEED VALUES IN LABEL ORDER
-            condition = []
-            for key in self.labels:
-                temp = path.get(key)
-                if temp is None:
-                    temp = slice(None)
-                condition.append(temp)
-            dff = self.frame.loc[tuple(condition), :]
-            
-            # FILTER FOR CHECKED VALUES
-            if includeflag is None:
-                vals = dff.loc[:, "epoch"].to_list()
-            else:
-                vals = dff.loc[dff.include == includeflag, "epoch"].to_list()
 
-            return self.tracestype(vals)
+        if not isinstance(node, list):
+            nodes = [node]
+        else:
+            nodes = node
+
+        vals_ = []
+        for node in nodes:
+            if node.isleaf:
+                vals = self.frame.query(f"startdate == '{node.uid}'").epoch.iloc[0]
+                vals_.append(vals)
+            else:
+                # DICTIONARY OF ALL VALUES
+                path = node.path  
+                # BUILD FILTER CONDITION
+                # FILTERED ON INDEX SO ONLY NEED VALUES IN LABEL ORDER
+                condition = []
+                for key in self.labels:
+                    temp = path.get(key)
+                    if temp is None:
+                        temp = slice(None)
+                    condition.append(temp)
+                dff = self.frame.loc[tuple(condition), :]
+                
+                # FILTER FOR CHECKED VALUES
+                if useincludeflag is False:
+                    vals = dff.loc[:, "epoch"].to_list()
+                else:
+                    vals = dff.loc[dff.include == useincludeflag, "epoch"].to_list()
+                vals_.extend(vals)
+    
+        if len(vals_) == 1:
+            return vals_[0]
+        else:
+            return self.tracestype(vals_)

@@ -1,152 +1,235 @@
-from re import S
 import sys
+from pathlib import Path
 from typing import Union
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib.backends.backend_qt5agg import \
-	FigureCanvasQTAgg as FigureCanvas
+    FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import \
-	NavigationToolbar2QT as NavigationToolbar
+    NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 from PyQt5.Qt import Qt
-from PyQt5.QtCore import QModelIndex, pyqtSlot, pyqtSignal 
-from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QHeaderView, QLabel,
-							 QPushButton, QVBoxLayout, QWidget, QScrollArea,
-							 QFileDialog)
+from PyQt5.QtGui import QMovie
+from PyQt5.QtCore import QModelIndex, pyqtSlot, pyqtSignal, QRect, QSize
+from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QHeaderView, QLabel, QFrame, QDialog, QAbstractItemView, QMainWindow,
+                             QPushButton, QVBoxLayout, QWidget, QScrollArea, QListWidget, QListWidgetItem, QGridLayout,
+                             QFileDialog, QSizePolicy)
 
-from .components import MplCanvas
-
-from ..epochtypes import SpikeEpochs, Epochs
 from . import components as cp
 
 
 class App(QWidget):
 
-	def __init__(self, tree, unchecked: set=None, uncheckedpath=None):
-		super().__init__()
-		self.unchecked = unchecked
-		self.uncheckedpath = "unchecked.csv" if uncheckedpath is None else uncheckedpath
-		#self.epochs = epochs
-		self.tree = tree
-		self.left = 0
-		self.top = 0
-		self.width = 1200
-		self.height = 800
-		self.initUI()
-		
-	def initUI(self):
-		self.setWindowTitle("dissonance")
-		self.setGeometry(self.left, self.top, self.width, self.height)
+    def __init__(self, tree, unchecked: set = None, uncheckedpath:Path=None, export_dir:Path=None):
+        super().__init__()
+        self.unchecked = unchecked
+        self.uncheckedpath = "unchecked.csv" if uncheckedpath is None else uncheckedpath
+        #self.epochs = epochs
+        self.tree = tree
+        self.left = 0
+        self.top = 0
+        self.width = 1200
+        self.height = 800
+        self.initUI()
 
-		initepoch = self.tree.frame.epoch.iloc[0]
-		
-		# EPOCH TRACE INFORMATION TABLE
-		self.tableWidget = cp.ParamsTable(initepoch)
-		header = self.tableWidget.horizontalHeader()       
-		header.setStretchLastSection(True)
-		
-		self.tableWidget.itemDelegate().closeEditor.connect(self.on_table_edit)
+    def initUI(self):
+        self.setWindowTitle("dissonance")
+        self.setGeometry(self.left, self.top, self.width, self.height)
 
-		# MATLAB NAVIGATION
-		self.canvas = MplCanvas(self)
-		self.toolbar = NavigationToolbar(self.canvas, self)
+        initepoch = self.tree.frame.epoch.iloc[0]
 
-		# SAVE UNCHECKED FILTERS
-		savebttn = QPushButton("Save filters", self)
-		savebttn.clicked.connect(self.on_save_bttn_click)
+        # EPOCH TRACE INFORMATION TABLE
+        self.tableWidget = cp.ParamsTable(initepoch)
+        header = self.tableWidget.horizontalHeader()
+        header.setStretchLastSection(True)
 
-		# TRACE TREE VIEWER
-		treesplitlabel = QLabel(", ".join(self.tree.labels), self)
-		self.treeWidget = cp.et.EpochTree(self.tree, unchecked=self.unchecked)
-		self.treeWidget.selectionModel().selectionChanged.connect(self.on_tree_select)
+        self.tableWidget.itemDelegate().closeEditor.connect(self.on_table_edit)
 
-		# FIRST COLUMNS
-		col0 = QVBoxLayout()
-		col0.addWidget(savebttn)
-		col0.addWidget(treesplitlabel)
-		col0.addWidget(self.treeWidget,10)
-		col0.addWidget(self.tableWidget, 4) 
-		col0.minimumSize()
+        # SAVE UNCHECKED FILTERS
+        savebttn = QPushButton("Save filters", self)
+        savebttn.clicked.connect(self.on_save_bttn_click)
 
-		# SECOND COLUMN
-		col1 = QVBoxLayout()
-		col1.addWidget(self.toolbar)
+        # TRACE TREE VIEWER
+        treesplitlabel = QLabel(", ".join(self.tree.labels), self)
+        self.treeWidget = cp.et.EpochTree(self.tree, unchecked=self.unchecked)
+        self.treeWidget.selectionModel().selectionChanged.connect(self.on_tree_select)
 
-		self.scroll = QScrollArea()
-		self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-		self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-		self.scroll.setWidgetResizable(True)
-		self.scroll.setWidget(self.canvas)
+        self.filterfilelabel = QLabel(self.uncheckedpath)
 
-		col1.addWidget(self.scroll)
+        # FIRST COLUMNS
+        col0 = QVBoxLayout()
+        col0.addWidget(savebttn)
+        col0.addWidget(self.filterfilelabel)
+        col0.addWidget(treesplitlabel)
+        col0.addWidget(self.treeWidget, 10)
+        col0.addWidget(self.tableWidget, 4)
+        col0.minimumSize()
 
-		# COMBINE COLUMNS
-		self.layout = QHBoxLayout()
-		self.layout.addLayout(col0, 1)
-		self.layout.addLayout(col1, 2)
-		self.layout.addStretch()
-		self.setLayout(self.layout) 
+        # SECOND COLUMN
+        col1 = QVBoxLayout()
 
-		# SHOW WIDGET
-		self.showMaximized()
-		self.show()
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll_area.horizontalScrollBar().setEnabled(False)
 
-	def disconnect_edit(self):
-		# DISCCONECT TABLE EDIT SIGNAL WHEN UPDATING TABLE
-		#self.disconnect(self.tableWidget, PYQT_SIGNAL("cellChanged(int, int)"), self.DoSomething)
-		...
+        self.canvas = cp.MplCanvas(self.scroll_area)
+        self.toolbar = NavigationToolbar(self.canvas, self)
 
-	def connect_edit(self):
-		# RECONNECT TABLE EDIT SIGNAL TO PICK UP EDITS FROM USER
-		#self.connect(self.tableWidget, PYQT_SIGNAL("cellChanged(int, int)"), self.DoSomething)
-		...
+        exportdata = QPushButton("Export Data", self)
+        exportdata.clicked.connect(self.on_export_bttn_click)
 
-	def on_table_edit(self, item):
-		pass
-		## FROM TABLE WIDGET SEND TREE UPDATED PARAMS
-		#idx = self.tableWidget.selectionModel().currentIndex()
-		#row, col = idx.row(), idx.column()
-		#paramname = self.tableWidget.model().index(row, 0).data()
-		#value = self.tableWidget.model().index(row, 1).data()
-		#startdates = self.tableWidget.df.loc[self.tableWidget.df.Param == "startdate"].Val.values
+        hbox = QHBoxLayout()
+        hbox.addWidget(self.toolbar)
+        hbox.addWidget(exportdata)
 
-		## UPDATE EPOCHS
-		#for epoch in self.epochs:
-		#	if epoch.startdate in startdates:
-		#		#epoch.update(paramname, value)
-		#		print(epoch.startdate, paramname,value)
+        # ADD WIDGETS
+        self.scroll_area.setWidget(self.canvas)
+        col1.addLayout(hbox)
+        col1.addWidget(self.scroll_area)
 
-		## REFRESH TREE
-		#self.tree.plant(self.epochs)
-		#self.treeWidget.plant(self.tree)
-		#print(item)
+        # COMBINE COLUMNS
+        self.layout = QHBoxLayout()
+        self.layout.addLayout(col0, 1)
+        self.layout.addLayout(col1, 2)
+        self.layout.addStretch()
+        self.setLayout(self.layout)
 
-	def on_reload_tree_click(self):
-		# ON BTTN CLICK, RELOAD TREE WITH UPDATED PARAMS FROM TABLE INPUT
-		...
+        # SHOW WIDGET
+        self.showMaximized()
+        self.show()
 
-	def on_tree_select(self, item: QModelIndex):
-		# UPDATE PLOT
-		treeitem = self.treeWidget.model().itemFromIndex(item.indexes()[0])
-		self.tree.plot(treeitem.node, self.canvas)
+    def resizeEvent(self, e):
+        #self.canvas.resize(self.scroll_area.width(), self.canvas.height())
+        ##self.scroll_area.resize(self.canvas.width(), self.canvas.height())
+        super().resizeEvent(e)
 
-		epoch = self.tree.query(treeitem.node)
-		self.tableWidget.update(epoch)
+    def disconnect_edit(self):
+        # DISCCONECT TABLE EDIT SIGNAL WHEN UPDATING TABLE
+        #self.disconnect(self.tableWidget, PYQT_SIGNAL("cellChanged(int, int)"), self.DoSomething)
+        ...
 
-	@pyqtSlot()
-	def on_save_bttn_click(self):
-		options = QFileDialog.Options()
-		options |= QFileDialog.DontUseNativeDialog
-		fileName, _ = QFileDialog.getSaveFileName(self,"QFileDialog.getSaveFileName()","","All Files (*);;Text Files (*.txt)", options=options)
-		if fileName:
-			print(fileName)
-			(self.tree.frame.query("include == False")
-				.index.get_level_values("startdate").to_series()
-				.to_csv(fileName, index=False))
- 
-def run(tree, unchecked:set=None):
-	app = QApplication(sys.argv)
-	ex = App( tree, unchecked)
-	sys.exit(app.exec_())  
+    def connect_edit(self):
+        # RECONNECT TABLE EDIT SIGNAL TO PICK UP EDITS FROM USER
+        #self.connect(self.tableWidget, PYQT_SIGNAL("cellChanged(int, int)"), self.DoSomething)
+        ...
+
+    def on_table_edit(self, item):
+        # FROM TABLE WIDGET SEND TREE UPDATED PARAMS
+        idx = self.tableWidget.selectionModel().currentIndex()
+        # GET PARAMNAME AND NEW VALUE
+        row, col = idx.row(), idx.column()
+        paramname = self.tableWidget.model().index(row, 0).data()
+        value = self.tableWidget.model().index(row, 1).data()
+
+        # GET START DATES OF APPLICABLE EPOCHS
+        startdates = self.tableWidget.df.loc[
+            self.tableWidget.df.Param == "startdate"].Val.values
+
+        nodes = self.get_nodes_from_selection()
+        epochs = self.tree.query(nodes)
+
+        if paramname.lower() in ("celltype", "genotype"):
+            # UPDATE EPOCHS
+            for epoch in epochs:
+                if epoch.startdate in startdates:
+                    epoch.update(paramname, value)
+                    #print(epoch.startdate, paramname,value)
+        else:
+            dlg = QDialog()
+            label = QLabel("You can only edit celltype and genotype.", dlg)
+            label.move(50, 50)
+            dlg.setWindowTitle("Incorrect parameter change")
+            dlg.exec_()
+
+        # REFRESH TREE
+        self.tree.plant(self.epochs)
+        self.treeWidget.plant(self.tree)
+        print(item)
+
+    def on_reload_tree_click(self):
+        # ON BTTN CLICK, RELOAD TREE WITH UPDATED PARAMS FROM TABLE INPUT
+        ...
+
+    def get_nodes_from_selection(self):
+        # SELECT V MULTI SELECT
+        idxs = self.treeWidget.selectedIndexes()
+        nodes = []
+        if len(idxs) == 1:
+            treeitem = self.treeWidget.model().itemFromIndex(idxs[0])
+            nodes.append(treeitem.node)
+        else:
+            nodes = [self.treeWidget.model().itemFromIndex(
+                idx).node for idx in idxs]
+        return nodes
+
+    def on_tree_select(self, item: QModelIndex):
+        # SELECT V MULTI SELECT
+        idxs = self.treeWidget.selectedIndexes()
+        nodes = self.get_nodes_from_selection()
+        if len(nodes) == 1:
+            self.tree.plot(nodes[0], self.canvas)
+        epoch = self.tree.query(nodes)
+        self.tableWidget.update(epoch)
+
+    @pyqtSlot()
+    def on_save_bttn_click(self):
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        fileName, _ = QFileDialog.getSaveFileName(
+            self, "QFileDialog.getSaveFileName()", "", "All Files (*);;Text Files (*.txt)", options=options)
+        self.uncheckedpath = fileName
+        self.filterfilelabel.setText(self.uncheckedpath)
+        if fileName:
+            print(fileName)
+            (self.tree.frame.query("include == False")
+                .index.get_level_values("startdate").to_series()
+                .to_csv(fileName, index=False))
+
+    @pyqtSlot()
+    def on_export_bttn_click(self):
+        charts = self.tree.currentplots
+        dialog = ExportDataWindow(charts=charts)
+        dialog.show()
+
+
+class ExportDataWindow(QWidget):
+
+    def __init__(self, charts=None):
+        super(ExportDataWindow, self).__init__()
+
+        self.charts = charts
+
+        # EXPORT BUTTON
+        exportbttn = QPushButton("Export Selected Data")
+        exportbttn.clicked.connect(self.on_export_bttn_click)
+
+        # LIST OF CHART DATA TO EXPORT
+        self.listwidget = QListWidget(self)
+        for ii, chart in enumerate(charts):
+            item = QListWidgetItem(f"{type(chart)}_{ii}")
+            self.listwidget.addItem(item)
+
+        self.listwidget.setSelectionMode(QAbstractItemView.MultiSelection)
+
+        # WIDGET LAYOUT
+        layout = QVBoxLayout()
+        layout.addWidget(self.listwidget)
+        layout.addWidget(exportbttn)
+        self.setLayout(layout)
+
+    @pyqtSlot()
+    def on_export_bttn_click(self):
+        for index in self.listwidget.selectedIndexes():
+            try:
+                self.charts[index.row()].to_csv()
+            except:
+                ...
+        self.close()
+
+
+def run(tree, unchecked: set = None):
+    app = QApplication(sys.argv)
+    ex = App(tree, unchecked)
+    sys.exit(app.exec_())

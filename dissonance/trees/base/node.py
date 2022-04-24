@@ -5,10 +5,11 @@ from dataclasses import dataclass, field
 from typing import Iterator, Dict
 
 class Node:
-	def __init__(self, label, uid):
+	def __init__(self, label, uid, number="0'"):
 		self._parent = None
 		self._path = None
 		self.label = label
+		self.number = number
 		self.uid = uid
 		self.children = list()
 

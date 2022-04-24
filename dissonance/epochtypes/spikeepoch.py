@@ -12,9 +12,10 @@ class SpikeEpoch(IEpoch):
     def __init__(self, epochpath: str,
                  parameters: DissonanceParams = None,
                  spikes: EpochSpikeInfo = None,
-                 response: Dataset = None):
+                 response: Dataset = None,
+                 number="0"):
 
-        super().__init__(epochpath, parameters, response)
+        super().__init__(epochpath, parameters, response, number)
         self._spikes = spikes
         self._psth = None
 

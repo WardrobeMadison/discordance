@@ -8,18 +8,19 @@ def test_window():
 
 		root_dir = Path("/home/joe/Projects/DataStore/MappedData")
 
-		paths = [file for file in (root_dir/"DR").glob("*.h5")]
-		paths.extend([file for file in (root_dir / "WT").glob("*.h5")])
+		paths = [file for ii, file in enumerate((root_dir/"DR").glob("*.h5")) if ii <3]
+		paths.extend([file for ii, file in enumerate((root_dir / "WT").glob("*.h5")) if ii < 3])
+		#paths = [file for ii, file in enumerate((root_dir/"DR").glob("*.h5"))]
+		#paths.extend([file for ii, file in enumerate((root_dir / "WT").glob("*.h5"))])
 
 		dr = io.DissonanceReader(paths)
 		epochs = dr.to_epochs()
 		epochs = [x for x in epochs if x.tracetype == "spiketrace"]
 		epochs = epochtypes.SpikeEpochs(epochs)
 
-		tree = viewer.analysistrees.LedPulseAnalysis(epochs)
+		tree = viewer.analysistrees.LedPulseAnalysis(epochs, "DemoForJenna.txt")
 
-		viewer.run(tree)
-
+		viewer.run(tree, "DemoForJenna.txt")
 	except SystemExit as e:
 		...
 	finally:
