@@ -6,6 +6,8 @@ import numpy as np
 @dataclass
 class SymphonyEpoch:
 
+	name:str
+	epochnumber:int
 	path: str
 	cellname: str
 	startdate: float

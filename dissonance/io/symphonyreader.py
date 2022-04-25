@@ -40,8 +40,9 @@ class SymphonyReader:
         'endTimeDotNetDateTimeOffsetOffsetHours'
     )
 
-    def __init__(self, symphonyfilepath):
+    def __init__(self, symphonyfilepath:Path):
         self.symphonyfilepath = symphonyfilepath
+        self.fin = h5py.File(self.symphonyfilepath, "r")
 
     def _to_datetime(self, dotNetTime):
         if isinstance(dotNetTime, str):
@@ -114,6 +115,8 @@ class SymphonyReader:
                             "protocolParameters:lightAmplitude")
 
                     yield SymphonyEpoch(
+                        name=self.symphonyfilepath.stem,
+                        epochnumber=i,
                         path=epoch.name,
                         cellname=cellname,
                         celltype=celltype,
@@ -214,9 +217,15 @@ class SymphonyReader:
 
         return bool(bool(is_group) & ~bool(is_link))
 
+    def to_sql(self, cnxn):
+        try:
+            ...
+
+        except:
+            ...
+
     def to_h5(self, outputpath: Path):
         try:
-            self.fin = h5py.File(self.symphonyfilepath, "r")
             fout = h5py.File(str(outputpath), "w")
             params = [
                 "path",
