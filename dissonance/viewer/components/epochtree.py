@@ -59,17 +59,20 @@ class EpochTree(QTreeView):
     def plant(self, at):
         self.at = at
 
-        treeModel = QStandardItemModel()
+        self.treeModel = QStandardItemModel()
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        rootNode = treeModel.invisibleRootItem()
+        self.fill_model(at)
+
+    def fill_model(self,at):
+        # REMOVE DATA CURRENTLY IN TREE MODEL
+        self.treeModel.removeRows( 0, self.treeModel.rowCount())
 
         # TRANSLATE TREE TO Qt Items ITEMS
+        rootNode = self.treeModel.invisibleRootItem()
         root = GroupItem(at)
         self.add_items(at, root)
         rootNode.appendRow(root)
-
-        self.setModel(treeModel)
-        #self.expandAll()
+        self.setModel(self.treeModel)
 
     def toggle_check(self, item: QStandardItem):
         """Update unchecked list on toggle
@@ -117,3 +120,5 @@ class EpochTree(QTreeView):
                 item = GroupItem(node)
                 parentitem.appendRow(item)
                 self.add_items(node, item)
+
+#2021-09-07 17:05:39.946686'

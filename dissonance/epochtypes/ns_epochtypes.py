@@ -1,6 +1,7 @@
 import itertools
 from dataclasses import dataclass, field
 from typing import Iterator, List, Tuple
+from collections import defaultdict
 
 import pandas as pd
 import numpy as np
@@ -13,36 +14,40 @@ def groupby(traces: bt.Epochs, grpkeys) -> pd.DataFrame:
 	Convert Traces to table with Epochs grouped by grpkeys
 	"""
 	# ALWAYS PROCESS TYPE FIRST, MAKE THE OTHERS PLURAL
-	args_traces = [x+"s" for x in grpkeys]
+	#args_traces = [x+"s" for x in grpkeys]
 
 	# GET SET OF KEY VALUES TO FILTER LIST
-	grpon = list()
-	for arg in args_traces:
-		vals = set(getattr(traces, arg))
-		if len(vals):
-			grpon.append(vals)
+	#grpon = list()
+	#for arg in args_traces:
+	#	vals = set(getattr(traces, arg))
+	#	if len(vals):
+	#		grpon.append(vals)
 	
 	# ALL COMBINATIONS OF KEY VALUES
-	keys = list(itertools.product(*grpon))
+	#keys = list(itertools.product(*grpon))
 
 	# FOR EACH GROUP BY KEY
-	grpd = [list() for _ in range(len(keys))]
+	#grpd = [list() for _ in range(len(keys))]
 	# TODO pop items already in group out of list so you don't recheck
+	grpd = defaultdict(list)
 	for trace in traces.traces:
-		for ii, key in enumerate(keys):
-			# CHECK THAT TRACE MATCHES ALL KEY VALUES
-			condition = all([
-				getattr(trace, arg) == keyval
-				for arg, keyval in zip(grpkeys,key)])
-			if condition:
-				grpd[ii].append(trace)
-				break
+		key = "___".join(map(str,(getattr(trace,arg) for arg in grpkeys)))
+		grpd[key].append(trace)
 
+#		for ii, key in enumerate(keys):
+#			# CHECK THAT TRACE MATCHES ALL KEY VALUES
+#			condition = all([
+#				getattr(trace, arg) == keyval
+#				for arg, keyval in zip(grpkeys,key)])
+#			if condition:
+#				grpd[ii].append(trace)
+#				break
+#
 	# CONVERT TRACE LIST TO SPIKETRACES
 	data = []
-	for key, grp in zip(keys, grpd):
+	for key, grp in grpd.items():
 		if len(grp) > 0:
-			data.append([*key, st.SpikeEpochs(grp)])
+			data.append([*key.split("___"), st.SpikeEpochs(grp)])
 	
 	df = pd.DataFrame(columns = [*grpkeys, "trace"], data=data)
 

@@ -130,16 +130,49 @@ class BaseAnalysis(ABC, Tree):
         ...
 
     def plant(self, epochs):
-        self.create_groups(epochs)
+        self.test(epochs)
+        #self.create_groups(epochs)
+
+        ## CREATE TREE STRUCTURE
+        #super().__init__(self.name, self.labels, self.keys)
+
+        ## ADD EPOCHS TO LEAVES OF TREE
+        #self.add_epoch_leaves()
+
+        ## CREATE DATAFRAME
+        #self.create_frame()
+
+    def test(self, epochs):
+        df = groupby(epochs, self.labels)
+        self.keys = df[[col for col in df.columns if col != "trace"]].values
+        self.groupedvals = df.loc[:, "trace"].values
 
         # CREATE TREE STRUCTURE
         super().__init__(self.name, self.labels, self.keys)
 
-        # ADD EPOCHS TO LEAVES OF TREE
-        self.add_epoch_leaves()
+        # MAP EPOCHS TO LEAVES OF TREE
+        for leaf in self.leaves:
+            condition = " and ".join((f"{key} == '{val}'" for key,val in leaf.path.items() if key != "Name"))
+            epochs = df.query(condition).iloc[0,-1] # ONLY ONE WILL FIT  
+            for epoch in epochs:
+                leaf.add(Node("startdate", epoch.startdate, epoch.number))
 
-        # CREATE DATAFRAME
-        self.create_frame()
+        # CREATE DATAFRAME WITH SEPARATE EPOCHS IN EACH ROW
+        # FLAG INCLUDED AND EXCLUDED EPOCHS
+        data = []
+        for key, group in zip(self.keys, self.groupedvals):
+            for epoch in group:
+                if epoch.startdate in self.unchecked:
+                    data.append([*key, epoch.startdate, False, epoch])
+                else:
+                    data.append([*key, epoch.startdate, True, epoch])
+
+        # CREATE DATAFRAME FOR INCES LOOKUP OF EPOCHS BY PARAMETERS	FOR FASTER QUERIES
+        self.frame = (
+            pd.DataFrame(columns=[*self.labels, "startdate",
+                         "include", "epoch"], data=data)
+            .set_index(keys=[*self.labels, "startdate"])
+            .sort_index())
 
     def create_groups(self, epochs):
         df = groupby(epochs, self.labels)

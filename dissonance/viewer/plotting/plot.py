@@ -62,7 +62,7 @@ class PlotPsth:
         self.labels.append(label)
         self.psths.append(psth)
 
-    def to_csv(self, filepath=None):
+    def to_csv(self, outputdir=None):
         columns = "Chart Label Time Value".split()
 
         dfs = []
@@ -75,10 +75,11 @@ class PlotPsth:
             dfs.append(df)
 
         df = pd.concat(dfs)
-        if filepath is None:
-            filepath = f"PlotPsth_{datetime.now()}.csv"
+        filename = f"PlotPsth_{datetime.now()}.csv"
+        if outputdir:
+            filename = outputdir / filename
             
-        df.to_csv(filepath, index=False)
+        df.to_csv(filename, index=False)
 
 class PlotRaster:
 
@@ -129,7 +130,7 @@ class PlotRaster:
         for epoch in epochs:
             self.labels.append(epoch.startdate)
 
-    def to_csv(self, filepath=None):
+    def to_csv(self, outputdir=None):
         columns = "Chart Label Time Value".split()
 
         dfs = []
@@ -142,10 +143,11 @@ class PlotRaster:
             dfs.append(df)
 
         df = pd.concat(dfs)
-        if filepath is None:
-            filepath = f"PlotRaster_{datetime.now()}.csv"
+        filename = f"PlotRaster_{datetime.now()}.csv"
+        if outputdir:
+            filename = outputdir / filename
             
-        df.to_csv(filepath, index=False)
+        df.to_csv(filename, index=False)
 
 class PlotTrace:
 
@@ -182,7 +184,7 @@ class PlotTrace:
 
         self.ax.legend()
 
-    def to_csv(self, filepath=None):
+    def to_csv(self, outputdir=None):
         columns = "Chart Label Time Value".split()
 
         dfs = []
@@ -195,10 +197,12 @@ class PlotTrace:
             dfs.append(df)
 
         df = pd.concat(dfs)
-        if filepath is None:
-            filepath = f"PlotTrace_{datetime.now()}.csv"
+        filename = f"PlotTrace_{datetime.now()}.csv"
+        if outputdir:
+            filename = outputdir / filename
             
-        df.to_csv(filepath, index=False)
+        df.to_csv(filename, index=False)
+            
 
  
 class PlotSwarm:
