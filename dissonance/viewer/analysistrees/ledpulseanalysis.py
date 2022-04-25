@@ -82,17 +82,24 @@ class LedPulseAnalysis(BaseAnalysis):
 			# GET ALL CHILD EPOCHS FROM SELECTION
 			epochs = self.query(node)
 			grps = groupby(epochs, ["lightamplitude", "lightmean"])
-			n,m  = grps.shape[0], 1
+			n,m  = grps.shape[0], 2
 			axes = canvas.grid_axis(n,m)
 			
-			for ii, row in grps.iterrows():
+			ii = 0
+			for _, row in grps.iterrows():
 				epochs = row["trace"]
+				title = f'{row["lightamplitude"]}, {row["lightmean"]}'
 
 				plt = PlotPsth(axes[ii], epochs, label=node.path["genotype"])
-				title = f'{row["lightamplitude"]}, {row["lightmean"]}'
 				plt.ax.set_title(title)
-
 				self.currentplots.append(plt)
+				ii+=1
+
+				plt = PlotRaster(axes[ii], epochs)
+				plt.ax.set_title(title)
+				self.currentplots.append(plt)
+				ii+=1
+
 
 			canvas.draw()
 

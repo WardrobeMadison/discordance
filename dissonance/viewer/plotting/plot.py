@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from collections import defaultdict
 import pandas as pd
 from scipy.stats import ttest_ind
 from datetime import datetime
@@ -14,12 +15,16 @@ def p_to_star(p):
 	else:
 		return "ns"
 
-COLORS = {
-"WT":"#533E85",
-"DR":"#488FB1",
-"GA1":"4FD3C4"
-#C1F8CF
-}
+def def_value(): return "#003f5c"
+COLORS= defaultdict(def_value)
+COLORS["WT"] = "#003f5c"
+COLORS["DR"] ="#2f4b7c"
+COLORS["GA1"] = "#665191"
+COLORS["GG2 control"] ="#a05195"
+COLORS["GG2 KO"] ="#d45087"
+COLORS["None"] ="#f95d6a"
+#ff7c43
+#ffa600
 
 class PlotPsth:
 
@@ -40,7 +45,6 @@ class PlotPsth:
         n = len(epochs)
         psth = epochs.psth
 
-
         # TODO fix this
         try:
             name = epochs.genotypes[0]
@@ -51,7 +55,7 @@ class PlotPsth:
         seconds_conversion = 10000 / 100
         ttp = (np.argmax(psth) + 1) / (seconds_conversion)
         x = (np.arange(len(psth)) + 1) / (seconds_conversion)
-        self.ax.axvline(ttp, linestyle='--', color='k', alpha=0.4)
+        self.ax.axvline(ttp, linestyle='--', color=COLORS[name], alpha=0.4)
 
         self.ax.plot(x, psth, label=f"{label} (n={n})", c=COLORS[name])
 
@@ -117,13 +121,14 @@ class PlotRaster:
             toplt.append((spikes, y))
 
         for x,y in toplt:
-            self.ax.scatter(x,y, marker="|", c="k")
+            self.ax.scatter(x,y, marker="|", c=COLORS[epochs.genotypes[0]])
             self.values.append(y)
 
-        title = f"cellname={epochs.cellnames[0]}, lightamp={epochs.lightamplitudes[0]}, lightmean={epochs.lightmeans[0]}"
+        title = f"({epochs.lightamplitudes[0]}, {epochs.lightmeans[0]})"
+        self.ax.set_title(title)
         
         # SET THESE EACH LOOP?
-        self.ax.title.set_text(title)	
+        #self.ax.title.set_text(title)	
         self.ax.set_yticks(np.arange(len(epochs))+1)
         self.ax.set_yticklabels([f"{epoch.number}" for epoch in epochs])
 
@@ -170,7 +175,7 @@ class PlotTrace:
             epoch (SpikeTraces): Epochs to trace
             ax ([type]): Matlab figure axis
         """
-        self.ax.plot(epoch.values, label=epoch.startdate)
+        self.ax.plot(epoch.values, label=epoch.startdate, color=COLORS[epoch.genotype], alpha=0.4)
 
         self.labels.append(epoch.startdate)
         self.values.append(epoch.values)
@@ -180,7 +185,7 @@ class PlotTrace:
             epoch.type == "spiketrace"
             and epoch.spikes.sp is not None):
                 y = epoch.values[epoch.spikes.sp]
-                self.ax.scatter(epoch.spikes.sp, y, marker="x", c="#FFA500")
+                self.ax.scatter(epoch.spikes.sp, y, marker="x", c=COLORS[epoch.genotype])
 
         self.ax.legend()
 

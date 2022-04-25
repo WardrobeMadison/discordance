@@ -24,10 +24,13 @@ class App(QWidget):
 
     def __init__(self, tree, unchecked: set = None, uncheckedpath:Path=None, export_dir:Path=None):
         super().__init__()
+        # EPOCH INFORMATION
         self.unchecked = unchecked
         self.uncheckedpath = "unchecked.csv" if uncheckedpath is None else uncheckedpath
-        #self.epochs = epochs
+        self.export_dir = export_dir
         self.tree = tree
+        
+        # SET WINDOW
         self.left = 0
         self.top = 0
         self.width = 1200
@@ -35,7 +38,7 @@ class App(QWidget):
         self.initUI()
 
     def initUI(self):
-        self.setWindowTitle("dissonance")
+        self.setWindowTitle("Dissonance")
         self.setGeometry(self.left, self.top, self.width, self.height)
 
         initepoch = self.tree.frame.epoch.iloc[0]
@@ -56,7 +59,7 @@ class App(QWidget):
         self.treeWidget = cp.et.EpochTree(self.tree, unchecked=self.unchecked)
         self.treeWidget.selectionModel().selectionChanged.connect(self.on_tree_select)
 
-        self.filterfilelabel = QLabel(self.uncheckedpath)
+        self.filterfilelabel = QLabel(str(self.uncheckedpath))
 
         # FIRST COLUMNS
         col0 = QVBoxLayout()
@@ -127,12 +130,16 @@ class App(QWidget):
             epochs = self.tree.query(nodes)
 
             # UPDATE EPOCHS
-            for epoch in epochs:
-                epoch.update(paramname, value)
-                #print(epoch.startdate, paramname,value)
+            if len(nodes) > 1:
+                for epoch in epochs:
+                    epoch.update(paramname, value)
+                    #print(epoch.startdate, paramname,value)
 
-            # TODO wrap this into epochs object? how to handle updates?
-            epochs[0]._response_ds.flush()
+                # TODO wrap this into epochs object? how to handle updates?
+                epochs[0]._response_ds.flush()
+            else: 
+                epoch.update(paramname, value)
+                epochs._response_ds.flush()
 
             # REFRESH AND REATTATCH TREE
             # TODO make updating work refresh tree
@@ -158,7 +165,6 @@ class App(QWidget):
 
     def on_tree_select(self, item: QModelIndex):
         # SELECT V MULTI SELECT
-        idxs = self.treeWidget.selectedIndexes()
         nodes = self.get_nodes_from_selection()
 
         if len(nodes) == 1:
@@ -224,7 +230,7 @@ class ExportDataWindow(QWidget):
         self.close()
 
 
-def run(tree, unchecked: Path = None):
+def run(tree, unchecked, uncheckedpath: Path = None):
     app = QApplication(sys.argv)
-    ex = App(tree, unchecked)
+    ex = App(tree, unchecked, uncheckedpath)
     sys.exit(app.exec_())

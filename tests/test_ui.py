@@ -12,10 +12,10 @@ def test_window():
 		uncheckedpath = Path("DemoForJenna.txt")
 		unchecked = io.read_unchecked_file(uncheckedpath)
 
-		#paths = [file for ii, file in enumerate((root_dir/"DR").glob("*.h5")) if ii <3]
-		#paths.extend([file for ii, file in enumerate((root_dir / "WT").glob("*.h5")) if ii < 3])
-		paths = [file for ii, file in enumerate((root_dir/"DR").glob("*.h5"))]
-		paths.extend([file for ii, file in enumerate((root_dir / "WT").glob("*.h5"))])
+		#paths = [file for ii, file in enumerate((root_dir/"DR").glob("*.h5"))]
+		#paths.extend([file for ii, file in enumerate((root_dir / "WT").glob("*.h5"))])
+		paths = [file for ii, file in enumerate((root_dir/"GG2 control").glob("*.h5"))]
+		paths.extend([file for ii, file in enumerate((root_dir / "GG2 KO").glob("*.h5"))])
 
 		dr = io.DissonanceReader(paths)
 		epochs = dr.to_epochs(tracetype = "spiketrace", protocolname = "LedPulse", led = "Green LED")
@@ -23,7 +23,7 @@ def test_window():
 
 		tree = viewer.analysistrees.LedPulseAnalysis(epochs, unchecked)
 		
-		viewer.run(tree, uncheckedpath)
+		viewer.run(tree, unchecked, uncheckedpath)
 	except SystemExit as e:
 		...
 	finally:

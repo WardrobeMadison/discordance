@@ -31,7 +31,7 @@ class DissonanceReader:
 
                 condition = all([epoch.attrs[key] == val for key,val in kwargs.items()])
                 if condition:
-                    number=f"{prefix}_{ii+1:04d}"
+                    number=f"{ii+1:04d}"
                     params = et.DissonanceParams()
                 
                     # GET PARAMETERS

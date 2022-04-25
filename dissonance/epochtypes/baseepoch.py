@@ -120,6 +120,7 @@ class Epochs(ABC):
         else:
             self.key = None
         self._traces: List[IEpoch] = traces
+        self._traces.sort(key = lambda x: x.number)
         self._trace_len: int = None
         self._celltypes: List[str] = None
         self._tracetypes: List[str] = None

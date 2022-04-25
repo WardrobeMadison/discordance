@@ -39,7 +39,7 @@ class EpochItem(QStandardItem):
         self.setBackground(QColor(187, 177, 189))
         self.setFont(fnt)
         # self.setText(epoch.startdate)
-        self.setText(f"Epoch{node.number}")
+        self.setText(f"E{node.number}")
 
         self.setFlags(self.flags() | Qt.ItemIsUserCheckable |
                       Qt.ItemIsSelectable)

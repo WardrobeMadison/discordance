@@ -124,12 +124,12 @@ class SymphonyReader:
                         interpulseinterval=protocoldict["interpulseinterval"],
                         led=protocoldict["led"],
                         lightamplitude=lightamp,
-                        lightmean=protocoldict["lightmean"],
-                        numberofaverages=protocoldict["numberofaverages"],
-                        pretime=protocoldict["pretime"],
-                        stimtime=protocoldict.get("stimtime"),
-                        samplerate=protocoldict["samplerate"],
-                        tailtime=protocoldict["tailtime"],
+                        lightmean=protocoldict.get("lightmean", 0.0),
+                        numberofaverages=protocoldict.get("numberofaverages", 0.0),
+                        pretime=protocoldict.get("pretime", 0.0),
+                        stimtime=protocoldict.get("stimtime", 0.0),
+                        samplerate=protocoldict.get("samplerate", 0.0),
+                        tailtime=protocoldict.get("tailtime", 0.0),
                         responses=response_dict
                     )
 
