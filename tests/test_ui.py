@@ -14,8 +14,8 @@ def test_window():
 		paths.extend([file for ii, file in enumerate((root_dir / "WT").glob("*.h5"))])
 
 		dr = io.DissonanceReader(paths)
-		epochs = dr.to_epochs()
-		epochs = [x for x in epochs if x.tracetype == "spiketrace"]
+		epochs = dr.to_epochs(tracetype = "spiketrace", protocolname = "LedPulse", led = "Green LED")
+		#epochs = [x for x in epochs if x.tracetype == "spiketrace"]
 		epochs = epochtypes.SpikeEpochs(epochs)
 
 		tree = viewer.analysistrees.LedPulseAnalysis(epochs, "DemoForJenna.txt")

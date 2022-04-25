@@ -1,7 +1,7 @@
+import multiprocessing
 from pathlib import Path
 from typing import List
-#from multiprocessing import Pool
-import dill
+import multiprocessing as mp
 from pathos.multiprocessing import ProcessingPool
 import re
 
@@ -18,7 +18,7 @@ class DissonanceReader:
     def __init__(self, filepaths: List[Path]):
         self.experimentpaths = filepaths
 
-    def h5_to_epochs(self, filepath):
+    def h5_to_epochs(self, filepath, **kwargs):
         try:
             matches = RE_DATE.match(str(filepath))
             prefix = matches[1].replace("-", "") + matches[2]
@@ -27,50 +27,59 @@ class DissonanceReader:
             traces = []
             experiment = h5file["experiment"]
             for ii, epochname in enumerate(experiment):
-                number=f"{prefix}_{ii+1:04d}"
                 epoch = experiment[epochname]
-                params = et.DissonanceParams()
 
-                # GET PARAMETERS
-                for key, val in epoch.attrs.items():
-                    setattr(params, key.lower(), val)
+                condition = all([epoch.attrs[key] == val for key,val in kwargs.items()])
+                if condition:
+                    number=f"{prefix}_{ii+1:04d}"
+                    params = et.DissonanceParams()
+                
+                    # GET PARAMETERS
+                    for key, val in epoch.attrs.items():
+                        setattr(params, key.lower(), val)
 
-                # SEPARATE TRACES
-                resp = epoch["Amp1"]
-                if params.tracetype == "spiketrace":
-                    spikes = et.EpochSpikeInfo(
-                        resp.attrs["sp"],
-                        resp.attrs["spike_amps"],
-                        resp.attrs["min_spike_peak_idx"],
-                        resp.attrs["max_noise_peak_time"],
-                        resp.attrs["violation_idx"]
-                    )
+                    # SEPARATE TRACES
+                    resp = epoch["Amp1"]
+                    if params.tracetype == "spiketrace":
+                        spikes = et.EpochSpikeInfo(
+                            resp.attrs["sp"],
+                            resp.attrs["spike_amps"],
+                            resp.attrs["min_spike_peak_idx"],
+                            resp.attrs["max_noise_peak_time"],
+                            resp.attrs["violation_idx"]
+                        )
 
-                    trace = et.SpikeEpoch(
-                        epoch.name,
-                        params,
-                        spikes,
-                        resp,
-                        number=number)
-                else:
-                    trace = et.WholeEpoch(
-                        epoch.name,
-                        params,
-                        resp,
-                        number=number)
+                        trace = et.SpikeEpoch(
+                            epoch.name,
+                            params,
+                            spikes,
+                            resp,
+                            number=number)
+                    else:
+                        trace = et.WholeEpoch(
+                            epoch.name,
+                            params,
+                            resp,
+                            number=number)
 
-                traces.append(trace)
+                    traces.append(trace)
             return traces
         except Exception as e:
             print(filepath)
             print(e)
             return []
 
-    def to_epochs(self, nprocesses=4) -> List:
+    @staticmethod
+    def init_mp(l):
+        global lock
+        lock = l
+
+    def to_epochs(self, **kwargs) -> List:
         traces = []
-        #with ProcessingPool(processes=nprocesses) as p:
-            #for exptraces in p.imap(self.h5_to_epochs, self.experimentpaths):
-                #traces.extend(exptraces)
+        #l = multiprocessing.Lock()
+        #with mp.Pool(processes=nprocesses, initializer=self.init_mp, initargs=(1,)) as p:
+        #    for exptraces in p.imap(self.h5_to_epochs, self.experimentpaths):
+        #        traces.extend(exptraces)
         for filepath in self.experimentpaths:
-            traces.extend(self.h5_to_epochs(filepath))
+            traces.extend(self.h5_to_epochs(filepath, **kwargs))
         return traces
