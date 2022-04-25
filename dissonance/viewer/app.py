@@ -116,37 +116,26 @@ class App(QWidget):
         ...
 
     def on_table_edit(self, item):
-        # FROM TABLE WIDGET SEND TREE UPDATED PARAMS
-        idx = self.tableWidget.selectionModel().currentIndex()
         # GET PARAMNAME AND NEW VALUE
+        idx = self.tableWidget.selectionModel().currentIndex()
         row, col = idx.row(), idx.column()
         paramname = self.tableWidget.model().index(row, 0).data()
         value = self.tableWidget.model().index(row, 1).data()
 
-        # GET START DATES OF APPLICABLE EPOCHS
-        startdates = self.tableWidget.df.loc[
-            self.tableWidget.df.Param == "startdate"].Val.values
-
-        nodes = self.get_nodes_from_selection()
-        epochs = self.tree.query(nodes)
-
         if paramname.lower() in ("celltype", "genotype"):
+            nodes = self.get_nodes_from_selection()
+            epochs = self.tree.query(nodes)
+
             # UPDATE EPOCHS
             for epoch in epochs:
-                if epoch.startdate in startdates:
-                    epoch.update(paramname, value)
-                    #print(epoch.startdate, paramname,value)
-        else:
-            dlg = QDialog()
-            label = QLabel("You can only edit celltype and genotype.", dlg)
-            label.move(50, 50)
-            dlg.setWindowTitle("Incorrect parameter change")
-            dlg.exec_()
+                epoch.update(paramname, value)
+                #print(epoch.startdate, paramname,value)
 
-        # REFRESH TREE
-        self.tree.plant(self.epochs)
-        self.treeWidget.plant(self.tree)
-        print(item)
+            # REFRESH AND REATTATCH TREE
+            # TODO make updating work refresh tree
+            self.tree = type(self.tree)(self.tree.frame["trace"].values)
+            self.treeWidget = cp.et.EpochTree(self.tree, unchecked=self.unchecked)
+            self.treeWidget.selectionModel().selectionChanged.connect(self.on_tree_select)
 
     def on_reload_tree_click(self):
         # ON BTTN CLICK, RELOAD TREE WITH UPDATED PARAMS FROM TABLE INPUT

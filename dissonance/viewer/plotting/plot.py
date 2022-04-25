@@ -14,13 +14,12 @@ def p_to_star(p):
 	else:
 		return "ns"
 
-COLORS = dict(
-WT="#533E85",
-DR="#488FB1"
-#4FD3C4
+COLORS = {
+"WT":"#533E85",
+"DR":"#488FB1",
+"GA1":"4FD3C4"
 #C1F8CF
-)
-
+}
 
 class PlotPsth:
 
@@ -83,13 +82,20 @@ class PlotPsth:
 
 class PlotRaster:
 
-    def __init__(self, ax, epochs=None):
+    def __init__(self, ax, epochs=None, title=None):
         self.ax = ax
         self.ax.grid(False)
+
+        if title:
+            self.ax.set_title(title)
 
         ax.set_ylabel("Hz / s")
         ax.set_xlabel("10ms bins")
         self.ax.axes.get_xaxis().set_visible(False)
+
+
+        self.labels = []
+        self.values = []
 
         if epochs is not None:
             self.append_trace(epochs)
@@ -111,6 +117,7 @@ class PlotRaster:
 
         for x,y in toplt:
             self.ax.scatter(x,y, marker="|", c="k")
+            self.values.append(y)
 
         title = f"cellname={epochs.cellnames[0]}, lightamp={epochs.lightamplitudes[0]}, lightmean={epochs.lightmeans[0]}"
         
@@ -119,6 +126,27 @@ class PlotRaster:
         self.ax.set_yticks(np.arange(len(epochs))+1)
         self.ax.set_yticklabels([f"{epoch.number}" for epoch in epochs])
 
+        for epoch in epochs:
+            self.labels.append(epoch.startdate)
+
+    def to_csv(self, filepath=None):
+        columns = "Chart Label Time Value".split()
+
+        dfs = []
+        for label, values in zip(self.labels, self.values):
+            df = pd.DataFrame(columns=columns)
+            df["Value"] = values
+            df["Time"] = np.arange(len(values))
+            df["Label"] = label
+            df["Chart"] = "Raster"
+            dfs.append(df)
+
+        df = pd.concat(dfs)
+        if filepath is None:
+            filepath = f"PlotRaster_{datetime.now()}.csv"
+            
+        df.to_csv(filepath, index=False)
+
 class PlotTrace:
 
     def __init__(self, ax, epoch=None):
@@ -126,6 +154,9 @@ class PlotTrace:
 
         ax.set_ylabel("pA")
         ax.set_xlabel("10e-4 seconds")
+
+        self.labels = []
+        self.values = []
 
         if epoch is not None:
             self.append_trace(epoch)
@@ -139,6 +170,9 @@ class PlotTrace:
         """
         self.ax.plot(epoch.values, label=epoch.startdate)
 
+        self.labels.append(epoch.startdate)
+        self.values.append(epoch.values)
+
         # PLOT SPIKES IF YOU HAVE THEM
         if (
             epoch.type == "spiketrace"
@@ -148,12 +182,32 @@ class PlotTrace:
 
         self.ax.legend()
 
+    def to_csv(self, filepath=None):
+        columns = "Chart Label Time Value".split()
+
+        dfs = []
+        for label, values in zip(self.labels, self.values):
+            df = pd.DataFrame(columns=columns)
+            df["Value"] = values
+            df["Time"] = np.arange(len(values))
+            df["Label"] = label
+            df["Chart"] = "Trace"
+            dfs.append(df)
+
+        df = pd.concat(dfs)
+        if filepath is None:
+            filepath = f"PlotTrace_{datetime.now()}.csv"
+            
+        df.to_csv(filepath, index=False)
+
  
 class PlotSwarm:
 
     def __init__(self, ax, metric:str="peakamplitude", epochs=None):
         self.ax = ax
         self.metric = metric
+
+        self.values = []
 
         if epochs is not None:
             self.append_trace(epochs)
@@ -195,6 +249,7 @@ class PlotSwarm:
             # CHANGE SIGN OF AXIS IF NEEDED
             ymax = max(ymax, np.max(values)) if meanval > 0 else min(ymax, np.max(values))
             toppoint = max(toppoint, meanval+sem) if meanval > 0 else min(toppoint, meanval-sem)
+            toppoint = max(toppoint, ymax) if toppoint > 0 else min(toppoint, ymax)
 
             toplt.append(
                 dict(
@@ -218,6 +273,8 @@ class PlotSwarm:
                 values, 
                 alpha = 0.25,
                 c=COLORS[name])
+
+            self.values.extend(toplt)
             
             # LABEL NUMBER OF CELLS 
             self.ax.text(ii, 0, f"n={len(values)}",
@@ -235,7 +292,7 @@ class PlotSwarm:
             # PLOT SIGNFICANCE LABEL
             # HACK PERCENT TO PUT ABOVE MAX POINT. DOESN'T WORK WELL FOR SMALL VALUES
             pct = 0.05 
-            ay, h, col = ymax + ymax * pct, ymax * pct, 'k'
+            ay, h, col = toppoint + toppoint * pct, toppoint * pct, 'k'
 
             self.ax.plot(
                 [x1, x1, x2, x2], 
@@ -262,4 +319,8 @@ class PlotSwarm:
         # Y AXIS FORMAT
         self.ax.set_ylabel("pA")
         self.ax.set_ylim((0.0, toppoint * 1.20))
+
+    def to_csv(self, filepath=None):
+        # TODO what data is needed for this?
+        ...
 

@@ -59,7 +59,7 @@ class LedPulseAnalysis(BaseAnalysis):
 			epoch = self.query(node)
 
 			axes = canvas.grid_axis(1,2)
-			plttr, = PlotTrace(axes[0], epoch)
+			plttr = PlotTrace(axes[0], epoch)
 			pltpsth = PlotPsth(axes[1], epoch, label=epoch.startdate)
 			canvas.draw()
 

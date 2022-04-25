@@ -19,47 +19,52 @@ class DissonanceReader:
         self.experimentpaths = filepaths
 
     def h5_to_epochs(self, filepath):
-        matches = RE_DATE.match(str(filepath))
-        prefix = matches[1].replace("-", "") + matches[2]
+        try:
+            matches = RE_DATE.match(str(filepath))
+            prefix = matches[1].replace("-", "") + matches[2]
 
-        h5file = h5py.File(str(filepath), "r")
-        traces = []
-        experiment = h5file["experiment"]
-        for ii, epochname in enumerate(experiment):
-            number=f"{prefix}_{ii+1:04d}"
-            epoch = experiment[epochname]
-            params = et.DissonanceParams()
+            h5file = h5py.File(str(filepath), "a")
+            traces = []
+            experiment = h5file["experiment"]
+            for ii, epochname in enumerate(experiment):
+                number=f"{prefix}_{ii+1:04d}"
+                epoch = experiment[epochname]
+                params = et.DissonanceParams()
 
-            # GET PARAMETERS
-            for key, val in epoch.attrs.items():
-                setattr(params, key.lower(), val)
+                # GET PARAMETERS
+                for key, val in epoch.attrs.items():
+                    setattr(params, key.lower(), val)
 
-            # SEPARATE TRACES
-            resp = epoch["Amp1"]
-            if params.tracetype == "spiketrace":
-                spikes = et.EpochSpikeInfo(
-                    resp.attrs["sp"],
-                    resp.attrs["spike_amps"],
-                    resp.attrs["min_spike_peak_idx"],
-                    resp.attrs["max_noise_peak_time"],
-                    resp.attrs["violation_idx"]
-                )
+                # SEPARATE TRACES
+                resp = epoch["Amp1"]
+                if params.tracetype == "spiketrace":
+                    spikes = et.EpochSpikeInfo(
+                        resp.attrs["sp"],
+                        resp.attrs["spike_amps"],
+                        resp.attrs["min_spike_peak_idx"],
+                        resp.attrs["max_noise_peak_time"],
+                        resp.attrs["violation_idx"]
+                    )
 
-                trace = et.SpikeEpoch(
-                    epoch.name,
-                    params,
-                    spikes,
-                    resp,
-                    number=number)
-            else:
-                trace = et.WholeEpoch(
-                    epoch.name,
-                    params,
-                    resp,
-                    number=number)
+                    trace = et.SpikeEpoch(
+                        epoch.name,
+                        params,
+                        spikes,
+                        resp,
+                        number=number)
+                else:
+                    trace = et.WholeEpoch(
+                        epoch.name,
+                        params,
+                        resp,
+                        number=number)
 
-            traces.append(trace)
-        return traces
+                traces.append(trace)
+            return traces
+        except Exception as e:
+            print(filepath)
+            print(e)
+            return []
 
     def to_epochs(self, nprocesses=4) -> List:
         traces = []

@@ -8,10 +8,10 @@ def test_window():
 
 		root_dir = Path("/home/joe/Projects/DataStore/MappedData")
 
-		paths = [file for ii, file in enumerate((root_dir/"DR").glob("*.h5")) if ii <3]
-		paths.extend([file for ii, file in enumerate((root_dir / "WT").glob("*.h5")) if ii < 3])
-		#paths = [file for ii, file in enumerate((root_dir/"DR").glob("*.h5"))]
-		#paths.extend([file for ii, file in enumerate((root_dir / "WT").glob("*.h5"))])
+		#paths = [file for ii, file in enumerate((root_dir/"DR").glob("*.h5")) if ii <3]
+		#paths.extend([file for ii, file in enumerate((root_dir / "WT").glob("*.h5")) if ii < 3])
+		paths = [file for ii, file in enumerate((root_dir/"DR").glob("*.h5"))]
+		paths.extend([file for ii, file in enumerate((root_dir / "WT").glob("*.h5"))])
 
 		dr = io.DissonanceReader(paths)
 		epochs = dr.to_epochs()
