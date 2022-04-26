@@ -1,14 +1,14 @@
 from typing import List, Tuple, Union, Dict, Any
 
 from dissonance.epochtypes.spikeepoch import SpikeEpoch
-from dissonance.viewer.plotting.plot import PlotSwarm
+from dissonance.viewer.plot import PlotSwarm
 
 from .baseanalysis import BaseAnalysis
 from ...trees import Node
 from ...funks import hill
 from ...epochtypes import groupby, EpochBlock, SpikeEpochs, filter, WholeEpoch, WholeEpochs
 from ..components.chart import MplCanvas
-from ..plotting import PlotPsth, PlotRaster, PlotTrace, PlotCRF
+from ..plot import PlotPsth, PlotRaster, PlotTrace, PlotCRF, PlotWholeTrace, PlotHill
 
 
 class LedWholeAnalysis(BaseAnalysis):
@@ -54,7 +54,7 @@ class LedWholeAnalysis(BaseAnalysis):
     def plot_single_epoch(self, epoch, canvas):
 
         axes = canvas.grid_axis(1, 2)
-        plttr = PlotTrace(axes[0], epoch)
+        plttr = PlotWholeTrace(axes[0], epoch)
         canvas.draw()
 
         self.currentplots.append(plttr)
@@ -72,36 +72,43 @@ class LedWholeAnalysis(BaseAnalysis):
             traces = row["trace"]
 
             # SECOND COLUMN
-            pltraster = PlotTrace(axes[axii], traces)
+            pltraster = PlotWholeTrace(axes[axii], traces)
             axii += 1
 
             self.currentplots.extend([pltraster])
 
     def plot_genotype_summary(self, epochs, canvas):
-        ...
-        #grps = groupby(epochs, ["celltype", "rstarr"])
-        #n, m = grps.shape[0], 2
-        #axes = canvas.grid_axis(n, m)
+        """Plot three chart columns - Peak ampltiude, width at half max, average trace"""
+        grps = groupby(epochs, ["celltype", "lightamplitude", "lightmean"])
+        n, m = grps.shape[0], 3
+        axes = canvas.grid_axis(n, m)
 
-        ## FIRST COLUMN
-        #ii = 0
-        #for rstarr, row in grps.groupby("rstarr"):
-            #cepochs = row["trace"]
+        # FIRST COLUMN - PEAK AMPLITUDE
+        ii = 0
+        for rstarr, row in grps.groupby(["lightamplitude", "lightmean"]):
+           cepochs = row["trace"]
+           plt = PlotPsth(axes[ii], cepochs, label=cepochs.get("genotype")[0])
+           plt.ax.set_title(rstarr)
+           self.currentplots.append(plt)
+           ii += 2
 
-            #plt = PlotPsth(axes[ii], cepochs, label=cepochs.get("genotype")[0])
-            #plt.ax.set_title(rstarr)
-            #self.currentplots.append(plt)
-            #ii += 2
+        # SECOND COLUMN - WIDTH AT HALF MAX
+        ii = 1
+        grps = groupby(epochs, ["lightamplitude", "lightmean"])
+        for _, epoch in grps.iterrows():
+            cepoch = row["trace"]
+            plt = PlotRaster(axes[ii], cepoch)
+            self.currentplots.append(plt)
+            ii += 2
 
-        ## SECOND COLUMN
-        #ii = 1
-        #grps = groupby(epochs, ["rstarr"])
-        #for _, epoch in grps.iterrows():
-
-            #plt = PlotRaster(axes[ii], epochs)
-            #plt.ax.set_title(rstarr)
-            #self.currentplots.append(plt)
-            #ii += 2
+        # THIRD COLUMN - AVERAGE TRACE
+        ii = 2
+        grps = groupby([epochs, "lightamplitude", "lightmean"])
+        for _, row in grps.iterrows():
+            cepoch = row["trace"]
+            plt = PlotWholeTrace(axes[ii], cepoch)
+            self.currentplots.append(plt)
+            ii += 2
 
     def plot_genotype_comparison(self, epochs: EpochBlock, canvas: MplCanvas = None):
         """Compare epochs by genotype
@@ -111,28 +118,28 @@ class LedWholeAnalysis(BaseAnalysis):
             canvas (MplCanvas, optional): Parent MPL canvas, figure created if not provided. Defaults to None.
         """
         df = groupby(epochs, self.labels)
-        n = len(df.rstarr.unique())
+        n = len(df[["lightamplitude", "lightmean"]].unique())
         n, m = n, 3
         axes = canvas.grid_axis(n, m)
 
         # PEAK AMPLITUDE SWARM PLOTS IN FIRST COLUMN
         ii = 0
-        for name, frame in df.groupby("rstarr"):
+        for name, frame in df.groupby(["lightamplitude", "lightmean"]):
             plt = PlotSwarm(axes[ii], metric="peakamplitude", epochs=frame)
             ii += 3
             self.currentplots.append(plt)
 
         # TTP SWARM PLOTS IN Seoncd COLUMN
         ii = 1
-        for name, frame in df.groupby("rstarr"):
+        for name, frame in df.groupby(["lightamplitude", "lightmean"]):
             plt = PlotSwarm(axes[ii], metric="timetopeak", epochs=frame)
             ii += 3
             self.currentplots.append(plt)
 
         # OVERLAPPING PSTHS IN THIRD COLUMN
         ii = 2
-        for name, frame in df.groupby("rstarr"):
-            axes[ii].set_title(name)
+        for (lightamp, lightmean), frame in df.groupby(["lightamplitude", "lightmean"]):
+            axes[ii].set_title(f"{lightamp},{lightmean}")
             for geno, fframe in frame.groupby("genotype"):
                 # SHOULD ONLY BE ONE GENOTYPE HERE
                 epoch = fframe.iloc[0, -1]
@@ -177,7 +184,7 @@ class LedWholeAnalysis(BaseAnalysis):
 
     @property
     def labels(self):
-        return ("protocolname", "led", "celltype", "genotype", "cellname", "rstarr")
+        return ("protocolname", "led", "celltype", "genotype", "cellname", "lightamplitude", "lightmean")
 
     @property
     def tracestype(self): return WholeEpochs
@@ -211,9 +218,13 @@ class LedSpikeAnalysis(BaseAnalysis):
         # STARTDATE
         if node.isleaf:
             self.plot_single_epoch(epochs, canvas)
-        # RSTARR
-        elif level == 7:
+        # light amplitude
+        elif level == 8:
             self.plot_summary_epochs(epochs, canvas)
+        # light mean
+        elif level == 7:
+            #TODO light mean anlaysis - analyze faceted light amplitudes
+            ...
         # CELLNAME
         elif level == 6:
             self.plot_summary_cell(epochs, canvas)
@@ -237,7 +248,7 @@ class LedSpikeAnalysis(BaseAnalysis):
         self.currentplots.append(pltpsth)
 
     def plot_genotype_summary(self, epochs, canvas):
-        grps = groupby(epochs, ["cellname", "rstarr"])
+        grps = groupby(epochs, ["cellname", "lightamplitude", "lightmean"])
         n, m = grps.shape[0], 2
         axes = canvas.grid_axis(n, m)
 
@@ -245,7 +256,7 @@ class LedSpikeAnalysis(BaseAnalysis):
         ii = 0
         for _, row in grps.iterrows():
             cepochs = row["trace"]
-            title = f'{row["cellname"]}: {row["rstarr"]}'
+            title = f'{row["cellname"]}: {row["lightamplitude"]}, {row["lightmean"]}'
 
             plt = PlotPsth(axes[ii], cepochs, label=row["genotype"])
             plt.ax.set_title(title)
@@ -266,27 +277,27 @@ class LedSpikeAnalysis(BaseAnalysis):
             canvas (MplCanvas, optional): Parent MPL canvas, figure created if not provided. Defaults to None.
         """
         df = groupby(epochs, self.labels)
-        n = len(df.rstarr.unique())
+        n = len(df[["lightamplitude", "lightmean"]].unique())
         n, m = n, 3
         axes = canvas.grid_axis(n, m)
 
         # PEAK AMPLITUDE SWARM PLOTS IN FIRST COLUMN
         ii = 0
-        for name, frame in df.groupby("rstarr"):
+        for name, frame in df.groupby(["lightamplitude", "lightmean"]):
             plt = PlotSwarm(axes[ii], metric="peakamplitude", epochs=frame)
             ii += 3
             self.currentplots.append(plt)
 
         # TTP SWARM PLOTS IN Seoncd COLUMN
         ii = 1
-        for name, frame in df.groupby("rstarr"):
+        for name, frame in df.groupby(["lightamplitude", "lightmean"]):
             plt = PlotSwarm(axes[ii], metric="timetopeak", epochs=frame)
             ii += 3
             self.currentplots.append(plt)
 
         # OVERLAPPING PSTHS IN THIRD COLUMN
         ii = 2
-        for name, frame in df.groupby("rstarr"):
+        for name, frame in df.groupby(["lightamplitude", "lightmean"]):
             axes[ii].set_title(name)
             for geno, fframe in frame.groupby("genotype"):
                 # SHOULD ONLY BE ONE GENOTYPE HERE
@@ -354,7 +365,7 @@ class LedSpikeAnalysis(BaseAnalysis):
 
     @property
     def labels(self):
-        return ("protocolname", "led", "celltype", "genotype", "cellname", "rstarr")
+        return ("protocolname", "led", "celltype", "genotype", "cellname", "lightmean", "lightamplitude")
 
     @property
     def tracestype(self): return SpikeEpochs

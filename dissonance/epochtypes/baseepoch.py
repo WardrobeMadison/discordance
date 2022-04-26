@@ -35,7 +35,6 @@ class DissonanceParams:
     interpulseinterval: float = field( default=None)
     led: float = field( default=None)
     lightamplitude: float = field( default=None)
-    rstarr: float = field(default=None)
     lightmean: float = field( default=None)
     numberofaverages: float = field( default=None)
     pretime: float = field( default=None)
@@ -63,8 +62,8 @@ class IEpoch(ABC):
         self.interpulseinterval = params.interpulseinterval
         self.led = params.led
         self.lightamplitude = params.lightamplitude
-        self.rstarr = params.rstarr
         self.lightmean = params.lightmean
+        self.pctcontrast = self.lightamplitude / self.lightmean if self.lightmean != 0.0 else 0.0
         self.numberofaverages = params.numberofaverages
         self.samplerate = params.samplerate
         self.pretime = params.pretime * 10
@@ -97,7 +96,7 @@ class IEpoch(ABC):
             print(f"Can't change {paramname} to {value}")
 
     @property
-    def values(self):
+    def trace(self):
         return self._response_ds[:]
 
     @property
@@ -160,7 +159,7 @@ class EpochBlock(ABC):
         # PAD ALL VALUES TO STRETCH INTO FULL ARRAY
         return np.vstack(
                 [
-                    np.pad(epoch.values, (0, self.trace_len - len(epoch)))
+                    np.pad(epoch.trace, (0, self.trace_len - len(epoch)))
                     for epoch in self._epochs
                 ])
 

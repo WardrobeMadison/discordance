@@ -36,7 +36,7 @@ class WholeEpoch(IEpoch):
     @property
     def timetopeak(self) -> float:
         if self._timetopeak is None:
-            self._timetopeak  = np.argmin(self.values)
+            self._timetopeak  = np.argmin(self.trace)
         return self._timetopeak
 
     @property
@@ -49,13 +49,13 @@ class WholeEpoch(IEpoch):
     @property
     def peakamplitude(self) -> float:
         if self._peakamplitude is None:
-            self._peakamplitude  = np.max(self.values)
+            self._peakamplitude  = np.max(self.trace)
         return self._peakamplitude
 
     @property
     def width_at_half_max(self) -> float:
         if self._widthathalfmax is None:
-            self._widthathalfmax, self._widthrange = calc_width_at_half_max(self.values)
+            self._widthathalfmax, self._widthrange = calc_width_at_half_max(self.trace)
         return self._widthathalfmax
 
     @property
@@ -73,10 +73,18 @@ class WholeEpochs(EpochBlock):
     def trace(self) -> float:
         return np.mean(self.traces, axis=1)
 
-    @property 
-    def widthathalfmax(self) -> Tuple[float, Tuple[float, float]]:
-        # assume it's cell, lightamp, lightmean
-        return calc_width_at_half_max(self.trace)
+    @property
+    def widthrange(self) -> float:
+        if self._widthrange is None:
+            # set this property to set range as well
+            self.width_at_half_max
+        return self._widthrange
+
+    @property
+    def width_at_half_max(self) -> float:
+        if self._widthathalfmax is None:
+            self._widthathalfmax, self._widthrange = calc_width_at_half_max(self.trace)
+        return self._widthathalfmax
 
     @property 
     def peakamplitude(self) -> float:

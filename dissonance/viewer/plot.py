@@ -1,10 +1,14 @@
+from calendar import c
+from turtle import color
+from typing import Union, List
 import numpy as np
 import matplotlib.pyplot as plt
 from collections import defaultdict
 import pandas as pd
-from scipy.stats import ttest_ind
+from scipy.stats import ttest_ind, sem
 from datetime import datetime
-from ...epochtypes import IEpoch
+from ..epochtypes import IEpoch, WholeEpoch, WholeEpochs
+from ..funks import hill
 
 
 def p_to_star(p):
@@ -18,7 +22,10 @@ def p_to_star(p):
         return "ns"
 
 
-def def_value(): return "#003f5c"
+# MORE COLORS TO USE: ff7c43, ffa600
+def def_value(): 
+    """DUMMY FUNCTION FOR DEFAULT DICT COLORS"""
+    return "#003f5c"
 
 
 COLORS = defaultdict(def_value)
@@ -28,52 +35,6 @@ COLORS["GA1"] = "#665191"
 COLORS["GG2 control"] = "#a05195"
 COLORS["GG2 KO"] = "#d45087"
 COLORS["None"] = "#f95d6a"
-# ff7c43
-# ffa600
-
-PCTCNTRST = pd.DataFrame(
-    columns="lightamplitude lightmean pctcontrast".split(),
-    data=[
-        [-0.001, 0.005, -25],
-        [-0.003, 0.005, -50],
-        [-0.005, 0.005, -100],
-        [0.001, 0.005, 25],
-        [0.003, 0.005, 50],
-        [0.005, 0.005, 100],
-        [0.002, 0.007, 25],
-        [0.004, 0.007, 50],
-        [0.005, 0.007, 75],
-        [0.007, 0.007, 100],
-        [-0.002, 0.007, -25],
-        [-0.004, 0.007, -50],
-        [-0.005, 0.007, -75],
-        [-0.007, 0.007, -100],
-        [-0.002, 0.006, -25],
-        [-0.003, 0.006, -50],
-        [-0.006, 0.006, -100],
-        [0.002, 0.006, 25],
-        [0.003, 0.006, 50],
-        [0.006, 0.006, 100],
-        [-0.006, 0.006, -100],
-        [0.002, 0.005, 50],
-        [0.004, 0.005, 75],
-        [-0.004, 0.005, -75],
-        [0.005, 0.006, 75],
-        [-0.005, 0.006, -75],
-        [0.005, 0, 0],
-        [0.006, 0, 0]])
-
-
-def get_pctcntrst(lightamp, lightmean):
-    try:
-        return PCTCNTRST.loc[
-            (PCTCNTRST.lightamplitude == lightamp) &
-            (PCTCNTRST.lightmean == lightmean),
-            "pctcontrast"
-        ]
-    except:
-        return 0.0
-
 
 class PlotPsth:
 
@@ -174,7 +135,7 @@ class PlotRaster:
             self.ax.scatter(x, y, marker="|", c=COLORS[genotype])
             self.values.append(y)
 
-        title = f"{epochs.get_unique('rstarr')[0]}"
+        title = f"{epochs.get_unique('lightamplitude')[0]}, {epochs.get_unique('lightmean')[0]}"
         self.ax.set_title(title)
 
         # SET THESE EACH LOOP?
@@ -205,6 +166,55 @@ class PlotRaster:
         df.to_csv(filename, index=False)
 
 
+class PlotWholeTrace:
+
+    def __init__(self, ax, epoch=None):
+        self.ax = ax
+        ax.grid(False)
+
+        if epoch is not None:
+            self.append_trace(epoch)
+
+    def append_trace(self, epoch=Union[WholeEpoch, WholeEpochs]):
+        """Plot traces
+        """
+        # GET ATTRIBUTES FOR PLOT
+        stimtime = epoch.get("stimtime")[0]
+        if isinstance(epoch, IEpoch):
+            label = epoch.startdate
+            genotype = epoch.genotype
+        else:
+            label = f'{epoch.get("cellname")[0]}, {epoch.get("lightamplitude")[0]}, {epoch.get("lightmean")}'
+            genotype = epoch.get("genotype")[0]
+
+        # PLOT TRACE VALUES
+        self.ax.plot(
+            np.arange(len(epoch.trace)) - stimtime,
+            epoch.trace, label=label,
+            color=COLORS[epoch.get("genotype")[0]],
+            alpha=0.4)
+
+        # PLOT HALF WIDTH
+        whm = epoch.widthathalfmax
+        wrange = epoch.widthrange
+
+        # HORIZONTAL LINE ACROSS HALF MAX
+        self.ax.line(
+            wrange, [whm, whm],
+            marker="--",
+            color=COLORS[genotype])
+
+        # MARKER ON PEAK AMPLITUDE
+        self.scatter(
+            epoch.timetopeak, epoch.peakamplitude,
+            marker="x")
+
+        self.labels.append(label)
+        self.values.append(epoch.trace)
+
+        self.ax.legend()
+
+
 class PlotTrace:
 
     def __init__(self, ax, epoch=None):
@@ -222,28 +232,30 @@ class PlotTrace:
     def append_trace(self, epoch):
         """Plot traces
         """
-        if not isinstance(epoch, IEpoch):
-            stimtime = epoch.stimtimes[0]
+        # GET ATTRIBUTES FOR PLOT
+        stimtime = epoch.get("stimtime")[0]
+        if isinstance(epoch, IEpoch):
+            label = epoch.startdate
         else:
-            stimtime = epoch.stimtime
+            label = f'{epoch.get("cellname")[0]}, {epoch.get("lightamplitude")[0]}, {epoch.get("lightmean")}'
 
-        if (
-                epoch.type == "spiketrace"
-                and epoch.spikes.sp is not None):
-            y = epoch.values[epoch.spikes.sp]
-            # WANT 0 TO BE STIM TIME
+        # PLOT SPIKES IF SPIKETRACE
+        if (epoch.type == "spiketrace" and epoch.spikes.sp is not None):
+            y = epoch.trace[epoch.spikes.sp]
             self.ax.scatter(
                 epoch.spikes.sp - stimtime,
                 y,
                 marker="x", c=COLORS[epoch.genotype])
 
+        # PLOT TRACE VALUES
         self.ax.plot(
-            np.arange(len(epoch.values)) - stimtime,
-            epoch.values, label=epoch.startdate,
-            color=COLORS[epoch.genotype], alpha=0.4)
+            np.arange(len(epoch.trace)) - stimtime,
+            epoch.trace, label=label,
+            color=COLORS[epoch.get("genotype")[0]],
+            alpha=0.4)
 
-        self.labels.append(epoch.startdate)
-        self.values.append(epoch.values)
+        self.labels.append(label)
+        self.values.append(epoch.trace)
 
         self.ax.legend()
 
@@ -255,6 +267,7 @@ class PlotTrace:
             df = pd.DataFrame(columns=columns)
             df["Value"] = values
             df["Time"] = np.arange(len(values))
+            # TODO split label up to get component keys. Try to associate a label with every epoch list for unique attributes
             df["Label"] = label
             df["Chart"] = "Trace"
             dfs.append(df)
@@ -311,7 +324,7 @@ class PlotSwarm:
                 ], dtype=float)
 
             meanval = np.mean(values)
-            sem = np.std(values) / np.sqrt(len(values))
+            sem = sem(values)
 
             # CHANGE SIGN OF AXIS IF NEEDED
             ymax = max(ymax, np.max(values)) if meanval > 0 else min(
@@ -377,8 +390,9 @@ class PlotSwarm:
                 color=col)
 
         # FIG SETTINGS
-        rstarr = epochs.rstarr.iloc[0]
-        self.ax.set_title(f"{self.metric}: {rstarr}")
+        lightamplitude, lightmean = epochs[[
+            "lightamplitude", "lightmean"]].iloc[0]
+        self.ax.set_title(f"{self.metric}: {lightamplitude, lightmean}")
 
         # X AXIS FORMAT
         self.ax.xaxis.set_ticks_position('none')
@@ -421,11 +435,10 @@ class PlotCRF:
         Y = []
         sems = []
         genotype = epochs.genotype.iloc[0]
-        for rstarr, frame in epochs.groupby("rstarr"):
-            lightamplitude, lightmean = frame[[
-                "lightamplitude", "lightmean"]].iloc[0, :]
-            contrast = get_pctcntrst(lightamplitude, lightmean)
+        for (lightamp, lightmean), frame in epochs.groupby(["lightamplitude", "lightmean"]):
+            contrast = lightamp / lightmean if lightmean != 0.0 else 0.0
 
+            # GET PEAK AMPLITUDE FROM EACH PSTH - USED IN SEM
             peakamps = np.array([
                 np.max(epoch.psth)
                 for epoch in frame.trace.values
@@ -433,7 +446,7 @@ class PlotCRF:
 
             X.append(contrast)
             Y.append(np.mean(peakamps))
-            sems.append(peakamps.std() / np.sqrt(len(peakamps)))
+            sems.append(sem(peakamps))
 
             self.peakamps[genotype].append(peakamps)
 
@@ -473,8 +486,8 @@ class PlotCRF:
             # GETS POSITION TO WRITE STARS
             # ON TOP MOST ERROR BAR
             ymax = max(
-                np.mean(a1) + np.std(a1) / np.sqrt(len(a1)),
-                np.mean(a2) + np.std(a1) / np.sqrt(len(a2)))
+                np.mean(a1) + sem(a1),
+                np.mean(a2) + sem(a2))
 
             self.ax.text(
                 self.xvalues[0],  # ASSUME IN SAME ORDER
@@ -486,14 +499,43 @@ class PlotCRF:
     def to_csv(self):
         ...
 
+
 class PlotHill:
 
     def __init__(self, ax, epochs):
-
         self.ax = ax
+        self.params = dict()
 
         if epochs:
             self.append_trace(epochs)
 
-    def append_trace(self, epochs):
+    def append_trace(self, epochs: pd.DataFrame):
+        """HILL FIT ON EACH CELL AND AVERAGE OF EACH CELLS"""
+        # EPOCH SEPARATED BY CELL, LIGHTAMPLITUDE. ASSUMING SAME LIGHT MEAN
+        genotype = epochs.genotype.iloc[0]
+
+        # FIT HILL TO EACH CELL - ONLY PLOT PEAK AMPLITUDES
+        for cellname, frame in epochs.groupby(["cellname"]):
+            frame = frame.sort_values(["lightamplitude"])
+            X = frame.lightamplitude.values
+            Y = frame.trace.apply(lambda x: x.peakamplitude).values
+            hillfit = hill.fit(X, Y)
+            self.params[cellname] = hillfit
+
+        # FIT HILL TO AVERAGE OF PEAK AMPLITUDES
+        df = epochs.copy()
+        df["peakamp"] = epochs.trace.apply(lambda x: x.peakamplitude)
+        dff = df.groupby("lightamplitude").peakamp.mean().reset_index()
+       
+        # PLOT LINE AND AVERAGES
+        X,Y = dff.lightamplitude.values, dff.peakamp.values
+        hillfit = hill.fit(X, Y)
+        self.ax.plot(X, hillfit(Y), color=COLORS[genotype])
+        self.ax.scatter(X, Y, alpha=0.4, color=COLORS[genotype])
+
+        self.params["average"] = hillfit
+
+    def to_csv(self):
         ...
+
+
