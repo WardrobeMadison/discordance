@@ -1,54 +1,13 @@
 from abc import ABC, abstractproperty
 from dataclasses import dataclass, field
-from typing import Iterator, List, Tuple
+from typing import Iterable, Iterator, List, Tuple, Dict
 from datetime import datetime
+from matplotlib.colors import LightSource
 
 import numpy as np
 import pandas as pd
 from h5py._hl.dataset import Dataset
-
-PCTCNTRST = pd.DataFrame(
-    columns="lightamplitude lightmean pctcontrast".split(),
-    data=[
-        [-0.001, 0.005, -25],
-        [-0.003, 0.005, -50],
-        [-0.005, 0.005, -100],
-        [0.001, 0.005, 25],
-        [0.003, 0.005, 50],
-        [0.005, 0.005, 100],
-        [0.002, 0.007, 25],
-        [0.004, 0.007, 50],
-        [0.005, 0.007, 75],
-        [0.007, 0.007, 100],
-        [-0.002, 0.007, -25],
-        [-0.004, 0.007, -50],
-        [-0.005, 0.007, -75],
-        [-0.007, 0.007, -100],
-        [-0.002, 0.006, -25],
-        [-0.003, 0.006, -50],
-        [-0.006, 0.006, -100],
-        [0.002, 0.006, 25],
-        [0.003, 0.006, 50],
-        [0.006, 0.006, 100],
-        [-0.006, 0.006, -100],
-        [0.002, 0.005, 50],
-        [0.004, 0.005, 75],
-        [-0.004, 0.005, -75],
-        [0.005, 0.006, 75],
-        [-0.005, 0.006, -75],
-        [0.005, 0, 0],
-        [0.006, 0, 0]])
-
-def get_pctcntrst(lightamp, lightmean):
-    try:
-        return PCTCNTRST.loc[
-            (PCTCNTRST.lightamplitude == lightamp) &
-            (PCTCNTRST.lightmean == lightmean),
-            "pctcontrast"
-        ]
-    except:
-        return 0.0
-
+from pytest import param
 
 @dataclass
 class EpochSpikeInfo:
@@ -114,13 +73,6 @@ class IEpoch(ABC):
         self.startdate = params.startdate
         self.enddate = params.enddate
         self.number = number
-        self.pctcontrast = get_pctcntrst(self.lightamplitude, self.lightmean)
-
-    def __eq__(self, other) -> bool:
-        return self.enddate == other.enddate
-
-    def __ne__(self, other) -> bool:
-        return self.enddate != other.enddate
 
     def __str__(self):
         return f"Epoch(cell_name={self.cellname}, start_date={self.startdate})"
@@ -153,253 +105,81 @@ class IEpoch(ABC):
     def type(self):
         ...
 
+    def get(self, paramname):
+        return [getattr(self, paramname)]
+    def get_unique(self, paramname):
+        return [getattr(self, paramname)]
 
-class Epochs(ABC):
+class EpochBlock(ABC):
 
-    def __init__(self, traces=List[IEpoch]):
-        # HACK key should be daterange, convert dates from string to datetimes
-        if len(traces) > 0:
-            self.key = traces[0].startdate
+    def __init__(self, epochs:List[IEpoch]):
+        self._epochs: List[IEpoch] = epochs
+        self._epochs.sort(key = lambda x: x.number)
+
+        if len(epochs) > 0:
+            self.key = epochs[0].startdate
         else:
             self.key = None
-        self._traces: List[IEpoch] = traces
-        self._traces.sort(key = lambda x: x.number)
+
+        # DUMMY PROPERTIES
         self._trace_len: int = None
-        self._celltypes: List[str] = None
-        self._tracetypes: List[str] = None
-        self._genotypes: List[str] = None
-        self._interpulseintervals = None
-        self._leds = None
-        self._cellnames: List[str] = None
-        self._protocolnames: List[str] = None
-        self._lightamplitudes: List[float] = None
-        self._rstarrs: List[float] = None
-        self._lightmeans: List[float] = None
-        self._pretimes: List[float] = None
-        self._samplerates: List[float] = None
-        self._stimtimes: List[float] = None
-        self._pretimes: List[float] = None
-        self._tailtimes: List[float] = None
-        self._startdates: List[str] = None
-        self._enddates: List[str] = None
-        self._values: np.array = None
-        self._pctcontrasts: List[float] = None
 
     def __str__(self):
-        return str(self.key)
+        return "EpochBlock"
+
+    def __repr__(self):
+        return "EpochBlocks"
 
     def __getitem__(self, val) -> IEpoch:
-        return self._traces[val]
+        return self._epochs[val]
 
     def __len__(self):
-        return len(self._traces)
+        return len(self._epochs)
+
+    def __iter__(self) -> Iterable[IEpoch]:
+        yield from self._epochs
+
+    @property
+    def epochs(self) -> List[IEpoch]: 
+        return self._epochs
+
+    def append(self, epoch) -> None:
+        self._trace_len = None
+        self._epochs.append(epoch)
 
     @property
     def trace_len(self):
         if self._trace_len is None:
             #self._trace_len = max([len(e) for e in self._traces])
             # TODO HACK debug the above
-            self._trace_len = int(max([len(e) for e in self._traces]))
+            self._trace_len = int(max([len(e) for e in self._epochs]))
         return self._trace_len
 
     @property
-    def traces(self) -> List[IEpoch]: return self._traces
-
-    @property
-    def values(self) -> np.array:
+    def traces(self) -> np.array:
         # PAD ALL VALUES TO STRETCH INTO FULL ARRAY
-        # TODO Don't cache value call
-        if self._values is None:
-            self._values = np.vstack(
+        return np.vstack(
                 [
-                    np.pad(trace.values, (0, self.trace_len - len(trace)))
-                    for trace in self._traces
+                    np.pad(epoch.values, (0, self.trace_len - len(epoch)))
+                    for epoch in self._epochs
                 ])
-        return self._values
 
-    @property
-    def rstarrs(self) -> List[str]:
-        self._rstarrs = list(
-            map(
-                lambda e: e.rstarr,
-                self._traces))
-        return self._rstarrs
-
-    @property
-    def celltypes(self) -> List[str]:
-        self._celltypes = list(
-            map(
-                lambda e: e.celltype,
-                self._traces))
-        return self._celltypes
-
-    @property
-    def pctcontrasts(self) -> List[str]:
-        self._pctcontrasts = list(
-            map(
-                lambda e: e.pctcontrast,
-                self._traces))
-        return self._pctcontrasts
-
-    @property
-    def tracetypes(self) -> List[str]:
-        if self._tracetypes is None:
-            self._tracetypes = list(
-                map(
-                    lambda e: e.tracetypes,
-                    self._traces))
-        return self._tracetypes
-
-    @property
-    def genotypes(self) -> List[str]:
-        self._genotypes = list(
-            map(
-                lambda e: e.genotype,
-                self._traces))
-        return self._genotypes
-
-    @property
-    def protocolnames(self) -> List[str]:
-        if self._protocolnames is None:
-            self._protocolnames = list(
-                map(
-                    lambda e: e.protocolname,
-                    self._traces))
-        return self._protocolnames
-
-    @property
-    def cellnames(self) -> List[str]:
-        if self._cellnames is None:
-            self._cellnames = list(
-                map(
-                    lambda e:
-                    e.cellname,
-                    self._traces))
-        return self._cellnames
-
-    @property
-    def lightamplitudes(self) -> List[float]:
-        if self._lightamplitudes is None:
-            self._lightamplitudes = list(
-                map(
-                    lambda e:
-                    e.lightamplitude,
-                    self._traces))
-        return self._lightamplitudes
-
-    @property
-    def lightmeans(self) -> List[float]:
-        if self._lightmeans is None:
-            self._lightmeans = list(
-                map(
-                    lambda e:
-                    e.lightmean,
-                    self._traces))
-        return self._lightmeans
-
-    @property
-    def pretimes(self) -> List[float]:
-        if self._pretimes is None:
-            self._pretimes = list(
-                map(
-                    lambda e:
-                    e.pretime,
-                    self._traces))
-        return self._pretimes
-
-    @property
-    def samplerates(self) -> List[float]:
-        if self._samplerates is None:
-            self._samplerates = list(
-                map(
-                    lambda e:
-                    e.samplerate,
-                    self._traces))
-        return self._samplerates
-
-    @property
-    def stimtimes(self) -> List[float]:
-        if self._stimtimes is None:
-            self._stimtimes = list(
-                map(
-                    lambda e:
-                    e.stimtime,
-                    self._traces))
-        return self._stimtimes
-
-    @property
-    def pretimes(self) -> List[float]:
-        if self._pretimes is None:
-            self._pretimes = list(
-                map(
-                    lambda e:
-                    e.pretime,
-                    self._traces))
-        return self._pretimes
-
-    @property
-    def tailtimes(self) -> List[float]:
-        if self._tailtimes is None:
-            self._tailtimes = list(
-                map(
-                    lambda e:
-                    e.tailtime,
-                    self._traces))
-        return self._tailtimes
-
-    @property
-    def startdates(self) -> List[str]:
-        if self._startdates is None:
-            self._startdates = list(
-                map(
-                    lambda e:
-                    e.startdate,
-                    self._traces))
-        return self._startdates
-
-    @property
-    def enddates(self) -> List[str]:
-        if self._enddates is None:
-            self._enddates = list(
-                map(
-                    lambda e:
-                    e.enddate,
-                    self._traces))
-        return self._enddates
-
-    @property
-    def interpulseintervals(self) -> List[str]:
-        if self._interpulseintervals is None:
-            self._interpulseintervals = list(
-                map(
-                    lambda e:
-                    e.interpulseinterval,
-                    self._traces))
-        return self._interpulseintervals
-
-    @property
-    def leds(self) -> List[str]:
-        self._leds = list(
-            map(
-                lambda e:
-                e.led,
-                self._traces))
-        return self._leds
-
-    def get(self, paramname):
+    def get(self, paramname) -> np.array:
         try:
-            return np.fromiter(
-                map(
-                    lambda e:
-                    getattr(e, paramname),
-                    self._traces
-                ),
+            return np.array(
+                [
+                    getattr(e, paramname)
+                    for e in self._epochs
+                ],
                 dtype=float)
         except:
-            return np.fromiter(
-                map(
-                    lambda e:
-                    getattr(e, paramname),
-                    self._traces
-                ),
+            return np.array(
+                [
+                    getattr(e, paramname)
+                    for e in self._epochs
+                ],
                 dtype=str)
+
+    def get_unique(self, paramname) -> np.array:
+        return np.unique(self.get(paramname))
+    

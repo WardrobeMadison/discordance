@@ -5,13 +5,13 @@ import pandas as pd
 import numpy as np
 
 from ...trees import Node, Tree
-from ...epochtypes import groupby, Epochs, IEpoch
+from ...epochtypes import groupby, EpochBlock, IEpoch
 from ..components.chart import MplCanvas
 
 
 class BaseAnalysis(ABC, Tree):
 
-    def __init__(self, epochs: Epochs, unchecked: set = None):
+    def __init__(self, epochs: EpochBlock, unchecked: set = None):
         # GROUP EPOCHS INTO FLAT LIST
         self.unchecked = set() if unchecked is None else unchecked
         self.plant(epochs)
@@ -33,7 +33,7 @@ class BaseAnalysis(ABC, Tree):
 
     @property
     @abstractproperty
-    def tracestype(self) -> Epochs:
+    def tracestype(self) -> EpochBlock:
         ...
 
     @abstractproperty
@@ -87,7 +87,7 @@ class BaseAnalysis(ABC, Tree):
         epochs = self.frame.epoch.to_list()
         self.__init__(epochs, self.unchecked)
 
-    def query(self, node: Node, useincludeflag=True) -> Union[Epochs, IEpoch]:
+    def query(self, node: Node, useincludeflag=True) -> Union[EpochBlock, IEpoch]:
         """Relate nodes from tree to underlying dataframe. Only passes inclued nodes
 
         Args:

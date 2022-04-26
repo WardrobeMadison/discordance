@@ -94,20 +94,16 @@ class PlotPsth:
         n = len(epochs)
         psth = epochs.psth
 
-        # TODO fix this
-        try:
-            name = epochs.genotypes[0]
-            stimtime = epochs.stimtimes[0]
-        except:
-            name = epochs.genotype
-            stimtime = epochs.stimtime
+        name = epochs.get_unique("genotype")[0]
+        stimtime = epochs.get_unique("stimtime")[0]
 
         # CALCULATE TTP AND MAX PEAK
         seconds_conversion = 10000 / 100
-        ttp = (np.argmax(psth) + 1) / (seconds_conversion)
+        ttp = (np.argmax(psth) + 1 - stimtime/100) / (seconds_conversion)
         x = (np.arange(len(psth)) + 1 - stimtime/100) / (seconds_conversion)
-        self.ax.axvline(ttp, linestyle='--', color=COLORS[name], alpha=0.4)
 
+        # PLOT VALUES SHIFT BY STIM TIME
+        self.ax.axvline(ttp, linestyle='--', color=COLORS[name], alpha=0.4)
         self.ax.plot(x, psth, label=f"{label} (n={n})", c=COLORS[name])
 
         # UPDATE LEGEND WITH EACH APPEND
@@ -166,6 +162,8 @@ class PlotRaster:
         if self.ax is None:
             fig, ax, = plt.subplots()
 
+        genotype = epochs.get_unique("genotype")[0]
+
         toplt = []
         for ii, epoch in enumerate(epochs):
             spikes = epoch.spikes.sp / 10000
@@ -173,10 +171,10 @@ class PlotRaster:
             toplt.append((spikes, y))
 
         for x, y in toplt:
-            self.ax.scatter(x, y, marker="|", c=COLORS[epochs.genotypes[0]])
+            self.ax.scatter(x, y, marker="|", c=COLORS[genotype])
             self.values.append(y)
 
-        title = f"{epochs.rstarrs[0]}"
+        title = f"{epochs.get_unique('rstarr')[0]}"
         self.ax.set_title(title)
 
         # SET THESE EACH LOOP?

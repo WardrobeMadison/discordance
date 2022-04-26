@@ -5,7 +5,7 @@ from ..funks.psth import calculate_psth
 from ..funks import hill
 from h5py._hl.dataset import Dataset
 
-from .baseepoch import DissonanceParams, Epochs, EpochSpikeInfo, IEpoch
+from .baseepoch import DissonanceParams, EpochBlock, EpochSpikeInfo, IEpoch
 
 
 class SpikeEpoch(IEpoch):
@@ -34,7 +34,7 @@ class SpikeEpoch(IEpoch):
     def type(self) -> str:
         return "spiketrace"
 
-class SpikeEpochs(Epochs):
+class SpikeEpochs(EpochBlock):
 
     type = "spiketrace"
 
@@ -49,7 +49,7 @@ class SpikeEpochs(Epochs):
         inc = 100
         if self._psth is None:
             cnt = 0
-            for trace in self._traces:
+            for trace in self._epochs:
                 if len(trace.psth) > 0 and trace.psth is not None:
                     # FILL TAIL OF PSTH'S WITH 0'S SO ALL OF SAME SIZE
                     cpsth = np.pad(
@@ -70,7 +70,7 @@ class SpikeEpochs(Epochs):
         inc = 100
         if self._psths is None:
             self._psths = []
-            for trace in self._traces:
+            for trace in self._epochs:
                 if len(trace.psth) > 0 and trace.psth is not None:
                     cpsth = np.pad(
                         trace.psth, (0, int(self.trace_len // inc - len(trace.psth))))

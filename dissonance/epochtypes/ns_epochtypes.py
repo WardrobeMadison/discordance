@@ -8,60 +8,42 @@ import numpy as np
 
 from . import baseepoch as bt 
 from . import spikeepoch as st
+from . import wholeepoch as wt
 
-def groupby(traces: bt.Epochs, grpkeys) -> pd.DataFrame:
+def groupby(traces: bt.EpochBlock, grpkeys) -> pd.DataFrame:
 	"""
 	Convert Traces to table with Epochs grouped by grpkeys
 	"""
-	# ALWAYS PROCESS TYPE FIRST, MAKE THE OTHERS PLURAL
-	#args_traces = [x+"s" for x in grpkeys]
-
-	# GET SET OF KEY VALUES TO FILTER LIST
-	#grpon = list()
-	#for arg in args_traces:
-	#	vals = set(getattr(traces, arg))
-	#	if len(vals):
-	#		grpon.append(vals)
-	
-	# ALL COMBINATIONS OF KEY VALUES
-	#keys = list(itertools.product(*grpon))
-
-	# FOR EACH GROUP BY KEY
-	#grpd = [list() for _ in range(len(keys))]
-	# TODO pop items already in group out of list so you don't recheck
 	grpd = defaultdict(list)
-	for trace in traces.traces:
+	epochtype =  type(traces[0]) # ASSUME SINGLE TYPE PER LIST
+
+	if epochtype == wt.WholeEpoch: types = wt.WholeEpochs
+	elif epochtype == st.SpikeEpoch: types = st.SpikeEpochs
+	else: types = None
+
+	for trace in traces.epochs:
 		key = "___".join(map(str,(getattr(trace,arg) for arg in grpkeys)))
 		grpd[key].append(trace)
 
-#		for ii, key in enumerate(keys):
-#			# CHECK THAT TRACE MATCHES ALL KEY VALUES
-#			condition = all([
-#				getattr(trace, arg) == keyval
-#				for arg, keyval in zip(grpkeys,key)])
-#			if condition:
-#				grpd[ii].append(trace)
-#				break
-#
-	# CONVERT TRACE LIST TO SPIKETRACES
+	# CONVERT TRACE LIST TO TRACES
 	data = []
 	for key, grp in grpd.items():
 		if len(grp) > 0:
-			data.append([*key.split("___"), st.SpikeEpochs(grp)])
+			data.append([*key.split("___"), types(grp)])
 	
 	df = pd.DataFrame(columns = [*grpkeys, "trace"], data=data)
 
 	return df
 
-def filter(traces, **kwargs):
+def filter(epochs, **kwargs):
 	out = []
-	for trace in traces.traces:
+	for epoch in epochs:
 		condition = all([
-			getattr(trace, key) == val
+			getattr(epoch, key) == val
 			for key, val in kwargs.items()
 		])
-		if condition: out.append(trace)
-	tracetype = type(traces)
+		if condition: out.append(epoch)
+	tracetype = type(epochs)
 	return tracetype(out)
 
 

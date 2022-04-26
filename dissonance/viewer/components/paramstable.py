@@ -32,7 +32,7 @@ class ParamsTable(QTableWidget):
         self.update(epoch)
 
     @pyqtSlot()
-    def update(self, epoch: Union[et.IEpoch, et.Epochs]):
+    def update(self, epoch: Union[et.IEpoch, et.EpochBlock]):
         """Update params table with epoch 
 
         Args:
@@ -44,23 +44,13 @@ class ParamsTable(QTableWidget):
         self.setColumnCount(2)
 
         data = []
-        if isinstance(epoch, et.Epochs):
-            for ii, paramname in enumerate(self.params):
-                self.setItem(ii, 0,
-                             QTableWidgetItem(paramname))
-                val = set(getattr(epoch, paramname+"s"))
-                text = ",".join(map(str, val))
-                self.setItem(ii, 1,
-                             QTableWidgetItem(text))
-                data.append([paramname, text, val])
-        else:
-            for ii, paramname in enumerate(self.params):
-                self.setItem(ii, 0,
-                             QTableWidgetItem(paramname))
-                val = getattr(epoch, paramname)
-                text = str(val)
-                self.setItem(ii, 1,
-                             QTableWidgetItem(text))
-                data.append([paramname, text, val])
+        for ii, paramname in enumerate(self.params):
+            self.setItem(ii, 0,
+                            QTableWidgetItem(paramname))
+            val = epoch.get_unique(paramname)
+            text = ",".join(map(str, val))
+            self.setItem(ii, 1,
+                            QTableWidgetItem(text))
+            data.append([paramname, text, val])
 
         self.df = pd.DataFrame(columns="Param Text Val".split(), data=data)

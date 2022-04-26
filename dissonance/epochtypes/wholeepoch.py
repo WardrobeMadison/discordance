@@ -6,7 +6,7 @@ from ..funks import hill
 from h5py._hl.dataset import Dataset
 from scipy.stats import sem
 
-from .baseepoch import DissonanceParams, Epochs, IEpoch
+from .baseepoch import DissonanceParams, EpochBlock, IEpoch
 
 
 def calc_width_at_half_max(values):
@@ -62,27 +62,28 @@ class WholeEpoch(IEpoch):
     def type(self) -> str:
         return "WholeTrace"
 
-class WholeEpochs(Epochs):
+class WholeEpochs(EpochBlock):
 
     type = "wholetrace"
 
-    def __init__(self, traces: List[WholeEpoch]):
-        super().__init__(traces)
+    def __init__(self, epochs: List[WholeEpoch], keys):
+        super().__init__(epochs, keys)
 
     @property
-    def trace(self):
-        return np.mean(self.values, axis=1)
+    def trace(self) -> float:
+        return np.mean(self.traces, axis=1)
 
     @property 
     def widthathalfmax(self) -> Tuple[float, Tuple[float, float]]:
+        # assume it's cell, lightamp, lightmean
         return calc_width_at_half_max(self.trace)
 
     @property 
-    def peakamplitude(self):
+    def peakamplitude(self) -> float:
         return np.min(self.trace)
 
     @property 
-    def timetopeak(self):
+    def timetopeak(self) -> float:
         return np.argmin(self.trace)
 
 
