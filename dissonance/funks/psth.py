@@ -10,7 +10,7 @@ def calculate_psth(epoch, inc=100, outputfile=None) -> np.array:
 	psth = np.fromiter(
 		[
 			np.sum(x[ii:ii+inc])
-			for ii in range(0, epoch.values.shape[0]-1, inc)
+			for ii in range(0, epoch.values.shape[0], inc)
 		], dtype=float)
 
 	# adjust for baseline

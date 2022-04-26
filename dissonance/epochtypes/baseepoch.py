@@ -7,41 +7,84 @@ import numpy as np
 import pandas as pd
 from h5py._hl.dataset import Dataset
 
+PCTCNTRST = pd.DataFrame(
+    columns="lightamplitude lightmean pctcontrast".split(),
+    data=[
+        [-0.001, 0.005, -25],
+        [-0.003, 0.005, -50],
+        [-0.005, 0.005, -100],
+        [0.001, 0.005, 25],
+        [0.003, 0.005, 50],
+        [0.005, 0.005, 100],
+        [0.002, 0.007, 25],
+        [0.004, 0.007, 50],
+        [0.005, 0.007, 75],
+        [0.007, 0.007, 100],
+        [-0.002, 0.007, -25],
+        [-0.004, 0.007, -50],
+        [-0.005, 0.007, -75],
+        [-0.007, 0.007, -100],
+        [-0.002, 0.006, -25],
+        [-0.003, 0.006, -50],
+        [-0.006, 0.006, -100],
+        [0.002, 0.006, 25],
+        [0.003, 0.006, 50],
+        [0.006, 0.006, 100],
+        [-0.006, 0.006, -100],
+        [0.002, 0.005, 50],
+        [0.004, 0.005, 75],
+        [-0.004, 0.005, -75],
+        [0.005, 0.006, 75],
+        [-0.005, 0.006, -75],
+        [0.005, 0, 0],
+        [0.006, 0, 0]])
+
+def get_pctcntrst(lightamp, lightmean):
+    try:
+        return PCTCNTRST.loc[
+            (PCTCNTRST.lightamplitude == lightamp) &
+            (PCTCNTRST.lightmean == lightmean),
+            "pctcontrast"
+        ]
+    except:
+        return 0.0
+
 
 @dataclass
 class EpochSpikeInfo:
-	sp: np.array
-	spike_amps: np.array
-	min_spike_peak_idx: np.array
-	max_noise_peak_time: np.array
-	violation_idx: np.array
+    sp: np.array
+    spike_amps: np.array
+    min_spike_peak_idx: np.array
+    max_noise_peak_time: np.array
+    violation_idx: np.array
 
-	def __post_init__(self):
-		self.sp = self.sp.astype(int)
-		self.min_spike_peak_idx = self.min_spike_peak_idx.astype(int)
-		self.max_noise_peak_time = self.max_noise_peak_time.astype(int)
-		self.violation_idx = self.violation_idx.astype(int)
+    def __post_init__(self):
+        self.sp = self.sp.astype(int)
+        self.min_spike_peak_idx = self.min_spike_peak_idx.astype(int)
+        self.max_noise_peak_time = self.max_noise_peak_time.astype(int)
+        self.violation_idx = self.violation_idx.astype(int)
 
 @dataclass
 class DissonanceParams:
-	protocolname: str = field( default=None)
-	cellname: str = field( default=None)
-	celltype: str = field( default=None)
-	tracetype: str = field( default = None)
-	genotype: str = field( default = None)
-	path: str = field( default=None)
-	amp: float = field( default=None)
-	interpulseinterval: float = field( default=None)
-	led: float = field( default=None)
-	lightamplitude: float = field( default=None)
-	lightmean: float = field( default=None)
-	numberofaverages: float = field( default=None)
-	pretime: float = field( default=None)
-	samplerate: float = field( default=None)
-	stimtime: float = field( default=None)
-	tailtime: float = field( default=None)
-	startdate: str = field( default=None)
-	enddate: str = field( default=None)
+    protocolname: str = field( default=None)
+    cellname: str = field( default=None)
+    celltype: str = field( default=None)
+    tracetype: str = field( default = None)
+    genotype: str = field( default = None)
+    path: str = field( default=None)
+    amp: float = field( default=None)
+    interpulseinterval: float = field( default=None)
+    led: float = field( default=None)
+    lightamplitude: float = field( default=None)
+    rstarr: float = field(default=None)
+    lightmean: float = field( default=None)
+    numberofaverages: float = field( default=None)
+    pretime: float = field( default=None)
+    samplerate: float = field( default=None)
+    stimtime: float = field( default=None)
+    tailtime: float = field( default=None)
+    startdate: str = field( default=None)
+    enddate: str = field( default=None)
 
 
 class IEpoch(ABC):
@@ -61,6 +104,7 @@ class IEpoch(ABC):
         self.interpulseinterval = params.interpulseinterval
         self.led = params.led
         self.lightamplitude = params.lightamplitude
+        self.rstarr = params.rstarr
         self.lightmean = params.lightmean
         self.numberofaverages = params.numberofaverages
         self.samplerate = params.samplerate
@@ -70,8 +114,7 @@ class IEpoch(ABC):
         self.startdate = params.startdate
         self.enddate = params.enddate
         self.number = number
-
-
+        self.pctcontrast = get_pctcntrst(self.lightamplitude, self.lightmean)
 
     def __eq__(self, other) -> bool:
         return self.enddate == other.enddate
@@ -130,6 +173,7 @@ class Epochs(ABC):
         self._cellnames: List[str] = None
         self._protocolnames: List[str] = None
         self._lightamplitudes: List[float] = None
+        self._rstarrs: List[float] = None
         self._lightmeans: List[float] = None
         self._pretimes: List[float] = None
         self._samplerates: List[float] = None
@@ -139,6 +183,7 @@ class Epochs(ABC):
         self._startdates: List[str] = None
         self._enddates: List[str] = None
         self._values: np.array = None
+        self._pctcontrasts: List[float] = None
 
     def __str__(self):
         return str(self.key)
@@ -173,12 +218,28 @@ class Epochs(ABC):
         return self._values
 
     @property
+    def rstarrs(self) -> List[str]:
+        self._rstarrs = list(
+            map(
+                lambda e: e.rstarr,
+                self._traces))
+        return self._rstarrs
+
+    @property
     def celltypes(self) -> List[str]:
         self._celltypes = list(
             map(
                 lambda e: e.celltype,
                 self._traces))
         return self._celltypes
+
+    @property
+    def pctcontrasts(self) -> List[str]:
+        self._pctcontrasts = list(
+            map(
+                lambda e: e.pctcontrast,
+                self._traces))
+        return self._pctcontrasts
 
     @property
     def tracetypes(self) -> List[str]:

@@ -1,7 +1,8 @@
 from typing import List
 
 import numpy as np
-from dissonance.funks.psth import calculate_psth
+from ..funks.psth import calculate_psth
+from ..funks import hill
 from h5py._hl.dataset import Dataset
 
 from .baseepoch import DissonanceParams, Epochs, EpochSpikeInfo, IEpoch
@@ -33,7 +34,6 @@ class SpikeEpoch(IEpoch):
     def type(self) -> str:
         return "spiketrace"
 
-
 class SpikeEpochs(Epochs):
 
     type = "spiketrace"
@@ -42,6 +42,7 @@ class SpikeEpochs(Epochs):
         super().__init__(traces)
         self._psth: np.array = None
         self._psths: np.array = None
+        self._hillfit:np.array = None
 
     @property
     def psth(self):
@@ -75,3 +76,10 @@ class SpikeEpochs(Epochs):
                         trace.psth, (0, int(self.trace_len // inc - len(trace.psth))))
                     self._psths.append(cpsth)
         return np.array(self._psths, dtype=float)
+
+
+    @property
+    def hillfit(self) -> np.array:
+        if self._hillfit is None:
+            ...
+        return self._hillfit

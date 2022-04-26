@@ -19,6 +19,7 @@ class ParamsTable(QTableWidget):
         "interpulseinterval",
         "led",
         "lightamplitude",
+        "rstarr",
         "lightmean",
         "pretime",
         "stimtime",

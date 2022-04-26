@@ -14,7 +14,9 @@ class GroupItem(QStandardItem):
         fnt.setBold(True)
         fnt.setPixelSize(11)
 
-        self.label = ", ".join(map(str, self.node.path.values()))
+        #self.label = ", ".join(map(str, self.node.path.values()))
+        #self.label = list(self.node.path.values())[-1]
+        self.label = f"{node.label}={node.uid}"
 
         self.setEditable(False)
         self.setForeground(color)

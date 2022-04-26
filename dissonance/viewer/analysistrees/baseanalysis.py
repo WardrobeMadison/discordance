@@ -8,87 +8,8 @@ from ...trees import Node, Tree
 from ...epochtypes import groupby, Epochs, IEpoch
 from ..components.chart import MplCanvas
 
-# AMP, MEAN
-PCTCNTRST = {
-    (-0.001, 0.005): -25,
-    (-0.003, 0.005): -50,
-    (-0.005, 0.005): -100,
-    (0.001, 0.005): 25,
-    (0.003, 0.005): 50,
-    (0.005, 0.005): 100,
-    (0.002, 0.007): 25,
-    (0.004, 0.007): 50,
-    (0.005, 0.007): 75,
-    (0.007, 0.007): 100,
-    (-0.002, 0.007): -25,
-    (-0.004, 0.007): -50,
-    (-0.005, 0.007): -75,
-    (-0.007, 0.007): -100,
-    (-0.002, 0.006): -25,
-    (-0.003, 0.006): -50,
-    (-0.006, 0.006): -100,
-    (0.002, 0.006): 25,
-    (0.003, 0.006): 50,
-    (0.006, 0.006): 100,
-    (-0.006, 0.006): -100,
-    (0.002, 0.005): 50,
-    (0.004, 0.005): 75,
-    (-0.004, 0.005): -75,
-    (0.005, 0.006): 75,
-    (-0.005, 0.006): -75,
-    (0.005, 0): 0,
-    (0.006, 0): 0}
-
-# LED, AMP
-RSTRMAP = {
-    ("Green", 0.007): 5,
-    ("Green", 0.014): 10,
-    ("Green", 0.0121): 10,
-    ("Green", 0.006): 5,
-    ("Green", 0.003): 0.025,
-    ("Green", 0.006): 0.05,
-    ("Green", 0.012): 0.1,
-    ("Green", 0.024): 0.2,
-    ("Green", 0.048): 0.4,
-    ("Green", 0.096): 0.8,
-    ("Green", 0.192): 1.6,
-    ("Green", 0.384): 3.2,
-    ("Green", 0.015): 0.1,
-    ("Green", 0.03): 0.2,
-    ("Green", 0.06): 0.4,
-    ("Green", 0.12): 0.8,
-    ("Green", 0.24): 1.6,
-    ("Green", 0.48): 3.2,
-    ("Green", 0.004): 0.025,
-    ("Green", 0.008): 0.05,
-    ("Green", 0.016): 0.1,
-    ("Green", 0.032): 0.2,
-    ("Green", 0.064): 0.4,
-    ("Green", 0.128): 0.8,
-    ("Green", 0.256): 1.6,
-    ("Green", 0.512): 3.2,
-    ("Green", 0.007): 0.05,
-    ("Green", 0.014): 0.1,
-    ("Green", 0.028): 0.2,
-    ("Green", 0.056): 0.4,
-    ("Green", 0.112): 0.8,
-    ("Green", 0.224): 1.6,
-    ("Green", 0.448): 3.2,
-    ("Green", 0.896): 6.4,
-    ("Green", 0.768): 6.4,
-    ("Green", 0.0074): 0.05,
-    ("Green", 0.0148): 0.1,
-    ("Green", 0.006): 5,
-    ("Green", 0.007): 5,
-    ("Green", 0.012): 10,
-    ("Green", 0.013): 10,
-    ("Green", 0.014): 10,
-    ("Green", 0.0121): 10}
-
 
 class BaseAnalysis(ABC, Tree):
-    pctcntrst = PCTCNTRST
-    rstrmap = RSTRMAP
 
     def __init__(self, epochs: Epochs, unchecked: set = None):
         # GROUP EPOCHS INTO FLAT LIST
@@ -98,16 +19,6 @@ class BaseAnalysis(ABC, Tree):
     @property
     @abstractproperty
     def name(self):
-        ...
-
-    @property
-    @abstractproperty
-    def protocolname(self):
-        ...
-
-    @property
-    @abstractproperty
-    def led(self):
         ...
 
     @property

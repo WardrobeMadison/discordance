@@ -18,10 +18,10 @@ def test_window():
 		paths.extend([file for ii, file in enumerate((root_dir / "GG2 KO").glob("*.h5"))])
 
 		dr = io.DissonanceReader(paths)
-		epochs = dr.to_epochs(tracetype = "spiketrace", protocolname = "LedPulse", led = "Green LED")
+		epochs = dr.to_epochs(tracetype = "spiketrace")
 		epochs = epochtypes.SpikeEpochs(epochs)
 
-		tree = viewer.analysistrees.LedPulseAnalysis(epochs, unchecked)
+		tree = viewer.analysistrees.LedSpikeAnalysis(epochs, unchecked)
 		
 		viewer.run(tree, unchecked, uncheckedpath)
 	except SystemExit as e:

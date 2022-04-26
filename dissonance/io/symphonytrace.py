@@ -16,6 +16,7 @@ class SymphonyEpoch:
 	interpulseinterval:float
 	led: str
 	lightamplitude: float
+	rstarr:float
 	lightmean: float
 	numberofaverages: float
 	pretime: float

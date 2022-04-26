@@ -60,7 +60,7 @@ def detect_spikes(R: np.array) -> et.EpochSpikeInfo:
     _, peak_times_res_even = get_peaks(trace_res_even, -1)
     _, peak_times_res_odd = get_peaks(trace_res_odd, -1)
     peak_times_res_even = peak_times_res_even * 2
-    peak_times_res_odd = 2 * peak_times_res_odd - 1
+    peak_times_res_odd = 2 * peak_times_res_odd + 1
     peak_times = np.array(sorted(set(peak_times) & set(
         [*peak_times_res_even, *peak_times_res_odd])))  # could be trouble
     peaks = trace[peak_times]
@@ -73,7 +73,7 @@ def detect_spikes(R: np.array) -> et.EpochSpikeInfo:
         peak_amps = peaks + rebounds
 
         if len(peaks) and np.max(R) > np.min(R):
-            max_iter = 100000
+            max_iter = 10000
             init = np.array(
                 [[np.percentile(peak_amps, q=0.5)], [peak_amps.max()]])
 
@@ -94,8 +94,8 @@ def detect_spikes(R: np.array) -> et.EpochSpikeInfo:
 
             # NO SPIKES CHECK - MUST HAVE 4 SIGMA DIFFERENCE
             if (
-                (np.sqrt(spike_peaks).mean() < np.sqrt(
-                    nonspike_peaks).mean() + 4 * sigma)
+                (np.mean(np.sqrt(spike_peaks)) < 
+                    (np.mean(np.sqrt(nonspike_peaks)) + 4 * sigma))
                 or
                     len(spike_ind_log) == 0):
                 #print(f"Epoch: no spikes.")

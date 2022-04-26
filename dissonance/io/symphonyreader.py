@@ -17,6 +17,7 @@ import numpy as np
 
 from ..funks import detect_spikes
 from .symphonytrace import SymphonyEpoch
+from .ns_io import convert_to_rstarr
 
 RE_PID = re.compile(r"^edu.wisc.sinhalab.protocols.(\w+):protocolID$")
 RE_PP = re.compile(
@@ -89,6 +90,7 @@ class SymphonyReader:
                 celltype = None
 
             for p, protocol in enumerate(self._protocols(cell)):
+                print(protocol)
                 meta_protocol = self._get_all_metadata(protocol)
                 protocoldict = dict()
 
@@ -130,6 +132,10 @@ class SymphonyReader:
                         stimtime=protocoldict.get("stimtime", 0.0),
                         samplerate=protocoldict.get("samplerate", 0.0),
                         tailtime=protocoldict.get("tailtime", 0.0),
+                        rstarr=convert_to_rstarr(
+                            protocoldict.get("led"),
+                            protocoldict.get("lightamplitude")
+                        ),
                         responses=response_dict
                     )
 
@@ -231,6 +237,7 @@ class SymphonyReader:
                 "lightamplitude",
                 "lightmean",
                 "numberofaverages",
+                "rstarr",
                 "pretime",
                 "stimtime",
                 "samplerate",

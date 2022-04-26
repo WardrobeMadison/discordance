@@ -17,7 +17,7 @@ def test_to_json():
 def test_to_h5():
     exclude = []
     #folders = ["GA1 KO", "GG2 control", "GG2 KO"]
-    folders = ["GG2 control"]
+    folders = ["GG2 KO", "GG2 control"]
 
     root_dir = Path(r"/home/joe/Projects/DataStore/EPhysData")
     out_dir = Path(r"/home/joe/Projects/DataStore/MappedData")
