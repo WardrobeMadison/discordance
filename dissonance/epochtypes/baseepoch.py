@@ -385,3 +385,21 @@ class Epochs(ABC):
                 e.led,
                 self._traces))
         return self._leds
+
+    def get(self, paramname):
+        try:
+            return np.fromiter(
+                map(
+                    lambda e:
+                    getattr(e, paramname),
+                    self._traces
+                ),
+                dtype=float)
+        except:
+            return np.fromiter(
+                map(
+                    lambda e:
+                    getattr(e, paramname),
+                    self._traces
+                ),
+                dtype=str)

@@ -1,1 +1,1 @@
-from .ledpulseanalysis import LedSpikeAnalysis
+from .ledanalysis import LedSpikeAnalysis

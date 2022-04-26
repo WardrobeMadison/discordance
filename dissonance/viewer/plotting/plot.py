@@ -4,6 +4,7 @@ from collections import defaultdict
 import pandas as pd
 from scipy.stats import ttest_ind
 from datetime import datetime
+from ...epochtypes import IEpoch
 
 
 def p_to_star(p):
@@ -222,23 +223,24 @@ class PlotTrace:
 
     def append_trace(self, epoch):
         """Plot traces
-
-        Args:
-            epoch (SpikeTraces): Epochs to trace
-            ax ([type]): Matlab figure axis
         """
+        if not isinstance(epoch, IEpoch):
+            stimtime = epoch.stimtimes[0]
+        else:
+            stimtime = epoch.stimtime
+
         if (
                 epoch.type == "spiketrace"
                 and epoch.spikes.sp is not None):
             y = epoch.values[epoch.spikes.sp]
             # WANT 0 TO BE STIM TIME
             self.ax.scatter(
-                epoch.spikes.sp - epoch.stimtime,
+                epoch.spikes.sp - stimtime,
                 y,
                 marker="x", c=COLORS[epoch.genotype])
 
         self.ax.plot(
-            np.arange(len(epoch.values)) - epoch.stimtime,
+            np.arange(len(epoch.values)) - stimtime,
             epoch.values, label=epoch.startdate,
             color=COLORS[epoch.genotype], alpha=0.4)
 

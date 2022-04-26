@@ -7,7 +7,6 @@ from time import time
 
 def test_window():
 	try:
-
 		root_dir = Path("/home/joe/Projects/DataStore/MappedData")
 		uncheckedpath = Path("DemoForJenna.txt")
 		unchecked = io.read_unchecked_file(uncheckedpath)
