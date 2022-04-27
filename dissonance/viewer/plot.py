@@ -1,6 +1,6 @@
-from calendar import c
-from turtle import color
-from typing import Union, List
+from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import Union, List, Dict
 import numpy as np
 import matplotlib.pyplot as plt
 from collections import defaultdict
@@ -8,7 +8,7 @@ import pandas as pd
 from scipy.stats import ttest_ind, sem
 from datetime import datetime
 from ..epochtypes import IEpoch, WholeEpoch, WholeEpochs
-from ..funks import hill
+from ..funks import HillEquation, WeberEquation
 
 
 def p_to_star(p):
@@ -23,7 +23,7 @@ def p_to_star(p):
 
 
 # MORE COLORS TO USE: ff7c43, ffa600
-def def_value(): 
+def def_value():
     """DUMMY FUNCTION FOR DEFAULT DICT COLORS"""
     return "#003f5c"
 
@@ -36,7 +36,28 @@ COLORS["GG2 control"] = "#a05195"
 COLORS["GG2 KO"] = "#d45087"
 COLORS["None"] = "#f95d6a"
 
-class PlotPsth:
+
+class PlotBase(ABC):
+
+    @abstractmethod
+    def append_trace(self, *args, **kwargs):
+        ...
+
+    @abstractmethod
+    def to_csv(self, *args, **kwargs):
+        ...
+    
+    @abstractmethod
+    def to_image(self, *args, **kwargs):
+        ...
+
+    @abstractmethod
+    def to_igor(self, *args, **kwargs):
+        ...
+
+
+
+class PlotPsth(PlotBase):
 
     def __init__(self, ax, epochs=None, label=None):
         self.ax = ax
@@ -93,8 +114,14 @@ class PlotPsth:
 
         df.to_csv(filename, index=False)
 
+    def to_image(self, *args, **kwargs):
+        ...
 
-class PlotRaster:
+    def to_igor(self, *args, **kwargs):
+        ...
+
+
+class PlotRaster(PlotBase):
 
     def __init__(self, ax, epochs=None, title=None):
         self.ax = ax
@@ -165,8 +192,14 @@ class PlotRaster:
 
         df.to_csv(filename, index=False)
 
+    def to_image(self, *args, **kwargs):
+        ...
 
-class PlotWholeTrace:
+    def to_igor(self, *args, **kwargs):
+        ...
+
+
+class PlotWholeTrace(PlotBase):
 
     def __init__(self, ax, epoch=None):
         self.ax = ax
@@ -214,8 +247,14 @@ class PlotWholeTrace:
 
         self.ax.legend()
 
+    def to_image(self, *args, **kwargs):
+        ...
 
-class PlotTrace:
+    def to_igor(self, *args, **kwargs):
+        ...
+
+
+class PlotTrace(PlotBase):
 
     def __init__(self, ax, epoch=None):
         self.ax = ax
@@ -279,8 +318,14 @@ class PlotTrace:
 
         df.to_csv(filename, index=False)
 
+    def to_image(self, *args, **kwargs):
+        ...
 
-class PlotSwarm:
+    def to_igor(self, *args, **kwargs):
+        ...
+
+
+class PlotSwarm(PlotBase):
 
     def __init__(self, ax, metric: str = "peakamplitude", epochs=None):
         self.ax = ax
@@ -324,13 +369,13 @@ class PlotSwarm:
                 ], dtype=float)
 
             meanval = np.mean(values)
-            sem = sem(values)
+            semval = sem(values)
 
             # CHANGE SIGN OF AXIS IF NEEDED
             ymax = max(ymax, np.max(values)) if meanval > 0 else min(
                 ymax, np.max(values))
             toppoint = max(toppoint, meanval +
-                           sem) if meanval > 0 else min(toppoint, meanval-sem)
+                           semval) if meanval > 0 else min(toppoint, meanval-semval)
             toppoint = max(toppoint, ymax) if toppoint > 0 else min(
                 toppoint, ymax)
 
@@ -340,11 +385,11 @@ class PlotSwarm:
                     label=name,
                     values=values,
                     meanvalue=meanval,
-                    sem=sem))
+                    semval=semval))
 
             self.ax.bar(ii,
                         height=meanval,
-                        yerr=sem,
+                        yerr=semval,
                         capsize=12,
                         tick_label=name,
                         alpha=0.5,
@@ -405,11 +450,16 @@ class PlotSwarm:
         self.ax.set_ylim((0.0, toppoint * 1.20))
 
     def to_csv(self, filepath=None):
-        # TODO what data is needed for this?
+        ...
+
+    def to_image(self, *args, **kwargs):
+        ...
+
+    def to_igor(self, *args, **kwargs):
         ...
 
 
-class PlotCRF:
+class PlotCRF(PlotBase):
 
     def __init__(self, ax, metric, epochs):
         self.ax = ax
@@ -426,7 +476,7 @@ class PlotCRF:
         self.xvalues = []
         self.yvalues = []
 
-        if epochs:
+        if epochs is not None:
             self.append_trace(epochs)
 
     def append_trace(self, epochs: pd.DataFrame):
@@ -436,17 +486,17 @@ class PlotCRF:
         sems = []
         genotype = epochs.genotype.iloc[0]
         for (lightamp, lightmean), frame in epochs.groupby(["lightamplitude", "lightmean"]):
-            contrast = lightamp / lightmean if lightmean != 0.0 else 0.0
+            contrast = float(lightamp) / float(lightmean) if float(lightmean) != 0.0 else 0.0
 
             # GET PEAK AMPLITUDE FROM EACH PSTH - USED IN SEM
             peakamps = np.array([
-                np.max(epoch.psth)
+                np.max(epoch.psth) if self.metric == "peakamplitude" else np.argmax(epoch.psth)
                 for epoch in frame.trace.values
             ])
 
             X.append(contrast)
             Y.append(np.mean(peakamps))
-            sems.append(sem(peakamps))
+            sems.append(0.0 if len(peakamps) == 1 else sem(peakamps))
 
             self.peakamps[genotype].append(peakamps)
 
@@ -499,15 +549,76 @@ class PlotCRF:
     def to_csv(self):
         ...
 
+    def to_image(self, *args, **kwargs):
+        ...
 
-class PlotHill:
+    def to_igor(self, *args, **kwargs):
+        ...
+
+
+class PlotHill(PlotBase):
 
     def __init__(self, ax, epochs):
         self.ax = ax
-        self.params = dict()
+        self.fits = dict()
 
         if epochs:
             self.append_trace(epochs)
+
+    def append_trace(self, epochs: pd.DataFrame):
+        """HILL FIT ON EACH CELL AND AVERAGE OF EACH CELLS"""
+        # EPOCH SEPARATED BY CELL, LIGHTAMPLITUDE. ASSUMING SAME LIGHT MEAN
+        genotype = epochs.genotype.iloc[0]
+
+        # TODO will this be done on epoch level?
+        # FIT HILL TO EACH CELL - ONLY PLOT PEAK AMOPLITUDES
+        for cellname, frame in epochs.groupby(["cellname"]):
+            frame = frame.sort_values(["lightamplitude"])
+            X = frame.lightamplitude.values
+            Y = frame.trace.apply(lambda x: x.peakamplitude).values
+
+            hill = HillEquation()
+            hill.fit(X, Y)
+            self.fits[cellname] = hill
+
+        # FIT HILL TO AVERAGE OF PEAK AMPLITUDES
+        df = epochs.copy()
+        df["peakamp"] = epochs.trace.apply(lambda x: x.peakamplitude)
+        dff = df.groupby("lightamplitude").peakamp.mean().reset_index()
+
+        # PLOT LINE AND AVERAGES
+        X, Y = dff.lightamplitude.values, dff.peakamp.values
+        hill = HillEquation()
+        hill.fit(X, Y)
+        self.ax.plot(X, hill(Y), color=COLORS[genotype])
+        self.ax.scatter(X, Y, alpha=0.4, color=COLORS[genotype])
+
+        # TODO decide on label based on grouping
+        self.fits[f"{genotype}_average"] = hill
+
+    def to_csv(self):
+        ...
+
+    def to_image(self, *args, **kwargs):
+        ...
+
+    def to_igor(self, *args, **kwargs):
+        ...
+
+class PlotWeber(PlotBase):
+
+    def __init__(self, ax, epochs):
+        self.ax = ax
+        self.fits: Dict[str, WeberEquation] = dict()
+
+        self.ax.set_yscale("log")
+        self.ax.set_xscale("log")
+
+        if epochs:
+            self.append_trace(epochs)
+
+    def filestem(self):
+        return f"PlotWeber_{'_'.join([x for x in self.fits])}"
 
     def append_trace(self, epochs: pd.DataFrame):
         """HILL FIT ON EACH CELL AND AVERAGE OF EACH CELLS"""
@@ -519,23 +630,52 @@ class PlotHill:
             frame = frame.sort_values(["lightamplitude"])
             X = frame.lightamplitude.values
             Y = frame.trace.apply(lambda x: x.peakamplitude).values
-            hillfit = hill.fit(X, Y)
-            self.params[cellname] = hillfit
+
+            weber = WeberEquation()
+            weber.fit(X, Y)
+
+            self.fits[cellname] = weber
 
         # FIT HILL TO AVERAGE OF PEAK AMPLITUDES
         df = epochs.copy()
         df["peakamp"] = epochs.trace.apply(lambda x: x.peakamplitude)
         dff = df.groupby("lightamplitude").peakamp.mean().reset_index()
-       
+
+        # FIT WEBER TO AVERAGE PEAK AMPLITUDES
+        weber = WeberEquation()
+        X, Y = dff.lightamplitude.values, dff.peakamp.values
+        weber.fit(X, Y)
+
         # PLOT LINE AND AVERAGES
-        X,Y = dff.lightamplitude.values, dff.peakamp.values
-        hillfit = hill.fit(X, Y)
-        self.ax.plot(X, hillfit(Y), color=COLORS[genotype])
-        self.ax.scatter(X, Y, alpha=0.4, color=COLORS[genotype])
+        topltX = np.array(40000)
 
-        self.params["average"] = hillfit
+        # TODO decide on line labels
+        self.ax.plot(topltX, weber(X), color=COLORS[genotype])
+        self.ax.scatter(*weber.normalize(X, Y),
+                        alpha=0.4, color=COLORS[genotype])
 
-    def to_csv(self):
+        self.fits[f"{genotype}mean"] = weber
+
+    def to_csv(self, outputdir: Path = Path(".")):
+        data = []
+        for label, fit in self.fits.items():
+            row = [
+                label,
+                fit.beta,
+                fit.r2
+            ]
+            data.append(row)
+
+        df = pd.DataFrame(
+            columns = "Label Beta R2".split(),
+            data = data
+        )
+
+        outputpath = outputdir / (self.filestem + "_Data.csv")
+        df.to_csv(outputpath, index=False)
+
+    def to_image(self, *args, **kwargs):
         ...
 
-
+    def to_igor(self, *args, **kwargs):
+        ...

@@ -11,10 +11,13 @@ def test_window():
 		uncheckedpath = Path("DemoForJenna.txt")
 		unchecked = io.read_unchecked_file(uncheckedpath)
 
-		#paths = [file for ii, file in enumerate((root_dir/"DR").glob("*.h5"))]
-		#paths.extend([file for ii, file in enumerate((root_dir / "WT").glob("*.h5"))])
-		paths = [file for ii, file in enumerate((root_dir/"GG2 control").glob("*.h5"))]
-		paths.extend([file for ii, file in enumerate((root_dir / "GG2 KO").glob("*.h5"))])
+		#folders = ["DR", "WT"]
+		folders = ["GG2 control", "GG2 KO"]
+		paths = []
+		for fldr in folders:
+			paths.extend(
+				list((root_dir/fldr).glob("*.h5"))
+			)
 
 		dr = io.DissonanceReader(paths)
 		epochs = dr.to_epochs(tracetype = "spiketrace")

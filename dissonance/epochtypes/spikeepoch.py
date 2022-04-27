@@ -76,10 +76,3 @@ class SpikeEpochs(EpochBlock):
                         trace.psth, (0, int(self.trace_len // inc - len(trace.psth))))
                     self._psths.append(cpsth)
         return np.array(self._psths, dtype=float)
-
-
-    @property
-    def hillfit(self) -> np.array:
-        if self._hillfit is None:
-            ...
-        return self._hillfit

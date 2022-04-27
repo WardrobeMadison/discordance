@@ -1,35 +1,28 @@
 import sys
 from pathlib import Path
-from typing import Union
 
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-from matplotlib.backends.backend_qt5agg import \
-    FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt5agg import \
-    NavigationToolbar2QT as NavigationToolbar
-from matplotlib.figure import Figure
+from matplotlib.backends.backend_qt5agg import (
+    NavigationToolbar2QT as NavigationToolbar)
 from PyQt5.Qt import Qt
-from PyQt5.QtGui import QMovie
-from PyQt5.QtCore import QModelIndex, pyqtSlot, pyqtSignal, QRect, QSize
-from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QHeaderView, QLabel, QFrame, QDialog, QAbstractItemView, QMainWindow,
-                             QPushButton, QVBoxLayout, QWidget, QScrollArea, QListWidget, QListWidgetItem, QGridLayout,
-                             QFileDialog, QSizePolicy)
+from PyQt5.QtCore import QModelIndex, pyqtSlot
+from PyQt5.QtWidgets import (QAbstractItemView, QApplication, QFileDialog,
+                             QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
+                             QPushButton, QScrollArea, QVBoxLayout, QWidget)
+from functools import lru_cache
 
 from . import components as cp
 
 
 class App(QWidget):
 
-    def __init__(self, tree, unchecked: set = None, uncheckedpath:Path=None, export_dir:Path=None):
+    def __init__(self, tree, unchecked: set = None, uncheckedpath: Path = None, export_dir: Path = None):
         super().__init__()
         # EPOCH INFORMATION
         self.unchecked = unchecked
         self.uncheckedpath = "unchecked.csv" if uncheckedpath is None else uncheckedpath
         self.export_dir = export_dir
         self.tree = tree
-        
+
         # SET WINDOW
         self.left = 0
         self.top = 0
@@ -103,21 +96,6 @@ class App(QWidget):
         self.showMaximized()
         self.show()
 
-    def resizeEvent(self, e):
-        #self.canvas.resize(self.scroll_area.width(), self.canvas.height())
-        ##self.scroll_area.resize(self.canvas.width(), self.canvas.height())
-        super().resizeEvent(e)
-
-    def disconnect_edit(self):
-        # DISCCONECT TABLE EDIT SIGNAL WHEN UPDATING TABLE
-        #self.disconnect(self.tableWidget, PYQT_SIGNAL("cellChanged(int, int)"), self.DoSomething)
-        ...
-
-    def connect_edit(self):
-        # RECONNECT TABLE EDIT SIGNAL TO PICK UP EDITS FROM USER
-        #self.connect(self.tableWidget, PYQT_SIGNAL("cellChanged(int, int)"), self.DoSomething)
-        ...
-
     def on_table_edit(self, item):
         # GET PARAMNAME AND NEW VALUE
         idx = self.tableWidget.selectionModel().currentIndex()
@@ -137,19 +115,16 @@ class App(QWidget):
 
                 # TODO wrap this into epochs object? how to handle updates?
                 epochs[0]._response_ds.flush()
-            else: 
+            else:
                 epoch.update(paramname, value)
                 epochs._response_ds.flush()
 
             # REFRESH AND REATTATCH TREE
             # TODO make updating work refresh tree
             self.tree.tracetype
-            self.tree = type(self.tree)(self.tree.tracestype(self.tree.frame["epoch"].to_list()))
+            self.tree = type(self.tree)(self.tree.tracestype(
+                self.tree.frame["epoch"].to_list()))
             self.treeWidget.fill_model(self.tree)
-
-    def on_reload_tree_click(self):
-        # ON BTTN CLICK, RELOAD TREE WITH UPDATED PARAMS FROM TABLE INPUT
-        ...
 
     def get_nodes_from_selection(self):
         # SELECT V MULTI SELECT
@@ -196,7 +171,7 @@ class App(QWidget):
 
 class ExportDataWindow(QWidget):
 
-    def __init__(self, charts=None, outputdir:Path=None):
+    def __init__(self, charts=None, outputdir: Path = None):
         super(ExportDataWindow, self).__init__()
 
         self.charts = charts

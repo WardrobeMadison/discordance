@@ -1,2 +1,3 @@
 from .spike_detection import detect_spikes
-from . import hill
+from .hill import HillEquation
+from .weber import WeberEquation

@@ -10,7 +10,8 @@ from dissonance.io import add_genotype, add_attributes
 
 def test_add_genotypes():
     root_dir = Path(r"/home/joe/Projects/DataStore/MappedData")
-    folders = ["GA1 KO", "GG2 control", "GG2 KO"]
+    #folders = ["DR", "WT"]
+    folders = ["GG2 control", "GG2 KO"]
     for flder in folders:
         wdir = root_dir / flder
         for file in wdir.glob("*.h5"):
@@ -22,7 +23,8 @@ def test_add_genotypes():
 def test_update_cell_labels():
     re_date = re.compile(r"^.*(\d{4}-\d{2}-\d{2})(\w\d?).*$")
     root_dir = Path(r"/home/joe/Projects/DataStore/MappedData")
-    folders = ["GA1 KO", "GG2 control", "GG2 KO"]
+    #folders = ["DR", "WT"]
+    folders = ["GG2 control", "GG2 KO"]
 
     for flder in folders:
         wdir = root_dir / flder

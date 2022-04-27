@@ -3,42 +3,57 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.optimize import curve_fit
 
-def hillequation(x, expnt, base, rmax, xhalf): 
-	return base + (rmax - base) / (1 + (xhalf/x)**expnt) 
 
-def invhillequation(y, expnt, base, rmax, xhalf):
-	return xhalf / ((rmax - base) / (y-base) - 1) ** 1 / expnt
+class HillEquation:
 
-@dataclass
-class HillParams:
-	expnt: float
-	base: float
-	rmax: float
-	xhalf: float
-	ihalf: float
-	r2: float
-	
-	def __call__(self, x):
-		return hillequation(
-			x, self.expnt, self.base, self.rmax, self.xhalf)
+    def __init__(self,
+                 expnt: float = None,
+                 base: float = None,
+                 rmax: float = None,
+                 xhalf: float = None):
 
-def fit(X, Y) -> HillParams:
-	bounds = (0.0, np.inf)
-	fit = curve_fit(hillequation, 
-		xdata = X, ydata= Y, maxfev=10000,
-		p0 = [1.0, 10, 150, 0.5], bounds = bounds)
-	popt = fit[0]
+        self.expnt: float = expnt
+        self.base: float = base
+        self.rmax: float = rmax
+        self.xhalf: float = xhalf
+        self.ihalf: float = None
+        self.r2: float = None
 
-	#You can get the residual sum of squares (ss_tot) with
-	residuals = Y- hillequation(X, *popt)
-	ss_res = np.sum(residuals**2)
+    def __call__(self, x):
+        if not self.hasparams:
+            raise Exception("Fit Hill function first or provide parameters.")
 
-	#You can get the total sum of squares (ss_tot) with
-	ss_tot = np.sum((Y-np.mean(Y))**2)
+        return self.hillequation(
+            x, self.expnt, self.base, self.rmax, self.xhalf)
 
-	#And finally, the r_squared-value with,
-	ihalf = invhillequation(max(Y)/2, *popt)
+    def fit(self, X, Y, p0=[1.0, 10, 150, 0.5], bounds = (0.0, np.inf), maxfev=10000, **kwargs):
+        fit = curve_fit(self.hillequation,
+                        xdata=X, ydata=Y, 
+						maxfev=maxfev, p0=p0, bounds=bounds, 
+						**kwargs)
+        popt = fit[0]
 
-	r_squared = 1 - (ss_res / ss_tot)
+        # You can get the residual sum of squares (ss_tot) with
+        # You can get the total sum of squares (ss_tot) with
+        residuals = Y - self(X, *popt)
+        ss_res = np.sum(residuals**2)
+        ss_tot = np.sum((Y-np.mean(Y))**2)
+        self.r2 = 1 - (ss_res / ss_tot)
 
-	return HillParams(*popt, ihalf, r_squared)
+        self.ihalf = self.invequation(max(Y)/2, *popt)
+
+        self.expnt, self.base, self.rmax, self.xhalf = popt
+
+        # return HillParams(*popt, ihalf, r_squared)
+
+    @property
+    def hasparams(self):
+        return not any(map(lambda x: x is None, [self.expnt, self.base, self.rmax, self.xhalf]))
+
+    @staticmethod
+    def equation(X, expnt, base, rmax, xhalf):
+        return base + (rmax - base) / (1 + (xhalf/X)**expnt)
+
+    @staticmethod
+    def invequation(Y, expnt, base, rmax, xhalf):
+        return xhalf / ((rmax - base) / (Y-base) - 1) ** 1 / expnt

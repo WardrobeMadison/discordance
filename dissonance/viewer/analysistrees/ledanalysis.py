@@ -248,26 +248,52 @@ class LedSpikeAnalysis(BaseAnalysis):
         self.currentplots.append(pltpsth)
 
     def plot_genotype_summary(self, epochs, canvas):
-        grps = groupby(epochs, ["cellname", "lightamplitude", "lightmean"])
-        n, m = grps.shape[0], 2
-        axes = canvas.grid_axis(n, m)
+        grps = groupby(epochs, self.labels)
+
+        # PLOT FIT GRAPHS IN FIRST ROW IF NEEDED
+        led = grps.led.iloc[0]
+        protocolname = grps.protocolname.iloc[0]
+        if led.lower() == "uv led" and protocolname.lower() == "ledpulse":
+            # ADD AN EXTRA HEADER ROW FOR GRID SHAPE
+            n, m = grps.shape[0]+1, 2
+            axes = canvas.grid_axis(n, m)
+            axii = 2
+
+            plt_amp = PlotCRF(axes[0], metric="peakamplitude", epochs=grps)
+            plt_ttp = PlotCRF(axes[1], metric="timetopeak", epochs=grps)
+            self.currentplots.extend([plt_amp, plt_ttp])
+
+        elif led.lower() == "green led" and protocolname.lower() == "ledpulsefamily":
+            # ADD AN EXTRA HEADER ROW FOR GRID SHAPE
+            n, m = grps.shape[0]+1, 2
+            axes = canvas.grid_axis(n, m)
+            axii = 2
+
+            plt_amp = PlotHill(axes[0], epochs=grps)
+            #plt_ttp = PlotHill(axes[1], metric="timetopeak", epochs=grps)
+            self.currentplots.extend([plt_amp, plt_ttp])
+
+        else:
+            n, m = grps.shape[0], 2
+            axes = canvas.grid_axis(n, m)
+            axii = 0
 
         # PLOT EVERY CELL AND RASTER (CELLNAME, RSTARR)
-        ii = 0
-        for _, row in grps.iterrows():
-            cepochs = row["trace"]
-            title = f'{row["cellname"]}: {row["lightamplitude"]}, {row["lightmean"]}'
+        #ii = 0
+        #for _, row in grps.iterrows():
+        #    cepochs = row["trace"]
+        #    title = f'{row["cellname"]}: {row["lightamplitude"]}, {row["lightmean"]}'
 
-            plt = PlotPsth(axes[ii], cepochs, label=row["genotype"])
-            plt.ax.set_title(title)
-            self.currentplots.append(plt)
-            ii += 1
+        #    plt = PlotPsth(axes[ii], cepochs, label=row["genotype"])
+        #    plt.ax.set_title(title)
+        #    self.currentplots.append(plt)
+        #    ii += 1
 
-            cepochs = row["trace"]
-            plt = PlotRaster(axes[ii], cepochs)
-            plt.ax.set_title(title)
-            self.currentplots.append(plt)
-            ii += 1
+        #    cepochs = row["trace"]
+        #    plt = PlotRaster(axes[ii], cepochs)
+        #    plt.ax.set_title(title)
+        #    self.currentplots.append(plt)
+        #    ii += 1
 
     def plot_genotype_comparison(self, epochs: EpochBlock, canvas: MplCanvas = None):
         """Compare epochs by genotype
@@ -277,7 +303,7 @@ class LedSpikeAnalysis(BaseAnalysis):
             canvas (MplCanvas, optional): Parent MPL canvas, figure created if not provided. Defaults to None.
         """
         df = groupby(epochs, self.labels)
-        n = len(df[["lightamplitude", "lightmean"]].unique())
+        n = len(set(zip(df.lightamplitude, df.lightmean)))
         n, m = n, 3
         axes = canvas.grid_axis(n, m)
 
@@ -299,12 +325,12 @@ class LedSpikeAnalysis(BaseAnalysis):
         ii = 2
         for name, frame in df.groupby(["lightamplitude", "lightmean"]):
             axes[ii].set_title(name)
+            plt = PlotPsth(axes[ii])
             for geno, fframe in frame.groupby("genotype"):
                 # SHOULD ONLY BE ONE GENOTYPE HERE
                 epoch = fframe.iloc[0, -1]
-
-                plt = PlotPsth(axes[ii], epoch, label=geno)
-                self.currentplots.append(plt)
+                plt.append_trace(epoch, label=geno)
+            self.currentplots.append(plt)
             ii += 3
 
     def plot_summary_cell(self, epochs: SpikeEpochs, canvas: MplCanvas = None):
@@ -312,19 +338,11 @@ class LedSpikeAnalysis(BaseAnalysis):
         """
         # DIFFERENT ROW FEACH EACH CELL, RSTARR
         grps = groupby(epochs, self.labels)
-
-        n, m = grps.shape[0]+1, 2
+        n, m = grps.shape[0], 2
         axes = canvas.grid_axis(n, m)
-        axii = 2
+        axii = 0
 
-        led = grps.led.iloc[0]
-        if led.lower() == "uv led":
-            plt_amp = PlotCRF(axes[0], metric="peakamplitude", epochs=grps)
-            plt_ttp = PlotCRF(axes[1], metric="timetopeak", epochs=grps)
-            self.currentplots.extend([plt_amp, plt_ttp])
-        else:
-            ...
-
+        # ITERATE FOR EVERY LIGHTAMPLITUDE, LIGHTMEAN COMBO
         for ii, row in grps.iterrows():
             traces = row["trace"]
 

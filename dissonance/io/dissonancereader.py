@@ -7,6 +7,8 @@ import re
 
 import h5py
 
+from dissonance.epochtypes.baseepoch import DissonanceParams
+
 from .. import epochtypes as et
 
 
@@ -32,11 +34,14 @@ class DissonanceReader:
                 condition = all([epoch.attrs[key] == val for key,val in kwargs.items()])
                 if condition:
                     number=f"{ii+1:04d}"
-                    params = et.DissonanceParams()
-                
+
                     # GET PARAMETERS
-                    for key, val in epoch.attrs.items():
-                        setattr(params, key.lower(), val)
+                    #params = et.DissonanceParams()
+                    #disargs = {
+                    #    key: val
+                    #    for key, val in epoch.attrs.items()
+                    #    if key in DissonanceParams.__annotations__.keys()}
+                    params = et.DissonanceParams(**epoch.attrs)
 
                     # SEPARATE TRACES
                     resp = epoch["Amp1"]
@@ -80,6 +85,7 @@ class DissonanceReader:
         #with mp.Pool(processes=nprocesses, initializer=self.init_mp, initargs=(1,)) as p:
         #    for exptraces in p.imap(self.h5_to_epochs, self.experimentpaths):
         #        traces.extend(exptraces)
-        for filepath in self.experimentpaths:
+        for ii, filepath in enumerate(self.experimentpaths):
+            print(f"Loading {ii} / {len(self.experimentpaths)}: {filepath}")
             traces.extend(self.h5_to_epochs(filepath, **kwargs))
         return traces

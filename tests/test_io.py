@@ -15,7 +15,9 @@ def test_to_json():
 
 
 def test_to_h5():
+    nprocesses = 5
     exclude = []
+    #folders = ["DR", "WT"]
     #folders = ["GA1 KO", "GG2 control", "GG2 KO"]
     folders = ["GG2 KO", "GG2 control"]
 
@@ -30,7 +32,7 @@ def test_to_h5():
         files = [file for file in wdir.glob("*.h5") if file.name not in exclude]
         func = partial(write_file, wodir = wodir)
 
-        with Pool(4) as p:
+        with Pool(nprocesses) as p:
             for x in p.imap(func, files):
                 print(x)
 

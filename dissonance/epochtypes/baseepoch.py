@@ -1,3 +1,5 @@
+from operator import index
+from pathlib import Path
 from abc import ABC, abstractproperty
 from dataclasses import dataclass, field
 from typing import Iterable, Iterator, List, Tuple, Dict
@@ -8,6 +10,12 @@ import numpy as np
 import pandas as pd
 from h5py._hl.dataset import Dataset
 from pytest import param
+
+
+RSTARRMAP = pd.read_csv(Path(__file__).parent.parent.parent / "data/rstarrmap.txt", "\t",
+                        parse_dates=["startdate", "enddate"], 
+                        index_col=["protocolname", "led", "lightamplitude", "lightmean"])
+
 
 @dataclass
 class EpochSpikeInfo:
@@ -23,31 +31,66 @@ class EpochSpikeInfo:
         self.max_noise_peak_time = self.max_noise_peak_time.astype(int)
         self.violation_idx = self.violation_idx.astype(int)
 
+
 @dataclass
 class DissonanceParams:
-    protocolname: str = field( default=None)
-    cellname: str = field( default=None)
-    celltype: str = field( default=None)
-    tracetype: str = field( default = None)
-    genotype: str = field( default = None)
-    path: str = field( default=None)
-    amp: float = field( default=None)
-    interpulseinterval: float = field( default=None)
-    led: float = field( default=None)
-    lightamplitude: float = field( default=None)
-    lightmean: float = field( default=None)
-    numberofaverages: float = field( default=None)
-    pretime: float = field( default=None)
-    samplerate: float = field( default=None)
-    stimtime: float = field( default=None)
-    tailtime: float = field( default=None)
-    startdate: str = field( default=None)
-    enddate: str = field( default=None)
+    protocolname: str = field(default=None)
+    cellname: str = field(default=None)
+    celltype: str = field(default=None)
+    tracetype: str = field(default=None)
+    genotype: str = field(default=None)
+    path: str = field(default=None)
+    amp: float = field(default=None)
+    interpulseinterval: float = field(default=None)
+    led: float = field(default=None)
+    lightamplitude: float = field(default=None)
+    lightmean: float = field(default=None)
+    numberofaverages: float = field(default=None)
+    pretime: float = field(default=None)
+    samplerate: float = field(default=None)
+    stimtime: float = field(default=None)
+    tailtime: float = field(default=None)
+    startdate: str = field(default=None)
+    enddate: str = field(default=None)
+    startdatetime: datetime = field(init=False, default=None)
+    enddatetime: datetime = field(init=False, default=None)
+
+
+    def __post_init__(self):
+        #self.startdatetime = datetime.strptime(
+        #    self.startdate, '%Y-%m-%d %H:%M:%S.%f')
+        #self.enddatetime = datetime.strptime(
+        #    self.enddate, '%Y-%m-%d %H:%M:%S.%f')
+
+        # TODO MOVE THIS TO IO AT READ TIME AND CONVERT TO DICTIONARY  
+        # CONVERT LIGHT AMPLITUDE AND LIGHT MEAN TO RSTARR
+        try:
+                ...
+                #df = RSTARRMAP.query(f"(protocolname == '{self.protocolname}') & (led=='{self.led}') & (lightamplitude=={self.lightamplitude}) & (lightmean=={self.lightmean})")
+
+                #self.lightamplitude, self.lightmean = df[["lightamplitude_rstarr", "lightmean_rstarr"]].iloc[0]
+
+                #self.lightamplitude, self.lightmean = df.loc[
+                #    (df.startdate <= self.startdatetime) &
+                #    (df.enddate > self.enddatetime),
+                #    ["lightamplitude_rstarr", "lightmean_rstarr"]].iloc[0]
+                #df = RSTARRMAP.loc[
+                #    (RSTARRMAP.protocolname == self.protocolname) &
+                #    (RSTARRMAP.led == self.led) &
+                #    (RSTARRMAP.lightamplitude == self.lightamplitude) &
+                #    (RSTARRMAP.lightmean == self.lightmean) &
+                #    (RSTARRMAP.startdate <= self.startdatetime) &
+                #    (RSTARRMAP.enddate > self.enddatetime),
+                #    ["lightamplitude_rstarr", "lightmean_rstarr"]]
+                #.iloc[0])
+        except:
+            # TODO SHOULD I GO WITH ORIGINAL VALUES?
+            print(f"RstarrConversionError,{self.startdatetime},{self.protocolname},{self.led},{self.lightamplitude},{self.lightmean}")
 
 
 class IEpoch(ABC):
 
-    def __init__(self, epochpath: str, params: DissonanceParams, response: Dataset, number:str="0"):
+    def __init__(self, epochpath: str, params: DissonanceParams, response: Dataset, number: str = "0"):
 
         self._epochpath: str = epochpath
         self._response_ds = response
@@ -63,7 +106,10 @@ class IEpoch(ABC):
         self.led = params.led
         self.lightamplitude = params.lightamplitude
         self.lightmean = params.lightmean
-        self.pctcontrast = self.lightamplitude / self.lightmean if self.lightmean != 0.0 else 0.0
+        self.pctcontrast = (
+            self.lightamplitude / self.lightmean 
+            if self.lightmean != 0.0 
+            else 0.0)
         self.numberofaverages = params.numberofaverages
         self.samplerate = params.samplerate
         self.pretime = params.pretime * 10
@@ -106,14 +152,16 @@ class IEpoch(ABC):
 
     def get(self, paramname):
         return [getattr(self, paramname)]
+
     def get_unique(self, paramname):
         return [getattr(self, paramname)]
 
+
 class EpochBlock(ABC):
 
-    def __init__(self, epochs:List[IEpoch]):
+    def __init__(self, epochs: List[IEpoch]):
         self._epochs: List[IEpoch] = epochs
-        self._epochs.sort(key = lambda x: x.number)
+        self._epochs.sort(key=lambda x: x.number)
 
         if len(epochs) > 0:
             self.key = epochs[0].startdate
@@ -139,7 +187,7 @@ class EpochBlock(ABC):
         yield from self._epochs
 
     @property
-    def epochs(self) -> List[IEpoch]: 
+    def epochs(self) -> List[IEpoch]:
         return self._epochs
 
     def append(self, epoch) -> None:
@@ -158,10 +206,10 @@ class EpochBlock(ABC):
     def traces(self) -> np.array:
         # PAD ALL VALUES TO STRETCH INTO FULL ARRAY
         return np.vstack(
-                [
-                    np.pad(epoch.trace, (0, self.trace_len - len(epoch)))
-                    for epoch in self._epochs
-                ])
+            [
+                np.pad(epoch.trace, (0, self.trace_len - len(epoch)))
+                for epoch in self._epochs
+            ])
 
     def get(self, paramname) -> np.array:
         try:
@@ -181,4 +229,3 @@ class EpochBlock(ABC):
 
     def get_unique(self, paramname) -> np.array:
         return np.unique(self.get(paramname))
-    
