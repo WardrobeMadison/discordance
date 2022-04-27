@@ -17,9 +17,9 @@ def plt_psth(psth, nbins, outputfile:Path = None):
 
 def plt_spikes(epoch:SpikeEpoch, outputfile:Path=None):
 	fig = plt.subplot()
-	plt.plot(epoch.values)
+	plt.plot(epoch.trace)
 	plt.grid(True)
-	y = epoch.values[epoch.spikes.sp]
+	y = epoch.trace[epoch.spikes.sp]
 	plt.scatter(epoch.spikes.sp, y, marker="x", c="#FFA500")
 
 	plt.title(epoch.startdate)

@@ -1,33 +1,29 @@
 import sys
 from pathlib import Path
-from typing import Union
 
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-from matplotlib.backends.backend_qt5agg import \
-    FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt5agg import \
-    NavigationToolbar2QT as NavigationToolbar
-from matplotlib.figure import Figure
+from matplotlib.backends.backend_qt5agg import (
+    NavigationToolbar2QT as NavigationToolbar)
 from PyQt5.Qt import Qt
-from PyQt5.QtGui import QMovie
-from PyQt5.QtCore import QModelIndex, pyqtSlot, pyqtSignal, QRect, QSize
-from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QHeaderView, QLabel, QFrame, QDialog, QAbstractItemView, QMainWindow,
-                             QPushButton, QVBoxLayout, QWidget, QScrollArea, QListWidget, QListWidgetItem, QGridLayout,
-                             QFileDialog, QSizePolicy)
+from PyQt5.QtCore import QModelIndex, pyqtSlot
+from PyQt5.QtWidgets import (QAbstractItemView, QApplication, QFileDialog,
+                             QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
+                             QPushButton, QScrollArea, QVBoxLayout, QWidget)
+from functools import lru_cache
 
 from . import components as cp
 
 
 class App(QWidget):
 
-    def __init__(self, tree, unchecked: set = None, uncheckedpath:Path=None, export_dir:Path=None):
+    def __init__(self, tree, unchecked: set = None, uncheckedpath: Path = None, export_dir: Path = None):
         super().__init__()
+        # EPOCH INFORMATION
         self.unchecked = unchecked
         self.uncheckedpath = "unchecked.csv" if uncheckedpath is None else uncheckedpath
-        #self.epochs = epochs
+        self.export_dir = export_dir
         self.tree = tree
+
+        # SET WINDOW
         self.left = 0
         self.top = 0
         self.width = 1200
@@ -35,7 +31,7 @@ class App(QWidget):
         self.initUI()
 
     def initUI(self):
-        self.setWindowTitle("dissonance")
+        self.setWindowTitle("Dissonance")
         self.setGeometry(self.left, self.top, self.width, self.height)
 
         initepoch = self.tree.frame.epoch.iloc[0]
@@ -56,7 +52,7 @@ class App(QWidget):
         self.treeWidget = cp.et.EpochTree(self.tree, unchecked=self.unchecked)
         self.treeWidget.selectionModel().selectionChanged.connect(self.on_tree_select)
 
-        self.filterfilelabel = QLabel(self.uncheckedpath)
+        self.filterfilelabel = QLabel(str(self.uncheckedpath))
 
         # FIRST COLUMNS
         col0 = QVBoxLayout()
@@ -100,21 +96,6 @@ class App(QWidget):
         self.showMaximized()
         self.show()
 
-    def resizeEvent(self, e):
-        #self.canvas.resize(self.scroll_area.width(), self.canvas.height())
-        ##self.scroll_area.resize(self.canvas.width(), self.canvas.height())
-        super().resizeEvent(e)
-
-    def disconnect_edit(self):
-        # DISCCONECT TABLE EDIT SIGNAL WHEN UPDATING TABLE
-        #self.disconnect(self.tableWidget, PYQT_SIGNAL("cellChanged(int, int)"), self.DoSomething)
-        ...
-
-    def connect_edit(self):
-        # RECONNECT TABLE EDIT SIGNAL TO PICK UP EDITS FROM USER
-        #self.connect(self.tableWidget, PYQT_SIGNAL("cellChanged(int, int)"), self.DoSomething)
-        ...
-
     def on_table_edit(self, item):
         # GET PARAMNAME AND NEW VALUE
         idx = self.tableWidget.selectionModel().currentIndex()
@@ -127,19 +108,23 @@ class App(QWidget):
             epochs = self.tree.query(nodes)
 
             # UPDATE EPOCHS
-            for epoch in epochs:
+            if len(nodes) > 1:
+                for epoch in epochs:
+                    epoch.update(paramname, value)
+                    #print(epoch.startdate, paramname,value)
+
+                # TODO wrap this into epochs object? how to handle updates?
+                epochs[0]._response_ds.flush()
+            else:
                 epoch.update(paramname, value)
-                #print(epoch.startdate, paramname,value)
+                epochs._response_ds.flush()
 
             # REFRESH AND REATTATCH TREE
             # TODO make updating work refresh tree
-            self.tree = type(self.tree)(self.tree.frame["trace"].values)
-            self.treeWidget = cp.et.EpochTree(self.tree, unchecked=self.unchecked)
-            self.treeWidget.selectionModel().selectionChanged.connect(self.on_tree_select)
-
-    def on_reload_tree_click(self):
-        # ON BTTN CLICK, RELOAD TREE WITH UPDATED PARAMS FROM TABLE INPUT
-        ...
+            self.tree.tracetype
+            self.tree = type(self.tree)(self.tree.tracestype(
+                self.tree.frame["epoch"].to_list()))
+            self.treeWidget.fill_model(self.tree)
 
     def get_nodes_from_selection(self):
         # SELECT V MULTI SELECT
@@ -155,10 +140,11 @@ class App(QWidget):
 
     def on_tree_select(self, item: QModelIndex):
         # SELECT V MULTI SELECT
-        idxs = self.treeWidget.selectedIndexes()
         nodes = self.get_nodes_from_selection()
+
         if len(nodes) == 1:
             self.tree.plot(nodes[0], self.canvas)
+
         epoch = self.tree.query(nodes)
         self.tableWidget.update(epoch)
 
@@ -179,16 +165,17 @@ class App(QWidget):
     @pyqtSlot()
     def on_export_bttn_click(self):
         charts = self.tree.currentplots
-        dialog = ExportDataWindow(charts=charts)
+        dialog = ExportDataWindow(charts=charts, outputdir=self.export_dir)
         dialog.show()
 
 
 class ExportDataWindow(QWidget):
 
-    def __init__(self, charts=None):
+    def __init__(self, charts=None, outputdir: Path = None):
         super(ExportDataWindow, self).__init__()
 
         self.charts = charts
+        self.outputdir = outputdir
 
         # EXPORT BUTTON
         exportbttn = QPushButton("Export Selected Data")
@@ -212,13 +199,13 @@ class ExportDataWindow(QWidget):
     def on_export_bttn_click(self):
         for index in self.listwidget.selectedIndexes():
             try:
-                self.charts[index.row()].to_csv()
+                self.charts[index.row()].to_csv(outputdir=self.outputdir)
             except:
                 ...
         self.close()
 
 
-def run(tree, unchecked: set = None):
+def run(tree, unchecked, uncheckedpath: Path = None):
     app = QApplication(sys.argv)
-    ex = App(tree, unchecked)
+    ex = App(tree, unchecked, uncheckedpath)
     sys.exit(app.exec_())

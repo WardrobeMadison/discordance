@@ -15,21 +15,15 @@ def test_to_json():
 
 
 def test_to_h5():
-    exclude = [
-    "2021-07-06A.h5",
-    "2021-12-08A.h5",
-    "2022-01-04A.h5",
-    "2021-07-13A.h5",
-    "2021-09-24A.h5",
-    "2022-02-14A.h5",
-    "2021-08-25A2.h5",
-    "2022-02-28A.h5",
-    "2021-08-02A.h5",
-    "2022-01-06_.h5"]
+    nprocesses = 5
+    exclude = []
+    #folders = ["DR", "WT"]
+    #folders = ["GA1 KO", "GG2 control", "GG2 KO"]
+    folders = ["GG2 KO", "GG2 control"]
 
     root_dir = Path(r"/home/joe/Projects/DataStore/EPhysData")
     out_dir = Path(r"/home/joe/Projects/DataStore/MappedData")
-    for folder in ["DR"]:
+    for folder in folders:
         wdir = root_dir / folder
 
         wodir = (out_dir / folder)
@@ -38,7 +32,7 @@ def test_to_h5():
         files = [file for file in wdir.glob("*.h5") if file.name not in exclude]
         func = partial(write_file, wodir = wodir)
 
-        with Pool(4) as p:
+        with Pool(nprocesses) as p:
             for x in p.imap(func, files):
                 print(x)
 

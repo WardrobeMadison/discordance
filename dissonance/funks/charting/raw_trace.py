@@ -8,7 +8,7 @@ from ...epochtypes import SpikeEpoch, WholeEpoch
 
 def plt_trace(epoch:Union[SpikeEpoch, WholeEpoch], outputfile:Path=None):
 	fig, ax = plt.subplots()
-	plt.plot(epoch.values)
+	plt.plot(epoch.trace)
 	plt.title(epoch.startdate)
 	plt.grid(True)
 

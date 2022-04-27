@@ -1,7 +1,18 @@
+import pandas as pd
+from pathlib import Path
 from typing import Dict, List
 
 import h5py
 
+
+def read_unchecked_file(filepath:Path):
+    """Read start dates to exclude. Header is startdate"""
+    startdates = set()
+    with open(filepath, "r") as fin:
+        fin.readline()
+        startdates.add(fin.readline().strip())
+
+    return startdates
 
 def add_attributes(filename: str, searchon: List, paramname: str, attrs: Dict) -> None:
     """Adding attribute to epochs in h5 file
