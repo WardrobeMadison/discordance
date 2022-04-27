@@ -486,19 +486,28 @@ class PlotCRF(PlotBase):
         sems = []
         genotype = epochs.genotype.iloc[0]
         for (lightamp, lightmean), frame in epochs.groupby(["lightamplitude", "lightmean"]):
-            contrast = float(lightamp) / float(lightmean) if float(lightmean) != 0.0 else 0.0
+            if lightmean != 0:
+                contrast = lightamp / lightmean
 
-            # GET PEAK AMPLITUDE FROM EACH PSTH - USED IN SEM
-            peakamps = np.array([
-                np.max(epoch.psth) if self.metric == "peakamplitude" else np.argmax(epoch.psth)
-                for epoch in frame.trace.values
-            ])
+                # GET PEAK AMPLITUDE FROM EACH PSTH - USED IN SEM
+                peakamps = np.array([
+                    np.max(epoch.psth) if self.metric == "peakamplitude" else np.argmax(epoch.psth)
+                    for epoch in frame.trace.values
+                ])
 
-            X.append(contrast)
-            Y.append(np.mean(peakamps))
-            sems.append(0.0 if len(peakamps) == 1 else sem(peakamps))
+                X.append(contrast)
+                Y.append(np.mean(peakamps))
+                sems.append(0.0 if len(peakamps) == 1 else sem(peakamps))
 
-            self.peakamps[genotype].append(peakamps)
+                self.peakamps[genotype].append(peakamps)
+
+        # SORT VALUES ALONG X AXIS
+        indexes = list(np.arange(len(X)))
+        indexes.sort(key=X.__getitem__)
+        X = np.array(X)
+        Y = np.array(Y)
+        X = X[indexes]
+        Y = Y[indexes]
 
         self.ax.errorbar(
             X, Y,
@@ -516,12 +525,12 @@ class PlotCRF(PlotBase):
     def set_axis_labels(self):
         self.ax.legend()
         self.ax.set_xlabel("Percent Contrast")
-        if self.metric == "TimeToPeak":
+        if self.metric.lower() == "timetopeak":
             self.ax.set_ylabel("Seconds")
-            self.ax.set_title("1000 R* Contrast Steps: Time to Peak")
+            self.ax.set_title("Time to Peak Amplitude over Contrast")
         else:
             self.ax.set_ylabel("pA")
-            self.ax.set_title("1000 R* Contrast Response")
+            self.ax.set_title("Contrast Response Curve")
 
     def t_test(self):
         g1, g2 = self.labels[:2]
@@ -558,11 +567,11 @@ class PlotCRF(PlotBase):
 
 class PlotHill(PlotBase):
 
-    def __init__(self, ax, epochs):
+    def __init__(self, ax, epochs: pd.DataFrame = None):
         self.ax = ax
         self.fits = dict()
 
-        if epochs:
+        if epochs is not None:
             self.append_trace(epochs)
 
     def append_trace(self, epochs: pd.DataFrame):
@@ -575,7 +584,7 @@ class PlotHill(PlotBase):
         for cellname, frame in epochs.groupby(["cellname"]):
             frame = frame.sort_values(["lightamplitude"])
             X = frame.lightamplitude.values
-            Y = frame.trace.apply(lambda x: x.peakamplitude).values
+            Y = frame.trace.apply(lambda x: np.max(x.psth)).values
 
             hill = HillEquation()
             hill.fit(X, Y)
@@ -583,14 +592,15 @@ class PlotHill(PlotBase):
 
         # FIT HILL TO AVERAGE OF PEAK AMPLITUDES
         df = epochs.copy()
-        df["peakamp"] = epochs.trace.apply(lambda x: x.peakamplitude)
+        df["peakamp"] = epochs.trace.apply(lambda x: np.max(x.psth)).values
         dff = df.groupby("lightamplitude").peakamp.mean().reset_index()
 
         # PLOT LINE AND AVERAGES
         X, Y = dff.lightamplitude.values, dff.peakamp.values
         hill = HillEquation()
         hill.fit(X, Y)
-        self.ax.plot(X, hill(Y), color=COLORS[genotype])
+        X_ = np.linspace(0, np.max(X), 1000)
+        self.ax.plot(X_, hill(X_), color=COLORS[genotype])
         self.ax.scatter(X, Y, alpha=0.4, color=COLORS[genotype])
 
         # TODO decide on label based on grouping
@@ -614,7 +624,7 @@ class PlotWeber(PlotBase):
         self.ax.set_yscale("log")
         self.ax.set_xscale("log")
 
-        if epochs:
+        if epochs is not None:
             self.append_trace(epochs)
 
     def filestem(self):

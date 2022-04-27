@@ -11,8 +11,8 @@ def test_window():
 		uncheckedpath = Path("DemoForJenna.txt")
 		unchecked = io.read_unchecked_file(uncheckedpath)
 
-		#folders = ["DR", "WT"]
-		folders = ["GG2 control", "GG2 KO"]
+		folders = ["DR"]#, "WT"]
+		#folders = ["GG2 control", "GG2 KO"]
 		paths = []
 		for fldr in folders:
 			paths.extend(

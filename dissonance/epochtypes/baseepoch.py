@@ -1,10 +1,9 @@
-from operator import index
+from collections import defaultdict
 from pathlib import Path
 from abc import ABC, abstractproperty
 from dataclasses import dataclass, field
 from typing import Iterable, Iterator, List, Tuple, Dict
 from datetime import datetime
-from matplotlib.colors import LightSource
 
 import numpy as np
 import pandas as pd
@@ -12,9 +11,11 @@ from h5py._hl.dataset import Dataset
 from pytest import param
 
 
-RSTARRMAP = pd.read_csv(Path(__file__).parent.parent.parent / "data/rstarrmap.txt", "\t",
-                        parse_dates=["startdate", "enddate"], 
-                        index_col=["protocolname", "led", "lightamplitude", "lightmean"])
+rstarrdf = pd.read_csv(Path(__file__).parent.parent.parent / "data/rstarrmap.txt", "\t",
+                        parse_dates=["startdate", "enddate"])
+RSTARRMAP = defaultdict(list)
+for _, row in rstarrdf.iterrows():
+    RSTARRMAP[(row["protocolname"], row["led"], row["lightamplitude"], row["lightmean"])] = (row["lightamplitude_rstarr"], row["lightmean_rstarr"])
 
 
 @dataclass
@@ -67,22 +68,10 @@ class DissonanceParams:
         try:
                 ...
                 #df = RSTARRMAP.query(f"(protocolname == '{self.protocolname}') & (led=='{self.led}') & (lightamplitude=={self.lightamplitude}) & (lightmean=={self.lightmean})")
-
                 #self.lightamplitude, self.lightmean = df[["lightamplitude_rstarr", "lightmean_rstarr"]].iloc[0]
 
-                #self.lightamplitude, self.lightmean = df.loc[
-                #    (df.startdate <= self.startdatetime) &
-                #    (df.enddate > self.enddatetime),
-                #    ["lightamplitude_rstarr", "lightmean_rstarr"]].iloc[0]
-                #df = RSTARRMAP.loc[
-                #    (RSTARRMAP.protocolname == self.protocolname) &
-                #    (RSTARRMAP.led == self.led) &
-                #    (RSTARRMAP.lightamplitude == self.lightamplitude) &
-                #    (RSTARRMAP.lightmean == self.lightmean) &
-                #    (RSTARRMAP.startdate <= self.startdatetime) &
-                #    (RSTARRMAP.enddate > self.enddatetime),
-                #    ["lightamplitude_rstarr", "lightmean_rstarr"]]
-                #.iloc[0])
+                self.lightamplitude, self.lightmean = RSTARRMAP[(self.protocolname, self.led, self.lightamplitude, self.lightmean)]
+
         except:
             # TODO SHOULD I GO WITH ORIGINAL VALUES?
             print(f"RstarrConversionError,{self.startdatetime},{self.protocolname},{self.led},{self.lightamplitude},{self.lightmean}")

@@ -255,28 +255,31 @@ class LedSpikeAnalysis(BaseAnalysis):
         protocolname = grps.protocolname.iloc[0]
         if led.lower() == "uv led" and protocolname.lower() == "ledpulse":
             # ADD AN EXTRA HEADER ROW FOR GRID SHAPE
-            n, m = grps.shape[0]+1, 2
+            #n, m = grps.shape[0]+1, 2
+            n,m = 1, 2
             axes = canvas.grid_axis(n, m)
             axii = 2
 
             plt_amp = PlotCRF(axes[0], metric="peakamplitude", epochs=grps)
             plt_ttp = PlotCRF(axes[1], metric="timetopeak", epochs=grps)
+
             self.currentplots.extend([plt_amp, plt_ttp])
 
         elif led.lower() == "green led" and protocolname.lower() == "ledpulsefamily":
             # ADD AN EXTRA HEADER ROW FOR GRID SHAPE
-            n, m = grps.shape[0]+1, 2
+            #n, m = grps.shape[0]+1, 2
+            n,m = 1, 2
             axes = canvas.grid_axis(n, m)
             axii = 2
 
             plt_amp = PlotHill(axes[0], epochs=grps)
             #plt_ttp = PlotHill(axes[1], metric="timetopeak", epochs=grps)
-            self.currentplots.extend([plt_amp, plt_ttp])
+            self.currentplots.extend([plt_amp])
 
-        else:
-            n, m = grps.shape[0], 2
-            axes = canvas.grid_axis(n, m)
-            axii = 0
+        ##else:
+        #    n, m = grps.shape[0], 2
+        #    axes = canvas.grid_axis(n, m)
+        #    axii = 0
 
         # PLOT EVERY CELL AND RASTER (CELLNAME, RSTARR)
         #ii = 0

@@ -22,14 +22,14 @@ def groupby(traces: bt.EpochBlock, grpkeys) -> pd.DataFrame:
 	else: types = None
 
 	for trace in traces.epochs:
-		key = "___".join(map(str,(getattr(trace,arg) for arg in grpkeys)))
+		key = tuple([getattr(trace,arg) for arg in grpkeys])
 		grpd[key].append(trace)
 
 	# CONVERT TRACE LIST TO TRACES
 	data = []
 	for key, grp in grpd.items():
 		if len(grp) > 0:
-			data.append([*key.split("___"), types(grp)])
+			data.append([*key, types(grp)])
 	
 	df = pd.DataFrame(columns = [*grpkeys, "trace"], data=data)
 

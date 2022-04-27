@@ -3,6 +3,8 @@ from abc import ABC, abstractproperty
 
 import pandas as pd
 import numpy as np
+import operator
+from functools import reduce
 
 from ...trees import Node, Tree
 from ...epochtypes import groupby, EpochBlock, IEpoch
@@ -53,8 +55,8 @@ class BaseAnalysis(ABC, Tree):
         leaves = list(self.leaves)
         leaves.sort(key=lambda x: x.number)
         for leaf in leaves:
-            condition = " and ".join((f"{key} == '{val}'" for key,val in leaf.path.items() if key != "Name"))
-            epochs = df.query(condition).iloc[0,-1] # ONLY ONE WILL FIT  
+            loc_elements = [df[key] == val for key,val in leaf.path.items() if key != "Name"]
+            epochs = df.loc[reduce(operator.and_, loc_elements), "trace"].iloc[0]
             for epoch in epochs:
                 leaf.add(Node("startdate", epoch.startdate, epoch.number))
 

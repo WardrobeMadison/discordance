@@ -23,27 +23,25 @@ class HillEquation:
         if not self.hasparams:
             raise Exception("Fit Hill function first or provide parameters.")
 
-        return self.hillequation(
+        return self.equation(
             x, self.expnt, self.base, self.rmax, self.xhalf)
 
-    def fit(self, X, Y, p0=[1.0, 10, 150, 0.5], bounds = (0.0, np.inf), maxfev=10000, **kwargs):
-        fit = curve_fit(self.hillequation,
+    def fit(self, X, Y, bounds = (0.0, np.inf), maxfev=20000, **kwargs):
+        p0 = [2.0, np.mean(Y), max(Y), 0.5]
+        fit = curve_fit(self.equation,
                         xdata=X, ydata=Y, 
 						maxfev=maxfev, p0=p0, bounds=bounds, 
 						**kwargs)
-        popt = fit[0]
+        self.expnt, self.base, self.rmax, self.xhalf = fit[0]
 
         # You can get the residual sum of squares (ss_tot) with
         # You can get the total sum of squares (ss_tot) with
-        residuals = Y - self(X, *popt)
+        residuals = Y - self(X)
         ss_res = np.sum(residuals**2)
         ss_tot = np.sum((Y-np.mean(Y))**2)
         self.r2 = 1 - (ss_res / ss_tot)
 
-        self.ihalf = self.invequation(max(Y)/2, *popt)
-
-        self.expnt, self.base, self.rmax, self.xhalf = popt
-
+        self.ihalf = self.invequation(max(Y)/2, *fit[0])
         # return HillParams(*popt, ihalf, r_squared)
 
     @property

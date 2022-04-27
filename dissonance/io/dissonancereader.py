@@ -86,6 +86,6 @@ class DissonanceReader:
         #    for exptraces in p.imap(self.h5_to_epochs, self.experimentpaths):
         #        traces.extend(exptraces)
         for ii, filepath in enumerate(self.experimentpaths):
-            print(f"Loading {ii} / {len(self.experimentpaths)}: {filepath}")
+            print(f"Loading {ii+1} / {len(self.experimentpaths)}: {filepath}")
             traces.extend(self.h5_to_epochs(filepath, **kwargs))
         return traces
