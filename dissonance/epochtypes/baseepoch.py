@@ -132,7 +132,7 @@ class IEpoch(ABC):
 
     @property
     def trace(self):
-        return self._response_ds[:]
+        return self._response_ds[:] 
 
     @property
     @abstractproperty

@@ -31,6 +31,14 @@ class SpikeEpoch(IEpoch):
         return self._psth
 
     @property
+    def timetopeak(self) -> np.array:
+        return np.argmax(self.psth)
+
+    @property
+    def peakamplitude(self) -> np.array:
+        return np.max(self.psth)
+
+    @property
     def type(self) -> str:
         return "spiketrace"
 
@@ -48,21 +56,7 @@ class SpikeEpochs(EpochBlock):
     def psth(self):
         inc = 100
         if self._psth is None:
-            cnt = 0
-            for trace in self._epochs:
-                if len(trace.psth) > 0 and trace.psth is not None:
-                    # FILL TAIL OF PSTH'S WITH 0'S SO ALL OF SAME SIZE
-                    cpsth = np.pad(
-                        trace.psth, (0, int(self.trace_len // inc - len(trace.psth))))
-                    if cnt == 0:
-                        psths_ = cpsth
-                    else:
-                        psths_ += cpsth
-                    cnt += 1
-
-            if cnt != 0:
-                self._psth = psths_ / cnt
-
+            self._psth = np.mean(self._psths, axis=0)
         return self._psth
 
     @property
@@ -76,3 +70,11 @@ class SpikeEpochs(EpochBlock):
                         trace.psth, (0, int(self.trace_len // inc - len(trace.psth))))
                     self._psths.append(cpsth)
         return np.array(self._psths, dtype=float)
+
+    @property
+    def timetopeak(self) -> np.array:
+        return np.argmax(self.psth)
+
+    @property
+    def peakamplitude(self) -> np.array:
+        return np.max(self.psth)

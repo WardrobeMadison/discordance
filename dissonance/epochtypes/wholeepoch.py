@@ -14,10 +14,15 @@ def calc_width_at_half_max(values):
     ttp = np.argmin(values)
     halfmax = np.min(values) / 2.0
 
-    start = np.argmax(values < halfmax)
-    end = np.argmax(values[ttp:] > halfmax) + ttp
+    if halfmax < 0:
+        start = ttp - np.argmax(values[ttp::-1] > halfmax)
+        end = np.argmax(values[ttp:] > halfmax) + ttp
+    else:
+        start = ttp - np.argmax(values[:ttp:-1] < halfmax)
+        end = np.argmax(values[ttp:] < halfmax) + ttp
 
-    return end-start, (start,end)
+
+    return end-start, (int(start),int(end))
 
 
 class WholeEpoch(IEpoch):
@@ -32,6 +37,11 @@ class WholeEpoch(IEpoch):
         self._timetopeak = None
         self._peakamplitude = None
         self._widthrange = None
+
+    @property
+    def trace(self):
+        vals = self._response_ds[:] 
+        return vals - np.mean(vals[:int(self.pretime)])
 
     @property
     def timetopeak(self) -> float:
@@ -49,7 +59,7 @@ class WholeEpoch(IEpoch):
     @property
     def peakamplitude(self) -> float:
         if self._peakamplitude is None:
-            self._peakamplitude  = np.max(self.trace)
+            self._peakamplitude  = np.min(self.trace)
         return self._peakamplitude
 
     @property
@@ -66,12 +76,15 @@ class WholeEpochs(EpochBlock):
 
     type = "wholetrace"
 
-    def __init__(self, epochs: List[WholeEpoch], keys):
-        super().__init__(epochs, keys)
+    def __init__(self, epochs: List[WholeEpoch]):
+        super().__init__(epochs)
+
+        self._widthathalfmax = None
+        self._widthrange = None
 
     @property
     def trace(self) -> float:
-        return np.mean(self.traces, axis=1)
+        return np.mean(self.traces, axis=0)
 
     @property
     def widthrange(self) -> float:

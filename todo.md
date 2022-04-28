@@ -2,7 +2,7 @@
 
 ## GUI
 - [ ] COMPARE SPIKE DETECTION CODE
-- [-] Replace light amplitude and light mean
+- [X] Replace light amplitude and light mean
 - [X] Start X values at 0 where stimtime is
 - [X] Automatic resizing of scroll window with subplots
 - [X] Associate raster epoch plots with number of epoch for easier filtering
@@ -11,20 +11,21 @@
 - [X] Test updating of celltyes and genotypes within GUI
 
 ## ANALYSIS
-- [ ] Spike Analysis
-    - [-] LED Pulse
-        - [ ] Contrast response curve (UV LED only)
-    - [ ] LED Pulse Family
-        - [ ] Hill fit (Green LED)
+- [X] Spike Analysis
+    - [X] LED Pulse
+        - [X] Contrast response curve (UV LED only)
+    - [X] LED Pulse Family
+        - [X] Hill fit (Green LED)
 - [ ] Whole Cell Analysis
-    - [ ] Replace peak amplitude with min peak amp
-    - [ ] Width at half max in addition to peak amp and ttp
-    - [ ] Replace psth's with mean traces
-    - [ ] Led Pulse 
-        - [ ] Contrast response curve (UV LED only)
+    - [X] Replace peak amplitude with min peak amp
+    - [X] Width at half max in addition to peak amp and ttp
+    - [X] Replace psth's with mean traces
+    - [-] Led Pulse 
+        - [ ] Genotype comparison (swarm plots)
+        - [X] Contrast response curve (UV LED only)
     - [ ] LED Pulse Family
-        - [ ] Hill fit (Green LED)
-        - [ ] Webere fit (peak amp gain)
+        - [-] Hill fit (Green LED)
+        - [-] Webere fit (peak amp gain)
 - [ ] Linear model analysis
 
 

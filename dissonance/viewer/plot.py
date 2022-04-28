@@ -204,6 +204,10 @@ class PlotWholeTrace(PlotBase):
     def __init__(self, ax, epoch=None):
         self.ax = ax
         ax.grid(False)
+        self.ax.legend()
+
+        self.labels = []
+        self.values = []
 
         if epoch is not None:
             self.append_trace(epoch)
@@ -224,28 +228,33 @@ class PlotWholeTrace(PlotBase):
         self.ax.plot(
             np.arange(len(epoch.trace)) - stimtime,
             epoch.trace, label=label,
-            color=COLORS[epoch.get("genotype")[0]],
+            color=COLORS[genotype],
             alpha=0.4)
 
         # PLOT HALF WIDTH
-        whm = epoch.widthathalfmax
-        wrange = epoch.widthrange
+        whm = epoch.width_at_half_max
+        start, stop = epoch.widthrange
 
         # HORIZONTAL LINE ACROSS HALF MAX
-        self.ax.line(
-            wrange, [whm, whm],
-            marker="--",
-            color=COLORS[genotype])
+        y1, y2 = epoch.trace[start], epoch.trace[stop]
+        x1, x2 =start - stimtime,stop- stimtime
+
+        self.ax.plot(
+            [x1, x2], [y1 ,y2],
+            "--", color=COLORS[genotype])
 
         # MARKER ON PEAK AMPLITUDE
-        self.scatter(
-            epoch.timetopeak, epoch.peakamplitude,
-            marker="x")
+        self.ax.scatter(
+            epoch.timetopeak - stimtime, epoch.peakamplitude,
+            marker="x",
+            c=COLORS[genotype])
 
         self.labels.append(label)
         self.values.append(epoch.trace)
 
-        self.ax.legend()
+
+    def to_csv(self,*args, **kwargs):
+        ...
 
     def to_image(self, *args, **kwargs):
         ...
@@ -491,7 +500,7 @@ class PlotCRF(PlotBase):
 
                 # GET PEAK AMPLITUDE FROM EACH PSTH - USED IN SEM
                 peakamps = np.array([
-                    np.max(epoch.psth) if self.metric == "peakamplitude" else np.argmax(epoch.psth)
+                    epoch.peakamplitude if self.metric == "peakamplitude" else epoch.timetopeak
                     for epoch in frame.trace.values
                 ])
 
@@ -584,7 +593,9 @@ class PlotHill(PlotBase):
         for cellname, frame in epochs.groupby(["cellname"]):
             frame = frame.sort_values(["lightamplitude"])
             X = frame.lightamplitude.values
-            Y = frame.trace.apply(lambda x: np.max(x.psth)).values
+            Y = frame.trace.apply(lambda x: x.peakamplitude).values
+
+            Y = -1 * Y if max(Y) < 0 else Y
 
             hill = HillEquation()
             hill.fit(X, Y)
@@ -592,11 +603,12 @@ class PlotHill(PlotBase):
 
         # FIT HILL TO AVERAGE OF PEAK AMPLITUDES
         df = epochs.copy()
-        df["peakamp"] = epochs.trace.apply(lambda x: np.max(x.psth)).values
+        df["peakamp"] = epochs.trace.apply(lambda x: x.peakamplitude).values
         dff = df.groupby("lightamplitude").peakamp.mean().reset_index()
 
         # PLOT LINE AND AVERAGES
         X, Y = dff.lightamplitude.values, dff.peakamp.values
+        Y = -1 * Y if max(Y) < 0 else Y
         hill = HillEquation()
         hill.fit(X, Y)
         X_ = np.linspace(0, np.max(X), 1000)
@@ -657,10 +669,10 @@ class PlotWeber(PlotBase):
         weber.fit(X, Y)
 
         # PLOT LINE AND AVERAGES
-        topltX = np.array(40000)
+        topltX = np.arange(np.max(X))
 
         # TODO decide on line labels
-        self.ax.plot(topltX, weber(X), color=COLORS[genotype])
+        self.ax.plot(topltX, weber(topltX), color=COLORS[genotype])
         self.ax.scatter(*weber.normalize(X, Y),
                         alpha=0.4, color=COLORS[genotype])
 

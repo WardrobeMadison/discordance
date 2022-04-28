@@ -8,7 +8,7 @@ from ...trees import Node
 from ...funks import hill
 from ...epochtypes import groupby, EpochBlock, SpikeEpochs, filter, WholeEpoch, WholeEpochs
 from ..components.chart import MplCanvas
-from ..plot import PlotPsth, PlotRaster, PlotTrace, PlotCRF, PlotWholeTrace, PlotHill
+from ..plot import PlotPsth, PlotRaster, PlotTrace, PlotCRF, PlotWeber, PlotWholeTrace, PlotHill
 
 
 class LedWholeAnalysis(BaseAnalysis):
@@ -37,11 +37,14 @@ class LedWholeAnalysis(BaseAnalysis):
         if node.isleaf:
             self.plot_single_epoch(epochs, canvas)
         # RSTARR
+        elif level == 8:
+            self.plot_summary_epochs(epochs, canvas)
+        # LIGHTMEAN
         elif level == 7:
             self.plot_summary_epochs(epochs, canvas)
-        # CELLNAME
+        # LIGHT AMPLITUDE
         elif level == 6:
-            self.plot_summary_cell(epochs, canvas)
+            self.plot_summary_epochs(epochs, canvas)
         # GENOTYPE
         elif level == 5:
             self.plot_genotype_summary(epochs, canvas)
@@ -53,7 +56,7 @@ class LedWholeAnalysis(BaseAnalysis):
 
     def plot_single_epoch(self, epoch, canvas):
 
-        axes = canvas.grid_axis(1, 2)
+        axes = canvas.grid_axis(1, 1)
         plttr = PlotWholeTrace(axes[0], epoch)
         canvas.draw()
 
@@ -62,53 +65,77 @@ class LedWholeAnalysis(BaseAnalysis):
     def plot_summary_epochs(self, epochs: SpikeEpochs, canvas: MplCanvas = None):
         """Plot faceted mean trace
         """
+        # GROUP EPOCHS UP TO LIGHT AMP AND MEAN
         grps = groupby(epochs, self.labels)
 
-        n, m = grps.shape[0]+1, 2
-        axes = canvas.grid_axis(n, m)
+        # BUILD GRID
+        n = grps.shape[0]
+        axes = canvas.grid_axis(n, 1)
         axii = 0
 
+        # PLOT AVERAGE TRACE FOR EACH LIGHT AMP AND MEAN COMBO
         for ii, row in grps.iterrows():
             traces = row["trace"]
 
-            # SECOND COLUMN
             pltraster = PlotWholeTrace(axes[axii], traces)
             axii += 1
 
             self.currentplots.extend([pltraster])
 
     def plot_genotype_summary(self, epochs, canvas):
-        """Plot three chart columns - Peak ampltiude, width at half max, average trace"""
-        grps = groupby(epochs, ["celltype", "lightamplitude", "lightmean"])
-        n, m = grps.shape[0], 3
-        axes = canvas.grid_axis(n, m)
+        """
+        Plot initial row for fit data CRF, Weber and Hill. 
+        Then plot mean traces faceted by light amplitude and lightmean.
+        """
+        grps = groupby(epochs, self.labels)
 
-        # FIRST COLUMN - PEAK AMPLITUDE
-        ii = 0
-        for rstarr, row in grps.groupby(["lightamplitude", "lightmean"]):
-           cepochs = row["trace"]
-           plt = PlotPsth(axes[ii], cepochs, label=cepochs.get("genotype")[0])
-           plt.ax.set_title(rstarr)
-           self.currentplots.append(plt)
-           ii += 2
+        # PLOT FIT GRAPHS IN FIRST ROW IF NEEDED
+        led = grps.led.iloc[0]
+        protocolname = grps.protocolname.iloc[0]
+        if led.lower() == "uv led" and protocolname.lower() == "ledpulse":
+            # ADD EXTRA HEADER ROWS FOR GRID SHAPE - ONE FOR EACH LIGHT MEAN
+            n, m = len(set(zip(grps.lightamplitude, grps.lightmean))) + len(grps.lightmean.unique()), 1
+            axes = canvas.grid_axis(n, m)
+            axii = 0
 
-        # SECOND COLUMN - WIDTH AT HALF MAX
-        ii = 1
-        grps = groupby(epochs, ["lightamplitude", "lightmean"])
-        for _, epoch in grps.iterrows():
-            cepoch = row["trace"]
-            plt = PlotRaster(axes[ii], cepoch)
+            for lightmean, frame in grps.groupby("lightmean"):
+                plt = PlotCRF(axes[axii], metric="peakamplitude", epochs=frame)
+                plt.ax.set_title(f"Light Mean = {lightmean}")
+                axii += 1
+
+                self.currentplots.extend([plt])
+
+        elif led.lower() == "green led" and protocolname.lower() == "ledpulsefamily":
+            # ADD AN EXTRA HEADER ROW FOR GRID SHAPE
+            n, m = len(set(zip(grps.lightamplitude, grps.lightmean))) + len(grps.lightmean.unique())*2, 1
+            axes = canvas.grid_axis(n, m)
+            axii = 0
+
+            for lightmean, frame in grps.groupby("lightmean"):
+
+                plt_amp = PlotHill(axes[axii], epochs=grps)
+                plt_amp.ax.set_title(f"Light Mean = {lightmean}")
+                axii += 1
+                
+                plt_wbr = PlotWeber(axes[axii], epochs=grps)
+                plt_wbr.ax.set_title(f"Light Mean = {lightmean}")
+                axii += 1
+
+                self.currentplots.extend([plt_amp, plt_wbr])
+
+        # AVERAGE TRACE ON EVERY PLOT
+        ## ITERATE THROUGH EVERY AMP X MEAN COMBO
+        for (lightamp, lightmean), frame in grps.groupby(["lightamplitude", "lightmean"]):
+            plt = PlotWholeTrace(axes[axii])
+            
+            # APPEND THE AVERAGE TRACE FOR EACH CELL
+            for _, row in frame.iterrows():
+                plt.append_trace(row["trace"])
+
+            plt.ax.set_title(f"LightAmp={lightamp}, LightMean={lightmean}")
+
             self.currentplots.append(plt)
-            ii += 2
-
-        # THIRD COLUMN - AVERAGE TRACE
-        ii = 2
-        grps = groupby([epochs, "lightamplitude", "lightmean"])
-        for _, row in grps.iterrows():
-            cepoch = row["trace"]
-            plt = PlotWholeTrace(axes[ii], cepoch)
-            self.currentplots.append(plt)
-            ii += 2
+            axii += 1
 
     def plot_genotype_comparison(self, epochs: EpochBlock, canvas: MplCanvas = None):
         """Compare epochs by genotype
@@ -148,36 +175,6 @@ class LedWholeAnalysis(BaseAnalysis):
                 self.currentplots.append(plt)
             ii += 3
 
-    def plot_summary_cell(self, epochs: SpikeEpochs, canvas: MplCanvas = None):
-        """Plot faceted mean psth
-        """
-        # DIFFERENT ROW FEACH EACH CELL, RSTARR
-        grps = groupby(epochs, self.labels)
-
-        n, m = grps.shape[0]+1, 2
-        axes = canvas.grid_axis(n, m)
-        axii = 2
-
-        led = grps.led.iloc[0]
-        if led.lower() == "uv led":
-            plt_amp = PlotCRF(axes[0], metric="peakamplitude", epochs=grps)
-            plt_ttp = PlotCRF(axes[1], metric="timetopeak", epochs=grps)
-            self.currentplots.extend([plt_amp, plt_ttp])
-        else:
-            ...
-
-        for ii, row in grps.iterrows():
-            traces = row["trace"]
-
-            # FIRST COLUMN
-            pltpsth = PlotPsth(axes[axii], traces, epochs.cellnames[0])
-            axii += 1
-
-            # SECOND COLUMN
-            pltraster = PlotRaster(axes[axii], traces)
-            axii += 1
-
-            self.currentplots.extend([pltpsth, pltraster])
 
     @property
     def name(self): return "LedWholeAnalysis"
@@ -275,28 +272,6 @@ class LedSpikeAnalysis(BaseAnalysis):
             plt_amp = PlotHill(axes[0], epochs=grps)
             #plt_ttp = PlotHill(axes[1], metric="timetopeak", epochs=grps)
             self.currentplots.extend([plt_amp])
-
-        ##else:
-        #    n, m = grps.shape[0], 2
-        #    axes = canvas.grid_axis(n, m)
-        #    axii = 0
-
-        # PLOT EVERY CELL AND RASTER (CELLNAME, RSTARR)
-        #ii = 0
-        #for _, row in grps.iterrows():
-        #    cepochs = row["trace"]
-        #    title = f'{row["cellname"]}: {row["lightamplitude"]}, {row["lightmean"]}'
-
-        #    plt = PlotPsth(axes[ii], cepochs, label=row["genotype"])
-        #    plt.ax.set_title(title)
-        #    self.currentplots.append(plt)
-        #    ii += 1
-
-        #    cepochs = row["trace"]
-        #    plt = PlotRaster(axes[ii], cepochs)
-        #    plt.ax.set_title(title)
-        #    self.currentplots.append(plt)
-        #    ii += 1
 
     def plot_genotype_comparison(self, epochs: EpochBlock, canvas: MplCanvas = None):
         """Compare epochs by genotype
