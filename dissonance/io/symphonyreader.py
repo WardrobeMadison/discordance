@@ -5,6 +5,8 @@ Index, ExperimentName, CellName, ProtocolName, SplitVariable, ResponseVariable, 
 MetaData structure:
 Index, ExperimentName, Device, Gain, Etc...
 """
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
 import datetime
 import json
 import re
@@ -21,6 +23,104 @@ from .symphonytrace import SymphonyEpoch
 RE_PID = re.compile(r"^edu.wisc.sinhalab.protocols.(\w+):protocolID$")
 RE_PP = re.compile(
     r"^edu.wisc.sinhalab.protocols.(\w+):protocolParameters:(\w+)")
+
+# experiment
+# epochgroups
+# epochgroup
+# epochblock
+# protocols
+# epochs
+# backgrounds
+# responses
+# stimuli
+
+class GroupBase:
+
+    re_name = ""
+    def __init__(self, parent: h5py.Group):
+        self.parent = parent
+        for name in self.parent:
+            if self.re_name.match(name):
+                self._name  = name
+
+        self.group: h5py.Group = parent[name]
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+class Experiment(GroupBase):
+
+    re_name = re.compile(r"experiment-.*")
+
+    def __init__(self, parent: h5py.Group):
+        super().__init__(parent)
+
+    def name(self):
+        return self._name
+
+    @property
+    def children(self):
+        for name in self.group["epochGroups"]:
+            yield EpochGroup(self.group[f"epochGroups/{name}"])
+
+class EpochGroup:
+
+    def __init__(self, group: h5py.Group):
+        self.group = group
+        self.h5name = group.name
+        self.name = "epochGroup"
+
+    @property
+    def children(self):
+        for name in self.group["epochBlocks"]:
+            yield EpochBlock(self.group[f"epochBlocks/{name}"])
+
+
+class EpochBlock:
+    re_name = re.compile(r"edu\.wisc\.sinhalab\.protocols\.(.*)-.*$")
+
+    def __init__(self, group: h5py.Group):
+        self.group = group
+        self.h5name = group.name
+        self.name = self.re_name.match(group.name)[1]
+
+    @property
+    def children(self):
+        for name in self.group["epochs"]:
+            yield Epoch(self.group[f"epochs/{name}"])
+
+    @property
+    def protocolparameters(self):
+        ...
+
+class Epoch:
+
+    def __init__(self, group: h5py.Group):
+        self.group = group
+        self.h5name = group.name
+        self.name = "epoch"
+
+    @property
+    def children(self):
+        for name in self.group["epochs"]:
+            yield Epoch(self.group[f"epochs/{name}"])
+
+    @property
+    def protocolparameters(self):
+        ...
+
+@dataclass
+class Backgrounds:
+    ...
+
+@dataclass
+class EpochProtocolParameters:
+    ...
+
+@dataclass
+class Response:
+    ...
 
 
 class SymphonyReader:
@@ -277,61 +377,3 @@ class SymphonyReader:
 
         except Exception as e:
             raise e
-
-    def to_json(self, outputpath):
-        try:
-            self.fin = h5py.File(self.symphonyfilepath, "r")
-            traces = []
-            # HACK one for each response? only one response now
-            for ii, epochdict in enumerate(self._reader()):
-                # if ii > 5: break
-                # ADD TOP LEVEL PARAMETERS
-                outtrace = dict()
-                outtrace["path"] = epochdict["path"]
-                outtrace["parameters"] = epochdict["attrs"]
-                outtrace["EpochNumber"] = ii
-                outtrace["Id"] = outtrace["parameters"]["startDate"].strftime(
-                    r"%Y%m%d") + "_" + str(ii)
-
-                respdict = dict()
-                for responsename, val in epochdict['responses'].items():
-                    # CALCULATE SPIKES
-                    if float(outtrace["parameters"]["backgrounds:Amp1:value"]) == 0.0:
-                        data = self.f[val["path"]]['data'][:]
-                        values = np.fromiter([x[0] for x in data], dtype=float)
-                        spikeinfo = detect_spikes(values)
-                        try:
-                            spikedict = dict(
-                                sp=spikeinfo.sp.tolist(),
-                                spike_amps=spikeinfo.spike_amps.tolist(),
-                                max_noise_peak_time=spikeinfo.max_noise_peak_time.tolist(),
-                                min_spike_peak_idx=spikeinfo.min_spike_peak_idx.tolist(),
-                                violation_idx=spikeinfo.violation_idx.tolist()
-                            )
-                        except AttributeError as e:
-                            spikedict = dict(
-                                sp=None,
-                                spike_amps=None,
-                                max_noise_peak_time=None,
-                                min_spike_peak_idx=None,
-                                violation_idx=None
-                            )
-
-                        respdict[responsename] = dict(
-                            path=val['path'],
-                            spikes=spikedict)
-                    else:
-                        respdict[responsename] = dict(
-                            path=val['path'])
-
-                outtrace['responses'] = respdict
-
-                traces.append(outtrace)
-
-            with open(outputpath, "w+") as fout:
-                json.dump(traces, fout,
-                          indent=4, sort_keys=True, default=str)
-        except Exception as e:
-            raise e
-        finally:
-            self.f.close()
