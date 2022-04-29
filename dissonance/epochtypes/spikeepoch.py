@@ -2,27 +2,21 @@ from typing import List
 
 import numpy as np
 from ..funks.psth import calculate_psth
-from ..funks import hill
-from h5py._hl.dataset import Dataset
+import h5py
 
-from .baseepoch import DissonanceParams, EpochBlock, EpochSpikeInfo, IEpoch
+from .baseepoch import EpochBlock, IEpoch
 
 
 class SpikeEpoch(IEpoch):
 
-    def __init__(self, epochpath: str,
-                 parameters: DissonanceParams = None,
-                 spikes: EpochSpikeInfo = None,
-                 response: Dataset = None,
-                 number="0"):
-
-        super().__init__(epochpath, parameters, response, number)
-        self._spikes = spikes
+    def __init__(self, epochgrp: h5py.Group):
+        super().__init__(epochgrp)
+        self._spikegrp = epochgrp["Spikes"]
         self._psth = None
 
     @property
-    def spikes(self) -> EpochSpikeInfo:
-        return self._spikes
+    def spikes(self) -> np.array:
+        return self._spikegrp[:]
 
     @property
     def psth(self) -> np.array:

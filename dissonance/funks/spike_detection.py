@@ -23,7 +23,7 @@ REF_PERIOD_POINTS = round(REF_PERIOD / SAMPLE_INTERVAL)
 SEARCH_INTERVAL_POINTS = round(SEARCH_INTERVAL / SAMPLE_INTERVAL)
 
 
-def detect_spikes(R: np.array) -> et.EpochSpikeInfo:
+def detect_spikes(R: np.array):
     # PASS FILTERS
     R_no_spikes = low_pass_filter(
         high_pass_filter(
@@ -142,12 +142,7 @@ def detect_spikes(R: np.array) -> et.EpochSpikeInfo:
         max_noise_peak_time = peak_times[nonspike_idx[max_noise_peak_idx]]
         violation_idx = peak_times[nonspike_idx[max_noise_peak_idx]]
 
-    return et.EpochSpikeInfo(
-        sp=sp,
-        spike_amps=spike_amps,
-        min_spike_peak_idx=min_spike_peak_idx,
-        max_noise_peak_time=max_noise_peak_time,
-        violation_idx=violation_idx)
+    return (sp, violation_idx)
 
 
 def get_rebounds(peaks_idx: np.array, trace_in: np.array, search_interval: float) -> np.array:

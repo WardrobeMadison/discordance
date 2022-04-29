@@ -1,280 +1,343 @@
-"""
-From HDF to other formats for simpler data analysis
-Datable structure: index := Index, ExperimentName, CellName, ProtocolName, SplitVariable, ResponseVariable
-Index, ExperimentName, CellName, ProtocolName, SplitVariable, ResponseVariable, Time, ResponseValue
-MetaData structure:
-Index, ExperimentName, Device, Gain, Etc...
-"""
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
 import datetime
-import json
 import re
-from os import path
 from pathlib import Path
 from typing import Dict, Iterator
 
 import h5py
 import numpy as np
 
-from ..funks import detect_spikes
-from .symphonytrace import SymphonyEpoch
+from dissonance.funks import detect_spikes
 
-RE_PID = re.compile(r"^edu.wisc.sinhalab.protocols.(\w+):protocolID$")
-RE_PP = re.compile(
-    r"^edu.wisc.sinhalab.protocols.(\w+):protocolParameters:(\w+)")
 
-class SymphonyReader:
-    """
-    Convert "raw" h5 files from Symphony for data to be used by dissonance.
-    """
-    time_map = {
-        'startTimeDotNetDateTimeOffsetTicks': 'startDate',
-        'endTimeDotNetDateTimeOffsetTicks': 'endDate',
-        'creationTimeDotNetDateTimeOffsetTicks': 'creationDate',
-    }
+def convert_if_bytes(attr):
+    if isinstance(attr, np.bytes_):
+        return attr.decode()
+    else:
+        return attr
 
-    meta_excludes = (
-        'startTimeDotNetDateTimeOffsetOffsetHours',
-        'uuid',
-        'creationTimeDotNetDateTimeOffsetOffsetHours',
-        'endTimeDotNetDateTimeOffsetOffsetHours'
-    )
 
-    def __init__(self, symphonyfilepath):
-        self.symphonyfilepath = symphonyfilepath
+class GroupBase:
 
-    def _to_datetime(self, dotNetTime):
-        if isinstance(dotNetTime, str):
-            dotNetTime = int(dotNetTime)
+    re_name = ""
+
+    def __init__(self, parent: h5py.Group):
+        self.parent = parent
+        for name in self.parent:
+            if self.re_name.match(name):
+                self._name = name
+
+        self.group: h5py.Group = parent[name]
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+
+class Experiment(GroupBase):
+
+    re_name = re.compile(r"experiment-.*")
+
+    def __init__(self, parent: h5py.Group):
+        super().__init__(parent)
+
+    def name(self):
+        return self._name
+
+    @property
+    def children(self):
+        for name in self.group["epochGroups"]:
+            yield Cell(self.group[f"epochGroups/{name}"])
+
+
+class Cell:
+
+    def __init__(self, group: h5py.Group):
+        self.group = group
+        self.h5name = group.name
+        self.name = "epochGroup"
+
+    def __str__(self):
+        return str(self.group)
+
+    @property
+    def cellname(self):
+        return convert_if_bytes(self.group["source"].attrs["label"])
+
+    @property
+    def celltype(self):
+        return convert_if_bytes(self.group["source/properties"].attrs["type"])
+
+    @property
+    def children(self):
+        for name in self.group["epochBlocks"]:
+            yield Protocol(self.group[f"epochBlocks/{name}"])
+
+
+class Protocol:
+
+    re_name = re.compile(r".*edu\.wisc\.sinhalab\.protocols\.(.*)-.*$")
+
+    def __init__(self, group: h5py.Group):
+        self.group = group
+        self.h5name = group.name
+        self.name = self.re_name.match(group.name)[1]
+
+    def __str__(self):
+        return f"EpochBlock({self.name})"
+
+    def __iter__(self):
+        for key, val in self.group["protocolParameters"].attrs.items():
+            yield key, convert_if_bytes(val)
+
+    def __getitem__(self, value):
+        val = self.group["protocolParameters"].attrs[value]
+        return convert_if_bytes(val)
+
+    def get(self, value, default=None):
+        val = self.group["protocolParameters"].attrs.get(value, default)
+        return convert_if_bytes(val)
+
+    @property
+    def children(self):
+        for name in self.group["epochs"]:
+            yield Epoch(self.group[f"epochs/{name}"])
+
+
+class Epoch:
+
+    re_responses = re.compile(r"^([\w\d ]+)-.*$")
+
+    def __init__(self, group: h5py.Group):
+        self.group = group
+        self.h5name = group.name
+        self.name = "epoch"
+
+        self._backgrounds = dict()
+        for name in self.group["backgrounds"]:
+            background = Background(self.group[f"backgrounds/{name}"])
+            self._backgrounds[background.name] = background
+
+    def __str__(self):
+        return f"Epoch({self.startdate})"
+
+    @property
+    def tracetype(self):
+        val = self._backgrounds["Amp1"]["value"]
+        if float(val) == 0.0:
+            return "spiketrace"
+        else:
+            return "wholetrace"
+
+    @property
+    def holdingpotential(self):
+        val = self._backgrounds["Amp1"]["value"]
+        if self.tracetype == "spiketrace":
+            return None
+        elif val < 0:
+            return "inhibitiion"
+        else:
+            return "excitation"
+
+    @property
+    def backgrounds(self):
+        return self._backgrounds
+
+    @property
+    def responses(self):
+        for name in self.group["responses"]:
+            yield Response(self.group[f"responses/{name}"])
+
+    @property
+    def startdate(self):
+        dotNetTime = self.group.attrs['startTimeDotNetDateTimeOffsetTicks']
         return datetime.datetime(1, 1, 1) + datetime.timedelta(microseconds=int(dotNetTime // 10))
 
-    def _read_file(self, filename):
-        try:
-            f = h5py.File(filename, "r")
-        except FileNotFoundError:
-            raise Exception(f"File {filename} not found. Redirect.")
-        except Exception as e:
-            raise e
-        else:
-            return f
+    @property
+    def enddate(self):
+        dotNetTime = self.group.attrs['endTimeDotNetDateTimeOffsetTicks']
+        return datetime.datetime(1, 1, 1) + datetime.timedelta(microseconds=int(dotNetTime // 10))
 
-    def _cells(self):
-        exp_name = [x for x in list(self.fin) if "experiment" in x][0]
-        path_epochgroups = path.join(exp_name, 'epochGroups')
+    @property
+    def stimuli(self):
+        for name in self.group["stimuli"]:
+            yield Stimulus(self.group[f"stimuli/{name}"])
 
-        for cell in self.fin[path_epochgroups]:  # cellName
-            path_cell = path.join(path_epochgroups, cell)
-            yield self.fin[path_cell]
+    @property
+    def ndf(self):
+        return self.group["protocolParameters"].attrs.get("ndf", None)
 
-    def _protocols(self, cell):
-        for protocol in cell['epochBlocks']:
-            path_protocol = path.join('epochBlocks', protocol)
-            yield cell[path_protocol]
 
-    def _epochs(self, protocol):
-        for epoch in protocol['epochs']:
-            path_epoch = path.join('epochs', epoch)
-            yield protocol[path_epoch]
+class Background:
 
-    def _reader(self) -> Iterator[SymphonyEpoch]:
-        for cell in self._cells():
+    re_name = re.compile(r"^([\w\d ]+)-.*$")
 
-            # PARSE CELL INFORMATION
-            meta_cell = self._get_all_metadata(cell)
-            cellname = meta_cell.get("epochGroup:source:label")
-            celltype = meta_cell.get('epochGroup:source:properties:type')
+    def __init__(self, group: h5py.Group):
+        self.group = group
+        self.h5name = group.name
+        self.name = self.re_name.match(
+            group.name.split("/")[-1])[1]
 
-            if not isinstance(celltype, str):
-                print(f"Couldn't find celltype for {self.fin, cellname}.")
-                celltype = None
+    def __str__(self):
+        return self.name
 
-            for p, protocol in enumerate(self._protocols(cell)):
-                print(protocol)
-                meta_protocol = self._get_all_metadata(protocol)
-                protocoldict = dict()
+    def __repr__(self):
+        return self.name
 
-                # HACK CONVERT PROTOCOL PARAMETERS. Do this in meta_protocol on first pass
-                for key, val in meta_protocol.items():
-                    if RE_PID.match(key) is not None:
-                        protocoldict["protocolname"] = RE_PID.match(key)[1]
-                    elif RE_PP.match(key) is not None:
-                        protocoldict[RE_PP.match(key)[2].lower()] = val
+    def __getitem__(self, value):
+        return convert_if_bytes(self.group.attrs[value])
 
-                # TRAVERSE EPOCHS
-                for i, epoch in enumerate(self._epochs(protocol)):
-                    # grab responses (sub folders with recursion)
-                    # grab stimulus
-                    # grab backgrounds
-                    meta_epoch = self._get_all_metadata(epoch)
-                    response_dict = self._get_responses(epoch['responses'])
+    def __iter__(self) -> Iterator[Dict[str, object]]:
+        for key, value in self.group.attrs.items():
+            return key, convert_if_bytes(value)
 
-                    # HACK CAN'T GET LIGHT AMPLITUDE PARSING WORKING
-                    lightamp = protocoldict.get("lightamplitude")
-                    if lightamp is None:
-                        lightamp = meta_epoch.get(
-                            "protocolParameters:lightAmplitude")
 
-                    yield SymphonyEpoch(
-                        path=epoch.name,
-                        cellname=cellname,
-                        celltype=celltype,
-                        tracetype="spiketrace" if meta_epoch["backgrounds:Amp1:value"] == 0.0 else "wholetrace",
-                        protocolname=protocoldict["protocolname"],
-                        startdate=str(meta_epoch["startDate"]),
-                        enddate=str(meta_epoch["endDate"]),
-                        interpulseinterval=protocoldict["interpulseinterval"],
-                        led=protocoldict["led"],
-                        lightamplitude=lightamp,
-                        lightmean=protocoldict.get("lightmean", 0.0),
-                        numberofaverages=protocoldict.get("numberofaverages", 0.0),
-                        pretime=protocoldict.get("pretime", 0.0),
-                        stimtime=protocoldict.get("stimtime", 0.0),
-                        samplerate=protocoldict.get("samplerate", 0.0),
-                        tailtime=protocoldict.get("tailtime", 0.0),
-                        responses=response_dict
-                    )
+class Response:
 
-                #print(f"{cellname}, Protocol {p}: {i} epochs.")
+    re_name = re.compile(r"^([\w\d ]+)-.*$")
 
-    def _get_responses(self, responses) -> Dict:
-        response_dict = {}
-        for response in responses:
-            grp = responses[response]
+    def __init__(self, group: h5py.Group):
+        self.group = group
+        self.h5name = group.name
+        self.name = self.re_name.match(
+            group.name.split("/")[-1])[1]
 
-            name = self._group_name(grp)
-            metadata = self._get_all_metadata(grp)
+        self._parameters: Dict = {
+            "samplerate": self.group.attrs["sampleRate"],
+            "samplerateunits": self.group.attrs["sampleRateUnit"]
+        }
 
-            response_dict[name] = {
-                'path': grp.name,
-                'attrs': metadata
-            }
-        return response_dict
+    def __str__(self):
+        return f"Response({self.name})"
 
-    def _get_group_metadata(self, group, metadata, level):
-        for key, val in group.attrs.items():
-            if key in self.meta_excludes:
-                continue
-            elif key in self.time_map.keys():
-                new_key = self.time_map[key]
-                if level == '':
-                    metadata[f"{new_key}"] = self._to_datetime(val)
-                else:
-                    metadata[f"{level}:{new_key}"] = self._to_datetime(val)
-            elif level:
-                if type(val) is np.bytes_:
-                    metadata[f"{level}:{key}"] = val.decode()
-                else:
-                    metadata[f"{level}:{key}"] = val
-            else:
-                metadata[f"{new_key}"] = val
-        return metadata
+    def __repr__(self):
+        return f"Response({self.name})"
 
-    def _convert_vals(self, val):
-        try:
-            return val.decode()
-        except (UnicodeDecodeError, AttributeError):
-            return val
+    @property
+    def data(self):
+        vals = np.array(self.group["data"][:], dtype=[
+                        ('v', '<f8'), ('units', '<U16')])
+        return vals['v']
 
-    def _get_all_metadata(self, group, metadata=None, level=None):
+    @property
+    def parameters(self) -> Dict:
+        return self._parameters
 
-        if level:
-            tlevel = self._group_name(group)
-            if tlevel != level:
-                level = ":".join([level, self._group_name(group)])
-            if level[0] == ":":
-                level = level[1:]
+    def __getitem__(self, value):
+        return self._parameters[value]
 
-        else:
-            level = self._group_name(group)
-            level = '' if level == 'epoch' else level
-            try:
-                if level[0] == ":":
-                    level = level[1:]
-            except IndexError:
-                pass
+    def __iter__(self) -> Iterator[Dict[str, object]]:
+        for key, value in self._parameters:
+            yield key, convert_if_bytes(value)
 
-        metadata = metadata if metadata else dict()
-        metadata = self._get_group_metadata(group, metadata, level)
-        for name in group:
-            subgroup = group[name]
-            if self._is_group(subgroup):
-                metadata = self._get_all_metadata(subgroup, metadata, level)
-        return metadata
+    def get(self, value, default):
+        return self._parameters.get(value, default)
 
-    def _group_name(self, group):
-        name = group.name.split("/")[-1].split("-")[0]
-        if 'edu.washington.riekelab.protocols' in name:
-            name = name.split('.')[-1]
-        return name
 
-    def _is_group(self, group):
-        name = self._group_name(group)
-        is_link = name in ('epoch', 'experiment', 'epochBlocks',
-                           'epochBlock', 'epochGroup', 'epochGroups', 'parent', 'sources')
-        is_group = isinstance(group, h5py._hl.group.Group)
+class Stimulus:
 
-        return bool(bool(is_group) & ~bool(is_link))
+    re_name = re.compile(r"^([a-zA-Z0-9_ ]*)-.*$")
+
+    def __init__(self, group: h5py.Group):
+        self.group = group
+        self.h5name = group.name
+        self.name = self.re_name.match(
+            self.group.name.split("/")[-1])[1]
+
+        self._parameters = self.group["parameters"].attrs
+
+    @property
+    def parameters(self):
+        return self._parameters
+
+    def __getitem__(self, value):
+        return self._parameters[value]
+
+    def __iter__(self) -> Iterator[Dict[str, object]]:
+        for key, val in self.group["parameters"].attrs.items():
+            yield key, convert_if_bytes(val)
+
+
+class SymphonyReader:
+
+    def __init__(self, path):
+        self.fin = h5py.File(path)
+        self.exp = Experiment(self.fin)
+        self.fout = None
+
+    def reader(self):
+        ii = 0
+        for cell in self.exp.children:
+            for protocol in cell.children:
+                for epoch in protocol.children:
+                    ii += 1
+                    if not ii % 100:
+                        print(ii)
+                    yield cell, protocol, epoch
 
     def to_h5(self, outputpath: Path):
         try:
-            self.fin = h5py.File(self.symphonyfilepath, "r")
-            fout = h5py.File(str(outputpath), "w")
-            params = [
-                "path",
-                "cellname",
-                "startdate",
-                "celltype",
-                "tracetype",
-                "protocolname",
-                "enddate",
-                "interpulseinterval",
-                "led",
-                "lightamplitude",
-                "lightmean",
-                "numberofaverages",
-                "pretime",
-                "stimtime",
-                "samplerate",
-                "tailtime"]
+            self.fout = h5py.File(outputpath, mode="w")
+            expgrp = self.fout.create_group("experiment")
+            for ii, (cell, protocol, epoch) in enumerate(self.reader()):
 
-            expgrp = fout.create_group("experiment")
-            for ii, symepoch in enumerate(self._reader()):
-
-                # CREATE NEW GROUP
                 epochgrp = expgrp.create_group(f"epoch{ii}")
 
-                # ADD PARAMS FROM SYMPHONY TRACE
-                # TODO JUST CONVERT DATACLASS TO DICT
-                for param in params:
-                    try:
-                        epochgrp.attrs[param] = getattr(symepoch, param)
-                    except TypeError:
-                        epochgrp.attrs[param] = str(getattr(symepoch, param))
+                # ADD EPOCH ATTRIBUTES
+                epochgrp.attrs["path"] = epoch.h5name
+                epochgrp.attrs["cellname"] = cell.cellname
+                epochgrp.attrs["celltype"] = cell.celltype
+                epochgrp.attrs["tracetype"] = epoch.tracetype
+                epochgrp.attrs["protocolname"] = protocol.name
+                epochgrp.attrs["startdate"] = str(epoch.startdate)
+                epochgrp.attrs["enddate"] = str(epoch.enddate)
+                epochgrp.attrs["interpulseinterval"] = protocol["interpulseInterval"]
+                epochgrp.attrs["led"] = protocol["led"]
+                epochgrp.attrs["lightamplitude"] = protocol.get(
+                    "lightAmplitude", 0.0)
+                epochgrp.attrs["lightmean"] = protocol.get("lightMean", 0.0)
+                epochgrp.attrs["numberofaverages"] = protocol.get(
+                    "numberOfAverages", 0.0)
+                epochgrp.attrs["pretime"] = protocol.get("preTime", 0.0)
+                epochgrp.attrs["backgroundval"] = epoch.backgrounds["Amp1"]["value"]
+                epochgrp.attrs["stimtime"] = protocol.get("stimTime", 0.0)
+                epochgrp.attrs["samplerate"] = protocol.get("sampleRate", 0.0)
+                epochgrp.attrs["tailtime"] = protocol.get("tailTime", 0.0)
 
-                # WRITE OUT RESPONSES
-                for responsename, val in symepoch.responses.items():
-                    # CREATE DATASET FOR A RESPONSE
-                    data = np.array(self.fin[val["path"]]['data'])
-                    values = np.fromiter([x[0] for x in data], dtype=float)
-
+                # ADD RESPONSE DATA - CACHE SPIKES
+                for response in epoch.responses:
+                    values = response.data
                     ds = epochgrp.create_dataset(
-                        name=responsename, data=values, dtype=float)
-                    ds.attrs["path"] = val["path"]
+                        name=response.name, data=values, dtype=float)
 
-                    # CREATE SPIKE DATASET FOR A RESPONSE
-                    if symepoch.tracetype == "spiketrace":
-                        epochgrp.attrs["tracetype"] = "spiketrace"
-                        spikeinfo = detect_spikes(values)
-                        ds.attrs["sp"] = spikeinfo.sp.astype(float)
-                        ds.attrs["spike_amps"] = spikeinfo.spike_amps.astype(
-                            float)
-                        ds.attrs["max_noise_peak_time"] = spikeinfo.max_noise_peak_time.astype(
-                            float)
-                        ds.attrs["min_spike_peak_idx"] = spikeinfo.min_spike_peak_idx.astype(
-                            float)
-                        ds.attrs["violation_idx"] = spikeinfo.violation_idx.astype(
-                            float)
+                    # for key, val in response:
+                    #    ds.attrs[key] = val
+
+                    ds.attrs["path"] = response.h5name
+
+                    if epoch.tracetype == "spiketrace":
+                        spikes, violationidx = detect_spikes(values)
+
+                        spds = epochgrp.create_dataset(
+                            name="Spikes",
+                            data=spikes,
+                            dtype=float)
+
+                        spds.attrs["violation_idx"] = (
+                            violationidx.astype(float))
+
+                # ADD GROUP FOR EACH STIMULUS
+                for stimuli in epoch.stimuli:
+                    stimds = epochgrp.create_group(stimuli.name)
+                    for key, val in stimuli:
+                        stimds.attrs[key] = val
 
         except Exception as e:
+            if self.fout is not None:
+                self.fout.close()
             raise e
+        finally:
+            self.fout.close()
+
+    def to_db(self):
+        ...
+

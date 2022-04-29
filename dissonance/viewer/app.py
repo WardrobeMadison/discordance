@@ -10,8 +10,9 @@ from PyQt5.QtWidgets import (QAbstractItemView, QApplication, QFileDialog,
                              QPushButton, QScrollArea, QVBoxLayout, QWidget)
 from functools import lru_cache
 
-from . import components as cp
-
+from .paramstable import ParamsTable
+from .epochtree import EpochTree
+from ..analysis.charting import MplCanvas
 
 class App(QWidget):
 
@@ -37,7 +38,7 @@ class App(QWidget):
         initepoch = self.tree.frame.epoch.iloc[0]
 
         # EPOCH TRACE INFORMATION TABLE
-        self.tableWidget = cp.ParamsTable(initepoch)
+        self.tableWidget = ParamsTable(initepoch)
         header = self.tableWidget.horizontalHeader()
         header.setStretchLastSection(True)
 
@@ -49,7 +50,7 @@ class App(QWidget):
 
         # TRACE TREE VIEWER
         treesplitlabel = QLabel(", ".join(self.tree.labels), self)
-        self.treeWidget = cp.et.EpochTree(self.tree, unchecked=self.unchecked)
+        self.treeWidget = EpochTree(self.tree, unchecked=self.unchecked)
         self.treeWidget.selectionModel().selectionChanged.connect(self.on_tree_select)
 
         self.filterfilelabel = QLabel(str(self.uncheckedpath))
@@ -70,7 +71,7 @@ class App(QWidget):
         self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.scroll_area.horizontalScrollBar().setEnabled(False)
 
-        self.canvas = cp.MplCanvas(self.scroll_area)
+        self.canvas = MplCanvas(self.scroll_area)
         self.toolbar = NavigationToolbar(self.canvas, self)
 
         exportdata = QPushButton("Export Data", self)

@@ -3,7 +3,18 @@ from .node import Node
 
 class Tree(Node):
 	
-	def __init__(self, name, labels: List[str], keys: List[Tuple]):
+	def __init__(self, name: str, labels: List[str], keys: List[Tuple]):
+		"""Tree structure. Used in selecting data for analysis.
+
+		Parameters
+		----------
+		name : str
+			name of root node
+		labels : List[str]
+			labels to split tree on. Corresponds to order of keys.
+		keys : List[Tuple]
+			values to build tree from
+		"""
 		super().__init__("Name", name)
 		self.keys = keys
 		for key in keys:

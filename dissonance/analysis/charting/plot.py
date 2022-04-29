@@ -1,18 +1,18 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from datetime import datetime
+from math import ceil
 from pathlib import Path
 from typing import Dict, List, Union
-from math import ceil
 
 import matplotlib.pyplot as plt
-from matplotlib.pyplot import Axes
 import numpy as np
 import pandas as pd
+from matplotlib.pyplot import Axes
 from scipy.stats import sem, ttest_ind
 
-from ..epochtypes import IEpoch, WholeEpoch, WholeEpochs
-from ..funks import HillEquation, WeberEquation
+from ...epochtypes import IEpoch, WholeEpoch, WholeEpochs
+from ...funks import HillEquation, WeberEquation
 
 
 def p_to_star(p):
@@ -50,7 +50,7 @@ class PlotBase(ABC):
     @abstractmethod
     def to_csv(self, *args, **kwargs):
         ...
-    
+
     @abstractmethod
     def to_image(self, *args, **kwargs):
         ...
@@ -58,7 +58,6 @@ class PlotBase(ABC):
     @abstractmethod
     def to_igor(self, *args, **kwargs):
         ...
-
 
 
 class PlotPsth(PlotBase):
@@ -107,7 +106,8 @@ class PlotPsth(PlotBase):
         xticks = (
             [min(X)]
             + list(np.arange(0, max(X), 1)))
-        if max(X) not in xticks: xticks.append(max(X))
+        if max(X) not in xticks:
+            xticks.append(max(X))
         xlabels = [f"{x:.1f}" for x in xticks]
 
         self.ax.set_xticks(xticks)
@@ -115,7 +115,6 @@ class PlotPsth(PlotBase):
 
         self.ax.set_yticks([max(psth)])
         self.ax.set_yticklabels([f"{round(max(psth))}"])
-
 
     def to_csv(self, outputdir=None):
         columns = "Chart Label Time Value".split()
@@ -262,10 +261,10 @@ class PlotWholeTrace(PlotBase):
 
         # HORIZONTAL LINE ACROSS HALF MAX
         y1, y2 = epoch.trace[start], epoch.trace[stop]
-        x1, x2 =start - stimtime,stop- stimtime
+        x1, x2 = start - stimtime, stop - stimtime
 
         self.ax.plot(
-            [x1, x2], [y1 ,y2],
+            [x1, x2], [y1, y2],
             "--", color=COLORS[genotype])
 
         # MARKER ON PEAK AMPLITUDE
@@ -279,9 +278,10 @@ class PlotWholeTrace(PlotBase):
         self.values.append(epoch.trace)
 
         # UPDATE AXIS LEGEND
-        self.ax.legend(bbox_to_anchor=(1.04,0.50), loc="center left")
+        self.ax.legend(bbox_to_anchor=(1.04, 0.50), loc="center left")
         xticks = [min(X)] + list(np.arange(0, max(X), 5000))[1:]
-        if max(X) not in xticks: xticks.append(max(X))
+        if max(X) not in xticks:
+            xticks.append(max(X))
         xlabels = [f"{x/10000:0.1f}" for x in xticks]
         self.ax.xaxis.set_ticks(xticks)
         self.ax.xaxis.set_ticklabels(xlabels)
@@ -294,8 +294,7 @@ class PlotWholeTrace(PlotBase):
         except:
             print("Couldn't remove ticks")
 
-
-    def to_csv(self,*args, **kwargs):
+    def to_csv(self, *args, **kwargs):
         ...
 
     def to_image(self, *args, **kwargs):
@@ -312,7 +311,7 @@ class PlotTrace(PlotBase):
 
         self.ax.set_ylabel("pA")
         self.ax.set_xlabel("seconds")
-        self.ax.margins(x=0, y = 0)
+        self.ax.margins(x=0, y=0)
         self.ax.spines["left"].set_visible(False)
         self.ax.get_yaxis().set_visible(False)
 
@@ -343,7 +342,7 @@ class PlotTrace(PlotBase):
         # PLOT TRACE VALUES
         X = np.arange(len(epoch.trace)) - stimtime
         self.ax.plot(
-            X, 
+            X,
             epoch.trace, label=label,
             color=COLORS[epoch.get("genotype")[0]],
             alpha=0.4)
@@ -353,16 +352,15 @@ class PlotTrace(PlotBase):
             [min(X)]
             + list(np.arange(0, max(X), 10000))
         )
-        if max(X) not in xticks: xticks.append(max(X))
+        if max(X) not in xticks:
+            xticks.append(max(X))
         xlabels = [f"{x/10000:.1f}" for x in xticks]
 
         self.ax.set_xticks(xticks)
         self.ax.set_xticklabels(xlabels)
 
-        
         self.labels.append(label)
         self.values.append(epoch.trace)
-
 
     def to_csv(self, outputdir=None):
         columns = "Chart Label Time Value".split()
@@ -520,7 +518,7 @@ class PlotSwarm(PlotBase):
         else:
             self.ax.set_ylabel("seconds")
 
-        # WHAT AXIS TO END ON TOP TICK MARK. GET THE TICKS AND ADD LIMIT TO TICK LABELS 
+        # WHAT AXIS TO END ON TOP TICK MARK. GET THE TICKS AND ADD LIMIT TO TICK LABELS
         yticks = self.ax.get_yticks()
         yticks = np.array([*yticks, ymax])
         self.ax.set_yticks = yticks
@@ -606,7 +604,7 @@ class PlotCRF(PlotBase):
         # FORMAT Y TICKS
         ylim = self.ax.get_ylim()
         yticks = [ceil(y) for y in ylim]
-        self.ax.spines["left"].set_bounds(yticks[0],yticks[1])
+        self.ax.spines["left"].set_bounds(yticks[0], yticks[1])
         self.ax.set_yticks(yticks)
         self.ax.set_yticklabels(yticks)
 
@@ -706,6 +704,7 @@ class PlotHill(PlotBase):
     def to_igor(self, *args, **kwargs):
         ...
 
+
 class PlotWeber(PlotBase):
 
     def __init__(self, ax, epochs):
@@ -768,8 +767,8 @@ class PlotWeber(PlotBase):
             data.append(row)
 
         df = pd.DataFrame(
-            columns = "Label Beta R2".split(),
-            data = data
+            columns="Label Beta R2".split(),
+            data=data
         )
 
         outputpath = outputdir / (self.filestem + "_Data.csv")

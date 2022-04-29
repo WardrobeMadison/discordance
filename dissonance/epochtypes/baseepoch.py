@@ -1,112 +1,59 @@
+from abc import ABC, abstractproperty
 from collections import defaultdict
 from pathlib import Path
-from abc import ABC, abstractproperty
-from dataclasses import dataclass, field
-from typing import Iterable, Iterator, List, Tuple, Dict
-from datetime import datetime
+from typing import Dict, Iterable, Iterator, List, Tuple
 
+import h5py
 import numpy as np
 import pandas as pd
-from h5py._hl.dataset import Dataset
-from pytest import param
 
-
+# RSTARR MAPPING
 rstarrdf = pd.read_csv(Path(__file__).parent.parent.parent / "data/rstarrmap.txt", "\t",
-                        parse_dates=["startdate", "enddate"])
+                       parse_dates=["startdate", "enddate"])
 RSTARRMAP = defaultdict(list)
 for _, row in rstarrdf.iterrows():
-    RSTARRMAP[(row["protocolname"], row["led"], row["lightamplitude"], row["lightmean"])] = (row["lightamplitude_rstarr"], row["lightmean_rstarr"])
-
-
-@dataclass
-class EpochSpikeInfo:
-    sp: np.array
-    spike_amps: np.array
-    min_spike_peak_idx: np.array
-    max_noise_peak_time: np.array
-    violation_idx: np.array
-
-    def __post_init__(self):
-        self.sp = self.sp.astype(int)
-        self.min_spike_peak_idx = self.min_spike_peak_idx.astype(int)
-        self.max_noise_peak_time = self.max_noise_peak_time.astype(int)
-        self.violation_idx = self.violation_idx.astype(int)
-
-
-@dataclass
-class DissonanceParams:
-    protocolname: str = field(default=None)
-    cellname: str = field(default=None)
-    celltype: str = field(default=None)
-    tracetype: str = field(default=None)
-    genotype: str = field(default=None)
-    path: str = field(default=None)
-    amp: float = field(default=None)
-    interpulseinterval: float = field(default=None)
-    led: float = field(default=None)
-    lightamplitude: float = field(default=None)
-    lightmean: float = field(default=None)
-    numberofaverages: float = field(default=None)
-    pretime: float = field(default=None)
-    samplerate: float = field(default=None)
-    stimtime: float = field(default=None)
-    tailtime: float = field(default=None)
-    startdate: str = field(default=None)
-    enddate: str = field(default=None)
-    startdatetime: datetime = field(init=False, default=None)
-    enddatetime: datetime = field(init=False, default=None)
-
-
-    def __post_init__(self):
-        #self.startdatetime = datetime.strptime(
-        #    self.startdate, '%Y-%m-%d %H:%M:%S.%f')
-        #self.enddatetime = datetime.strptime(
-        #    self.enddate, '%Y-%m-%d %H:%M:%S.%f')
-
-        # TODO MOVE THIS TO IO AT READ TIME AND CONVERT TO DICTIONARY  
-        # CONVERT LIGHT AMPLITUDE AND LIGHT MEAN TO RSTARR
-        try:
-                ...
-                #df = RSTARRMAP.query(f"(protocolname == '{self.protocolname}') & (led=='{self.led}') & (lightamplitude=={self.lightamplitude}) & (lightmean=={self.lightmean})")
-                #self.lightamplitude, self.lightmean = df[["lightamplitude_rstarr", "lightmean_rstarr"]].iloc[0]
-
-                self.lightamplitude, self.lightmean = RSTARRMAP[(self.protocolname, self.led, self.lightamplitude, self.lightmean)]
-
-        except:
-            # TODO SHOULD I GO WITH ORIGINAL VALUES?
-            print(f"RstarrConversionError,{self.startdatetime},{self.protocolname},{self.led},{self.lightamplitude},{self.lightmean}")
+    RSTARRMAP[(row["protocolname"], row["led"], row["lightamplitude"], row["lightmean"])] = (
+        row["lightamplitude_rstarr"], row["lightmean_rstarr"])
 
 
 class IEpoch(ABC):
 
-    def __init__(self, epochpath: str, params: DissonanceParams, response: Dataset, number: str = "0"):
+    def __init__(self, epochgrp: h5py.Group):
 
-        self._epochpath: str = epochpath
-        self._response_ds = response
+        self._epochpath: str = epochgrp.name
+        self._response_ds = epochgrp["Amp1"]
 
-        self.protocolname = params.protocolname
-        self.cellname = params.cellname
-        self.celltype = params.celltype
-        self.genotype = params.genotype
-        self.tracetype = params.tracetype
-        self.path = params.path
-        self.amp = params.amp
-        self.interpulseinterval = params.interpulseinterval
-        self.led = params.led
-        self.lightamplitude = params.lightamplitude
-        self.lightmean = params.lightmean
+        self.protocolname = epochgrp.attrs.get("protocolname")
+        self.cellname = epochgrp.attrs.get("cellname")
+        self.celltype = epochgrp.attrs.get("celltype")
+        self.genotype = epochgrp.attrs.get("genotype")
+        self.tracetype = epochgrp.attrs.get("tracetype")
+        self.path = epochgrp.attrs.get("path")
+        self.amp = epochgrp.attrs.get("amp")
+        self.interpulseinterval = epochgrp.attrs.get("interpulseinterval")
+        self.led = epochgrp.attrs.get("led")
+        self.lightamplitude = epochgrp.attrs.get("lightamplitude")
+        self.lightmean = epochgrp.attrs.get("lightmean")
+        try:
+            self.lightamplitude, self.lightmean = RSTARRMAP[(
+                self.protocolname, self.led, self.lightamplitude, self.lightmean)]
+        except:
+            print(
+                f"RstarrConversionError,{self.startdatetime},{self.protocolname},{self.led},{self.lightamplitude},{self.lightmean}")
         self.pctcontrast = (
-            self.lightamplitude / self.lightmean 
-            if self.lightmean != 0.0 
+            self.lightamplitude / self.lightmean
+            if self.lightmean != 0.0
             else 0.0)
-        self.numberofaverages = params.numberofaverages
-        self.samplerate = params.samplerate
-        self.pretime = params.pretime * 10
-        self.stimtime = params.stimtime * 10
-        self.tailtime = params.tailtime * 10
-        self.startdate = params.startdate
-        self.enddate = params.enddate
-        self.number = number
+        self.numberofaverages = epochgrp.attrs.get("numberofaverages")
+        self.samplerate = epochgrp.attrs.get("samplerate")
+        self.pretime = epochgrp.attrs.get("pretime") * 10
+        self.stimtime = epochgrp.attrs.get("stimtime") * 10
+        self.tailtime = epochgrp.attrs.get("tailtime") * 10
+        self.startdate = epochgrp.attrs.get("startdate")
+        self.enddate = epochgrp.attrs.get("enddate")
+        self.number = epochgrp.attrs.get("number")
+        self.stimuli = {key: val for key,
+                        val in epochgrp[self.led].attrs.items()}
 
     def __str__(self):
         return f"Epoch(cell_name={self.cellname}, start_date={self.startdate})"
@@ -132,7 +79,7 @@ class IEpoch(ABC):
 
     @property
     def trace(self):
-        return self._response_ds[:] 
+        return self._response_ds[:]
 
     @property
     @abstractproperty

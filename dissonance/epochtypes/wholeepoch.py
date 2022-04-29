@@ -3,10 +3,10 @@ from typing import List, Tuple
 import numpy as np
 from ..funks.psth import calculate_psth
 from ..funks import hill
-from h5py._hl.dataset import Dataset
+import h5py
 from scipy.stats import sem
 
-from .baseepoch import DissonanceParams, EpochBlock, IEpoch
+from .baseepoch import EpochBlock, IEpoch
 
 
 def calc_width_at_half_max(values):
@@ -27,12 +27,11 @@ def calc_width_at_half_max(values):
 
 class WholeEpoch(IEpoch):
 
-    def __init__(self, epochpath: str,
-                 parameters: DissonanceParams = None,
-                 response: Dataset = None,
-                 number="0"):
+    def __init__(self, epochgrp:h5py.Group):
 
-        super().__init__(epochpath, parameters, response, number)
+        super().__init__(epochgrp)
+        self.holdingpotential = epochgrp.get("holdingpotential")
+        self.backgroundval = epochgrp.get("backgroundval")
         self._widthathalfmax = None
         self._timetopeak = None
         self._peakamplitude = None

@@ -3,7 +3,7 @@ from PyQt5.Qt import QStandardItem, QStandardItemModel, Qt, QAbstractItemView
 from PyQt5.QtGui import QColor, QFont
 from PyQt5.QtWidgets import QTreeView
 
-from ...trees.base import Node, Tree
+from ..trees.base import Node, Tree
 
 
 class GroupItem(QStandardItem):

@@ -4,7 +4,7 @@ import pandas as pd
 from PyQt5.QtCore import pyqtSlot
 from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem
 
-from ... import epochtypes as et
+from .. import epochtypes as et
 
 
 class ParamsTable(QTableWidget):
