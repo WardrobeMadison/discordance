@@ -68,6 +68,7 @@ class DissonanceReader:
                             number=number)
 
                     traces.append(trace)
+            print(f"{len(traces)} traces")
             return traces
         except Exception as e:
             print(filepath)

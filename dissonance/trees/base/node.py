@@ -32,11 +32,11 @@ class Node:
 		return f"Node({self.label}={self.uid}, nchildren={len(self.children)})"
 
 	def __getitem__(self, val):
-		if isinstance(val, str) or isinstance(val,float) or (val is None):
-			idx = [child.uid for child in self.children].index(val)
-			return self.children[idx]
-		else:
-			return self.children[val]
+		#if isinstance(val, str) or isinstance(val,float) or (val is None):
+		idx = [child.uid for child in self.children].index(val)
+		return self.children[idx]
+		#else:
+		#	return self.children[val]
 
 	@property
 	def path(self) -> Dict[str, str]:
@@ -67,25 +67,27 @@ class Node:
 
 	@property
 	def visual(self):
-		self._prettify(self)
+		return self._prettify(self)
 
 	def _prettify(self, tree, indent=1):
 		'''
 		Print the file tree structure with proper indentation.
 		'''
-		if tree.isleaf: print(tree); return
+		visual = ""
+		if tree.isleaf: visual = str(tree)
 
 		if tree.isroot:
-			print(tree)
+			visual += str(tree) + "\n"
 		for node in tree:
 			if node.isleaf:
-				print('  ' * indent + str(node))
+				visual += '  ' * indent + str(node) +"\n"
 			else:
-				print('  ' * indent + str(node))
+				visual += '  ' * indent + str(node) + "\n"
 				if not node.isleaf:
-					self._prettify(node, indent+1)
+					visual += self._prettify(node, indent+1)
 				else:
-					print('  ' * (indent+1) + str(node))
+					visual += '  ' * (indent+1) + str(node) + "\n"
+		return visual
 
 	@property
 	def isroot(self):
@@ -110,3 +112,25 @@ class Node:
 				return
 		node.parent = self
 		self.children.append(node)
+
+	def traverse(self):
+		if not self.isleaf:
+			for x in self.children:
+				yield x
+
+			for x in self.children:
+				yield from x.traverse()
+
+	def select_node(self, **kwargs):
+		if len(kwargs) < len(self.path):
+			raise Exception("Can't traverse upwards. Start a higher node")
+		#for node in self.traverse():
+		#	if node.path == kwargs:
+		#		return node
+		node = self
+		for ii, (key,val) in enumerate(kwargs.items()):
+			if ii != 0:
+				node = node[val]
+		return node
+
+

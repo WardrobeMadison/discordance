@@ -56,7 +56,7 @@ class SpikeEpochs(EpochBlock):
     def psth(self):
         inc = 100
         if self._psth is None:
-            self._psth = np.mean(self._psths, axis=0)
+            self._psth = np.mean(self.psths, axis=0)
         return self._psth
 
     @property

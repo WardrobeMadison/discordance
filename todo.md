@@ -21,7 +21,7 @@
     - [X] Width at half max in addition to peak amp and ttp
     - [X] Replace psth's with mean traces
     - [-] Led Pulse 
-        - [ ] Genotype comparison (swarm plots)
+        - [x] Genotype comparison (swarm plots)
         - [X] Contrast response curve (UV LED only)
     - [ ] LED Pulse Family
         - [-] Hill fit (Green LED)

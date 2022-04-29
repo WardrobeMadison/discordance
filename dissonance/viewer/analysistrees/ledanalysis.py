@@ -122,6 +122,10 @@ class LedWholeAnalysis(BaseAnalysis):
                 axii += 1
 
                 self.currentplots.extend([plt_amp, plt_wbr])
+        else:
+            n, m = len(set(zip(grps.lightamplitude, grps.lightmean))), 1
+            axes = canvas.grid_axis(n, m)
+            axii = 0
 
         # AVERAGE TRACE ON EVERY PLOT
         ## ITERATE THROUGH EVERY AMP X MEAN COMBO
@@ -145,7 +149,7 @@ class LedWholeAnalysis(BaseAnalysis):
             canvas (MplCanvas, optional): Parent MPL canvas, figure created if not provided. Defaults to None.
         """
         df = groupby(epochs, self.labels)
-        n = len(df[["lightamplitude", "lightmean"]].unique())
+        n = len(set(zip(df.lightamplitude, df.lightmean)))
         n, m = n, 3
         axes = canvas.grid_axis(n, m)
 
@@ -171,7 +175,7 @@ class LedWholeAnalysis(BaseAnalysis):
                 # SHOULD ONLY BE ONE GENOTYPE HERE
                 epoch = fframe.iloc[0, -1]
 
-                plt = PlotPsth(axes[ii], epoch, label=geno)
+                plt = PlotWholeTrace(axes[ii], epoch)
                 self.currentplots.append(plt)
             ii += 3
 
@@ -199,7 +203,8 @@ class LedSpikeAnalysis(BaseAnalysis):
             epochs_,
             unchecked)
 
-        # USED IN SAVING PLOTS AND EXPORTING DATA
+        # USED IN SAVING PLOTS AND EXPORTING` DATA
+        self.plotmap = dict()
         self.currentplots = []
 
     def plot(self, node: Node, canvas: MplCanvas = None):
@@ -368,3 +373,10 @@ class LedSpikeAnalysis(BaseAnalysis):
 
     @property
     def tracetype(self): return SpikeEpoch
+
+    def get_args(self, node):
+        # TODO get arguments needed for gui from plotting functions like fit params
+        level = len(node.path.values()) - 1
+        func = self.plotmap[level]
+
+

@@ -1,59 +1,80 @@
 import sys
 
-import matplotlib
+import matplotlib as mpl
 from matplotlib.backends.backend_qt5agg import \
     FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
 
-matplotlib.use('Qt5Agg')
+mpl.use('Qt5Agg')
+mpl.rcParams["axes.spines.right"] = False
+mpl.rcParams["axes.spines.top"] = False
+mpl.rcParams["xtick.top"] = False
+mpl.rcParams["ytick.right"] = False
+mpl.rcParams["ytick.direction"] = "in"
+mpl.rcParams["xtick.direction"] = "in"
 
 class MplCanvas(FigureCanvas):
 
-    def __init__(self, parent, width=6, height=4, dpi=100):
-        self.fig = Figure(constrained_layout=True, figsize=(width,height))
-        #self.axes = fig.add_subplot(111)
-        self.figwidth, self.figheight = width, height
-        self.axes = None
-        self.m, self.n = 1, 1
-        self.numaxes = self.m * self.n
-        self.caxes = 0
+    def __init__(self, parent=None, width=6, height=4, dpi=100, m:int=1, n:int=1, offline=False):
+        # PLOT EITHER TO QT WINDOW OR OUT FOR TESTING
+        self.offline = offline
+        if self.offline:
+            self.fig, self.axes = plt.subplots(m,n, tight_layout=True, figsize=(width,height))
+        else:
+            self.fig = Figure(constrained_layout=True, figsize=(width,height))
+            self.axes = None
+        
+        # SET BASE DIMENSIONS OF SUBPLOT
+        self.basewidth, self.baseheight = width, height
+
+        # CREATE PARENT CLASS
+        self.myparent = parent
         super(MplCanvas, self).__init__(self.fig)
         self.setParent(parent)
+        
+        # SET INTIIAL AXIS 
+        self.m, self.n = m, n
+        self.numaxes = self.m * self.n
+        self.caxes = 1
+        self.axes = self.grid_axis(n,m)
+
+    def __getitem__(self, val):
+        return self.axes[val]
+
+    def __iter__(self):
+        yield from self.axes
 
     def grid_axis(self, n:int, m:int):
         """Create grid axis rows x cols (n x m)"""
         self.m, self.n = m, n
+        self.numaxes = self.m * self.n
+        self.caxes = self.numaxes
 
         if self.axes is not None:
-            self.numaxes = self.m * self.n
-            self.caxes = self.numaxes
             self.axes.clear()
             self.fig.clf()
 
+        # ADJUST WIDTH AND HEIGHT OF CHART BASE ON NUMBER OF SUBPLOTS
+        self.currentheight = self.baseheight*n
+        if not self.offline:
+            self.currentwidth = min(self.parent().width() / 100, self.basewidth * m) - 1 # PADDING FOR WIDTH
+        else:
+            self.currentwidth = self.basewidth * m
 
-        newheight = self.figheight*n
-        newwidth = min(self.parent().width() / 100, self.figwidth * m) - 1 # PADDING FOR WIDTH
+        self.fig.set_size_inches((self.currentwidth, self.currentheight), forward=True)
+        self.setFixedHeight(self.currentheight*100)
+        self.setFixedWidth(self.currentwidth*100)
 
-        self.fig.set_size_inches(newwidth, newheight, forward=True)
-        self.setFixedHeight(newheight*100)
-        self.setFixedWidth(newwidth*100)
-
+        # ADD SUBPLOT FOR EACH GRID
         self.axes = [
             self.fig.add_subplot(n, m, ii+1)
             for ii in range(n*m)]
 
         return self.axes
 
-    def add_axis(self):
-        self.caxes += 1
-        return self.fig.add_subplot(self.n+1, self.m, self.caxes)
-
-    def axis(self):
-        self.m = 1
-        self.n = 1
-        self.caxes = 1
-        if self.axes is None:
-            self.axes = self.fig.add_subplot(111)
+    def draw(self, *args, **kwargs):
+        if self.offline:
+            plt.show()
         else:
-            self.axes.cla()
-        return self.axes
+            super().draw()

@@ -1,12 +1,16 @@
 from abc import ABC, abstractmethod
-from pathlib import Path
-from typing import Union, List, Dict
-import numpy as np
-import matplotlib.pyplot as plt
 from collections import defaultdict
-import pandas as pd
-from scipy.stats import ttest_ind, sem
 from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Union
+from math import ceil
+
+import matplotlib.pyplot as plt
+from matplotlib.pyplot import Axes
+import numpy as np
+import pandas as pd
+from scipy.stats import sem, ttest_ind
+
 from ..epochtypes import IEpoch, WholeEpoch, WholeEpochs
 from ..funks import HillEquation, WeberEquation
 
@@ -59,12 +63,13 @@ class PlotBase(ABC):
 
 class PlotPsth(PlotBase):
 
-    def __init__(self, ax, epochs=None, label=None):
-        self.ax = ax
-        self.ax.grid(False)
+    def __init__(self, ax: Axes, epochs=None, label=None):
+        self.ax: Axes = ax
 
-        ax.set_ylabel("Hz / s")
-        ax.set_xlabel("10ms bins")
+        self.ax.grid(False)
+        self.ax.margins(x=0, y=0)
+        self.ax.set_ylabel("Hz / s")
+        self.ax.set_xlabel("10ms bins")
 
         self.labels = []
         self.psths = []
@@ -73,7 +78,10 @@ class PlotPsth(PlotBase):
             self.append_trace(epochs, label)
 
     def append_trace(self, epochs, label):
-        n = len(epochs)
+        if isinstance(epochs, IEpoch):
+            n = 1
+        else:
+            n = len(epochs)
         psth = epochs.psth
 
         name = epochs.get_unique("genotype")[0]
@@ -82,11 +90,11 @@ class PlotPsth(PlotBase):
         # CALCULATE TTP AND MAX PEAK
         seconds_conversion = 10000 / 100
         ttp = (np.argmax(psth) + 1 - stimtime/100) / (seconds_conversion)
-        x = (np.arange(len(psth)) + 1 - stimtime/100) / (seconds_conversion)
+        X = (np.arange(len(psth)) + 1 - stimtime/100) / (seconds_conversion)
 
         # PLOT VALUES SHIFT BY STIM TIME
         self.ax.axvline(ttp, linestyle='--', color=COLORS[name], alpha=0.4)
-        self.ax.plot(x, psth, label=f"{label} (n={n})", c=COLORS[name])
+        self.ax.plot(X, psth, label=f"{label} (n={n})", c=COLORS[name])
 
         # UPDATE LEGEND WITH EACH APPEND
         self.ax.legend()
@@ -94,6 +102,20 @@ class PlotPsth(PlotBase):
         # SAVE DATA FOR STORING LATER
         self.labels.append(label)
         self.psths.append(psth)
+
+        # UPDATE AXIS TICKS
+        xticks = (
+            [min(X)]
+            + list(np.arange(0, max(X), 1)))
+        if max(X) not in xticks: xticks.append(max(X))
+        xlabels = [f"{x:.1f}" for x in xticks]
+
+        self.ax.set_xticks(xticks)
+        self.ax.set_xticklabels(xlabels)
+
+        self.ax.set_yticks([max(psth)])
+        self.ax.set_yticklabels([f"{round(max(psth))}"])
+
 
     def to_csv(self, outputdir=None):
         columns = "Chart Label Time Value".split()
@@ -125,15 +147,14 @@ class PlotRaster(PlotBase):
 
     def __init__(self, ax, epochs=None, title=None):
         self.ax = ax
+
+        # INITIAL AXIS SETTINGS
         self.ax.grid(False)
-
-        if title:
-            self.ax.set_title(title)
-
-        ax.set_ylabel("Hz / s")
-        ax.set_xlabel("10ms bins")
+        self.ax.spines["bottom"].set_visible(False)
         self.ax.axes.get_xaxis().set_visible(False)
+        self.ax.set_title(title)
 
+        # USED FOR WRITING OUT DATA IN TO_*() METHODS
         self.labels = []
         self.values = []
 
@@ -143,7 +164,8 @@ class PlotRaster(PlotBase):
     def append_trace(self, epochs):
         """Raster plots
 
-        Args:
+        Args:        #self.ax.legend()
+
             epochs (Traces): Epoch traces to plot.
             ax (Axes, optional): Axis obj from parent figure, creates figure if not provided. Defaults to None.
         """
@@ -166,7 +188,6 @@ class PlotRaster(PlotBase):
         self.ax.set_title(title)
 
         # SET THESE EACH LOOP?
-        # self.ax.title.set_text(title)
         self.ax.set_yticks(np.arange(len(epochs))+1)
         self.ax.set_yticklabels([f"{epoch.number}" for epoch in epochs])
 
@@ -203,9 +224,12 @@ class PlotWholeTrace(PlotBase):
 
     def __init__(self, ax, epoch=None):
         self.ax = ax
-        ax.grid(False)
-        self.ax.legend()
+        self.ax.grid(False)
+        self.ax.margins(x=0, y=0)
+        self.ax.yaxis.set_visible(False)
+        self.ax.spines["left"].set_visible(False)
 
+        # LISTS USED IN EXPORTING DATA
         self.labels = []
         self.values = []
 
@@ -221,12 +245,13 @@ class PlotWholeTrace(PlotBase):
             label = epoch.startdate
             genotype = epoch.genotype
         else:
-            label = f'{epoch.get("cellname")[0]}, {epoch.get("lightamplitude")[0]}, {epoch.get("lightmean")}'
+            label = f'{epoch.get("cellname")[0]}'
             genotype = epoch.get("genotype")[0]
 
         # PLOT TRACE VALUES
+        X = np.arange(len(epoch.trace)) - stimtime
         self.ax.plot(
-            np.arange(len(epoch.trace)) - stimtime,
+            X,
             epoch.trace, label=label,
             color=COLORS[genotype],
             alpha=0.4)
@@ -249,8 +274,25 @@ class PlotWholeTrace(PlotBase):
             marker="x",
             c=COLORS[genotype])
 
+        # APPEND VALUES NEEDED FOR WRITING OUT
         self.labels.append(label)
         self.values.append(epoch.trace)
+
+        # UPDATE AXIS LEGEND
+        self.ax.legend(bbox_to_anchor=(1.04,0.50), loc="center left")
+        xticks = [min(X)] + list(np.arange(0, max(X), 5000))[1:]
+        if max(X) not in xticks: xticks.append(max(X))
+        xlabels = [f"{x/10000:0.1f}" for x in xticks]
+        self.ax.xaxis.set_ticks(xticks)
+        self.ax.xaxis.set_ticklabels(xlabels)
+        self.ax.set_xlim((min(X), max(X)))
+
+        try:
+            # REMOVE BEGINNING AND END POINT. ALSO REMOVE 0.0
+            self.ax.xaxis.get_ticklabels()[0].set_visible(False)
+            self.ax.xaxis.get_ticklabels()[-1].set_visible(False)
+        except:
+            print("Couldn't remove ticks")
 
 
     def to_csv(self,*args, **kwargs):
@@ -265,11 +307,14 @@ class PlotWholeTrace(PlotBase):
 
 class PlotTrace(PlotBase):
 
-    def __init__(self, ax, epoch=None):
-        self.ax = ax
+    def __init__(self, ax: Axes, epoch=None):
+        self.ax: Axes = ax
 
-        ax.set_ylabel("pA")
-        ax.set_xlabel("10e-4 seconds")
+        self.ax.set_ylabel("pA")
+        self.ax.set_xlabel("seconds")
+        self.ax.margins(x=0, y = 0)
+        self.ax.spines["left"].set_visible(False)
+        self.ax.get_yaxis().set_visible(False)
 
         self.labels = []
         self.values = []
@@ -296,16 +341,28 @@ class PlotTrace(PlotBase):
                 marker="x", c=COLORS[epoch.genotype])
 
         # PLOT TRACE VALUES
+        X = np.arange(len(epoch.trace)) - stimtime
         self.ax.plot(
-            np.arange(len(epoch.trace)) - stimtime,
+            X, 
             epoch.trace, label=label,
             color=COLORS[epoch.get("genotype")[0]],
             alpha=0.4)
 
+        # FORMAT AXES
+        xticks = (
+            [min(X)]
+            + list(np.arange(0, max(X), 10000))
+        )
+        if max(X) not in xticks: xticks.append(max(X))
+        xlabels = [f"{x/10000:.1f}" for x in xticks]
+
+        self.ax.set_xticks(xticks)
+        self.ax.set_xticklabels(xlabels)
+
+        
         self.labels.append(label)
         self.values.append(epoch.trace)
 
-        self.ax.legend()
 
     def to_csv(self, outputdir=None):
         columns = "Chart Label Time Value".split()
@@ -336,16 +393,20 @@ class PlotTrace(PlotBase):
 
 class PlotSwarm(PlotBase):
 
-    def __init__(self, ax, metric: str = "peakamplitude", epochs=None):
-        self.ax = ax
+    def __init__(self, ax: Axes, metric: str = "peakamplitude", epochs=None):
+        self.ax: Axes = ax
         self.metric = metric
+        self.ax.margins(y=0)
 
+        # INITIAL AXIS SETTINGS
+        self.ax.spines["bottom"].set_visible(False)
+        self.ax.grid(False)
+
+        # USE TO WRITE VALUES OUT IN TWO METHODS
         self.values = []
 
         if epochs is not None:
             self.append_trace(epochs)
-
-        self.ax.grid(False)
 
     def append_trace(self, epochs: pd.DataFrame) -> None:
         """Swarm plot :: bar graph of means with SEM and scatter. Show signficance
@@ -354,9 +415,6 @@ class PlotSwarm(PlotBase):
             epochs (Dict[str,SpikeTraces]): Maps genos name to traces to plot.
             ax (Axes, optional): Axis obj from parent figure, creates figure if not provided. Defaults to None.
         """
-        if self.ax is None:
-            fig, ax, = plt.subplots()
-
         # FOR EACH GENOTYPE
         # FOR EACH CELL IN CELLS (each epoch stored as indiviudal cell)
         toplt = []
@@ -367,13 +425,13 @@ class PlotSwarm(PlotBase):
 
             if self.metric == "peakamplitude":
                 values = np.array([
-                    np.max(cell.psth)
+                    cell.peakamplitude
                     for cell in celltraces
                 ], dtype=float)
 
-            else:
+            elif self.metric == "timetopeak":
                 values = np.array([
-                    np.argmax(cell.psth)
+                    cell.timetopeak / 10000
                     for cell in celltraces
                 ], dtype=float)
 
@@ -381,11 +439,11 @@ class PlotSwarm(PlotBase):
             semval = sem(values)
 
             # CHANGE SIGN OF AXIS IF NEEDED
-            ymax = max(ymax, np.max(values)) if meanval > 0 else min(
+            ymax = max(ymax, np.max(values)) if meanval >= 0 else min(
                 ymax, np.max(values))
             toppoint = max(toppoint, meanval +
-                           semval) if meanval > 0 else min(toppoint, meanval-semval)
-            toppoint = max(toppoint, ymax) if toppoint > 0 else min(
+                           semval) if meanval >= 0 else min(toppoint, meanval-semval)
+            toppoint = max(toppoint, ymax) if toppoint >= 0 else min(
                 toppoint, ymax)
 
             toplt.append(
@@ -455,8 +513,18 @@ class PlotSwarm(PlotBase):
         self.ax.set_xlabel("Background (R*/S-Cone/sec)")
 
         # Y AXIS FORMAT
-        self.ax.set_ylabel("pA")
-        self.ax.set_ylim((0.0, toppoint * 1.20))
+        ymax = toppoint * 1.20
+        self.ax.set_ylim((0.0, ymax))
+        if self.metric == "peakamplitude":
+            self.ax.set_ylabel("pA")
+        else:
+            self.ax.set_ylabel("seconds")
+
+        # WHAT AXIS TO END ON TOP TICK MARK. GET THE TICKS AND ADD LIMIT TO TICK LABELS 
+        yticks = self.ax.get_yticks()
+        yticks = np.array([*yticks, ymax])
+        self.ax.set_yticks = yticks
+        self.ax.set_yticklabels = yticks
 
     def to_csv(self, filepath=None):
         ...
@@ -470,8 +538,8 @@ class PlotSwarm(PlotBase):
 
 class PlotCRF(PlotBase):
 
-    def __init__(self, ax, metric, epochs):
-        self.ax = ax
+    def __init__(self, ax: Axes, metric, epochs):
+        self.ax: Axes = ax
         self.metric = metric
 
         self.set_axis_labels()
@@ -530,6 +598,17 @@ class PlotCRF(PlotBase):
 
         if self.cntr == 2:
             self.t_test()
+
+        # FORMAT X AXIS
+        self.ax.spines["bottom"].set_bounds(min(X), max(X))
+        self.ax.set_xticklabels([f"{x*100:0.1f}%" for x in X])
+
+        # FORMAT Y TICKS
+        ylim = self.ax.get_ylim()
+        yticks = [ceil(y) for y in ylim]
+        self.ax.spines["left"].set_bounds(yticks[0],yticks[1])
+        self.ax.set_yticks(yticks)
+        self.ax.set_yticklabels(yticks)
 
     def set_axis_labels(self):
         self.ax.legend()
