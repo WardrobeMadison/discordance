@@ -1,5 +1,19 @@
 # TODO 
 
+## Review with Jenna
+
+Spike Analysis
+- [ ] Cell summary: light amplitude and light mean
+- [ ] Get a different color map
+- [ ] Fix CRF axes - x values off and y values should be rounded, put light mean in title
+
+Whole Cell Analysis
+- [ ] Whole Cell Analysis: Split on background amp1 (inhibition > 0, excitation < 0. holdingpotential)
+- [ ] Epoch: print background amp value just for inhibition. Make inhibition analysis split on background amp 1 value
+- [ ] Genotype comparison: Don't label by cell
+- [ ] Genotype summary: Change colors for cell traces. Put labels on hill and weber fits. Weber fit is UVLED only
+
+
 ## GUI
 - [ ] COMPARE SPIKE DETECTION CODE
 - [X] Replace light amplitude and light mean
@@ -25,7 +39,7 @@
         - [X] Contrast response curve (UV LED only)
     - [ ] LED Pulse Family
         - [-] Hill fit (Green LED)
-        - [-] Webere fit (peak amp gain)
+        - [-] Webere fit (UV LED)
 - [ ] Linear model analysis
 
 
