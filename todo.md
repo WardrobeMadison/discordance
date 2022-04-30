@@ -1,11 +1,5 @@
 # TODO 
 
-
-LedPulse
-Green LED
-0.0, 0.0
-datetime.datetime(2021, 7, 28, 12, 13, 10, 886507)
-
 ## Review with Jenna
 
 Spike Analysis

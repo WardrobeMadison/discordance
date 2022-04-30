@@ -1,5 +1,5 @@
-from collections import defaultdict
 import datetime
+import logging
 import re
 from pathlib import Path
 from typing import Dict, Iterator
@@ -7,10 +7,8 @@ from typing import Dict, Iterator
 import h5py
 import numpy as np
 import pandas as pd
-
 from dissonance.funks import detect_spikes
 
-import logging
 logger = logging.getLogger(__name__)
 
 
@@ -18,15 +16,16 @@ fout = open("log2.txt", "w+")
 
 
 def get_rstarr_map():
-    rstarrdf = pd.read_csv(Path(__file__).parent.parent.parent / "data/rstarrmap.txt", "\t",
-                           parse_dates=["startdate", "enddate"], 
-                           dtype=dict(
-                                protocolname=str,
-                               	led=str,
-                                lightamplitude=float,
-                                lightamplitude_rstarr=float,
-                                lightmean=float,
-                                lightmean_rstarr=float))
+    rstarrdf = pd.read_csv(
+        Path(__file__).parent.parent.parent / "data/rstarrmap.txt", "\t",
+        parse_dates=["startdate", "enddate"],
+        dtype=dict(
+            protocolname=str,
+            led=str,
+            lightamplitude=float,
+            lightamplitude_rstarr=float,
+            lightmean=float,
+            lightmean_rstarr=float))
     rstarrmap = dict()
     for _, row in rstarrdf.iterrows():
         rstarrmap[(row["protocolname"], row["led"], row["lightamplitude"], row["lightmean"])] = (
@@ -154,6 +153,7 @@ class Protocol:
     def children(self):
         for name in self.group["epochs"]:
             yield Epoch(self.group[f"epochs/{name}"])
+
 
 class Epoch:
 
@@ -488,7 +488,6 @@ class SymphonyReader:
             fout.write(
                 f"RStarrConversionError,{','.join(map(str, (epoch.startdate, protocol.name, protocol['led'],lightamp, lightmean)))}\n")
             epochgrp.attrs["lightamplitude"], epochgrp.attrs["lightmean"] = -10000, -10000
-
 
     def to_db(self):
         ...

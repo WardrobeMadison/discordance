@@ -4,16 +4,16 @@ from typing import Any, Dict, List, Tuple, Union
 import pandas as pd
 
 from ..epochtypes import EpochBlock, WholeEpoch, WholeEpochs, groupby
-from .baseanalysis import BaseAnalysis
-from .charting import (MplCanvas, PlotCRF, PlotHill, PlotPsth, PlotRaster,
-                       PlotSwarm, PlotTrace, PlotWeber, PlotWholeTrace)
 from ..trees import Node
+from .baseanalysis import BaseAnalysis
+from .charting import (MplCanvas, PlotCRF, PlotHill, PlotSwarm, PlotWeber,
+                       PlotWholeTrace)
 
 
 class LedWholeAnalysis(BaseAnalysis):
 
     def __init__(
-        self, params:pd.DataFrame, experimentpaths:List[Path], unchecked: set = None):
+            self, params: pd.DataFrame, experimentpaths: List[Path], unchecked: set = None):
         # CONSTRUCT BASE, FILTER ON TRACE TYPE, LED AND PROTOCOL NAME
         super().__init__(
             params,
@@ -23,7 +23,7 @@ class LedWholeAnalysis(BaseAnalysis):
         # USED IN SAVING PLOTS AND EXPORTING DATA
         self.currentplots = []
 
-    def plot(self, node: Node, canvas: MplCanvas = None):
+    def plot(self, node: Node, canvas: MplCanvas = None, useincludeflag=True):
         """Map node level to analysis run & plots created.
         """
         self.currentplots = []
@@ -31,25 +31,25 @@ class LedWholeAnalysis(BaseAnalysis):
         scope = list(node.path.keys())
         level = len(scope)
 
-        epochs = self.query(filters=[node.path])
+        epochs = self.query(filters=[node.path], useincludeflag=useincludeflag)
 
         # STARTDATE
         if node.isleaf:
             self.plot_single_epoch(epochs, canvas)
         # LIGHTMEAN
-        elif level == 8:
+        elif level == 9:
             self.plot_summary_epochs(epochs, canvas)
         # LIGHT AMPLITUDE
-        elif level == 7:
+        elif level == 8:
             self.plot_summary_epochs(epochs, canvas)
         # LIGHT CELL NAME
-        elif level == 6:
+        elif level == 7:
             self.plot_summary_cell(epochs, canvas)
         # GENOTYPE
-        elif level == 5:
+        elif level == 6:
             self.plot_genotype_summary(epochs, canvas)
         # CELLTYPE
-        elif level == 4:
+        elif level == 5:
             self.plot_genotype_comparison(epochs, canvas)
 
         canvas.draw()
@@ -98,7 +98,8 @@ class LedWholeAnalysis(BaseAnalysis):
             epochs = row["epoch"]
 
             pltraster = PlotWholeTrace(axes[axii], epochs)
-            pltraster.ax.set_title(f"({row['lightamplitude'], row['lightmean']})")
+            pltraster.ax.set_title(
+                f"({row['lightamplitude'], row['lightmean']})")
             axii += 1
 
             self.currentplots.extend([pltraster])
@@ -115,7 +116,8 @@ class LedWholeAnalysis(BaseAnalysis):
         protocolname = grps.protocolname.iloc[0]
         if led.lower() == "uv led" and protocolname.lower() == "ledpulse":
             # ADD EXTRA HEADER ROWS FOR GRID SHAPE - ONE FOR EACH LIGHT MEAN
-            n, m = len(set(zip(grps.lightamplitude, grps.lightmean))) + len(grps.lightmean.unique()), 1
+            n, m = len(set(zip(grps.lightamplitude, grps.lightmean))
+                       ) + len(grps.lightmean.unique()), 1
             axes = canvas.grid_axis(n, m)
             axii = 0
 
@@ -128,7 +130,8 @@ class LedWholeAnalysis(BaseAnalysis):
 
         elif led.lower() == "green led" and protocolname.lower() == "ledpulsefamily":
             # ADD AN EXTRA HEADER ROW FOR GRID SHAPE
-            n, m = len(set(zip(grps.lightamplitude, grps.lightmean))) + len(grps.lightmean.unique())*2, 1
+            n, m = len(set(zip(grps.lightamplitude, grps.lightmean))
+                       ) + len(grps.lightmean.unique())*2, 1
             axes = canvas.grid_axis(n, m)
             axii = 0
 
@@ -137,7 +140,7 @@ class LedWholeAnalysis(BaseAnalysis):
                 plt_amp = PlotHill(axes[axii], eframe=grps)
                 plt_amp.ax.set_title(f"Light Mean = {lightmean}")
                 axii += 1
-                
+
                 plt_wbr = PlotWeber(axes[axii], eframe=grps)
                 plt_wbr.ax.set_title(f"Light Mean = {lightmean}")
                 axii += 1
@@ -149,10 +152,10 @@ class LedWholeAnalysis(BaseAnalysis):
             axii = 0
 
         # AVERAGE TRACE ON EVERY PLOT
-        ## ITERATE THROUGH EVERY AMP X MEAN COMBO
+        # ITERATE THROUGH EVERY AMP X MEAN COMBO
         for (lightamp, lightmean), frame in grps.groupby(["lightamplitude", "lightmean"]):
             plt = PlotWholeTrace(axes[axii], cellsummary=True)
-            
+
             # APPEND THE AVERAGE TRACE FOR EACH CELL
             for _, row in frame.iterrows():
                 plt.append_trace(row["epoch"])
@@ -179,14 +182,14 @@ class LedWholeAnalysis(BaseAnalysis):
         for name, frame in df.groupby(["lightamplitude", "lightmean"]):
             plt = PlotSwarm(axes[ii], metric="peakamplitude", eframe=frame)
             ii += 3
-            plt.ax.set_title(name)
+            plt.ax.set_title(f"PA: {name}")
             self.currentplots.append(plt)
 
         # TTP SWARM PLOTS IN Seoncd COLUMN
         ii = 1
         for name, frame in df.groupby(["lightamplitude", "lightmean"]):
             plt = PlotSwarm(axes[ii], metric="timetopeak", eframe=frame)
-            plt.ax.set_title(name)
+            plt.ax.set_title(f"TTP: {name}")
             ii += 3
             self.currentplots.append(plt)
 
@@ -203,17 +206,15 @@ class LedWholeAnalysis(BaseAnalysis):
                 self.currentplots.append(plt)
             ii += 3
 
-
     @property
     def name(self): return "LedWholeAnalysis"
 
     @property
     def labels(self):
-        return ["protocolname", "led", "celltype", "genotype", "cellname", "lightamplitude", "lightmean"]
+        return ["holdingpotential", "protocolname", "led", "celltype", "genotype", "cellname", "lightamplitude", "lightmean"]
 
     @property
     def tracestype(self): return WholeEpochs
 
     @property
     def tracetype(self): return WholeEpoch
-

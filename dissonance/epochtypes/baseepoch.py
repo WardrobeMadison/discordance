@@ -42,16 +42,9 @@ class IEpoch(ABC):
         self.startdate = epochgrp.attrs.get("startdate")
         self.enddate = epochgrp.attrs.get("enddate")
         self.number = int(epochgrp.name.split("/")[-1][5:])
-        self.stimuli = {key: val for key,
-                        val in epochgrp[self.led].attrs.items()}
+        #self.stimuli = {key: val for key,
+        #                val in epochgrp[self.led].attrs.items()}
         # DERIVE RSTARR VALUES
-        try:
-            self.lightamplitude, self.lightmean = RSTARRMAP[(
-                self.protocolname, self.led, self.lightamplitude, self.lightmean)]
-        except:
-            #print(
-            #    f"RstarrConversionError,{self.startdate},{self.protocolname},{self.led},{self.lightamplitude},{self.lightmean}")
-            ...
         self.pctcontrast = (
             self.lightamplitude / self.lightmean
             if self.lightmean != 0.0
@@ -97,6 +90,9 @@ class IEpoch(ABC):
 
     def get_unique(self, paramname):
         return [getattr(self, paramname)]
+
+    def params(self) -> Dict:
+        return dict()
 
 
 class EpochBlock(ABC):

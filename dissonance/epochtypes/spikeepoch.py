@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 
 import numpy as np
 from ..funks.psth import calculate_psth
@@ -35,6 +35,30 @@ class SpikeEpoch(IEpoch):
     @property
     def type(self) -> str:
         return "spiketrace"
+        
+    @property
+    def params(self) -> Dict:
+        #"cellname",
+        #"startdate",
+        #"celltype",
+        #"genotype",
+        #"protocolname",
+        #"enddate",
+        #"interpulseinterval",
+        #"led",
+        #"lightamplitude",
+        #"lightmean",
+        #"pretime",
+        #"stimtime",
+        #"samplerate",
+        #"tailtime"]
+
+        paramdict = super().params
+        params = ["peakamplitude", "timetopeak"]
+        for param in params:
+            paramdict[param] = getattr(self, param)
+
+        return paramdict
 
 class SpikeEpochs(EpochBlock):
 

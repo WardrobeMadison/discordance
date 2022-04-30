@@ -9073,3 +9073,5 @@
 30042022 11:27:37 AM : RStarrConversionError: LedPulse,UV LED,-0.0055,0.007 : INFO -root
 30042022 11:27:37 AM : RStarrConversionError: LedPulse,UV LED,-0.0055,0.007 : INFO -root
 30042022 11:27:37 AM : RStarrConversionError: LedPulse,UV LED,-0.0055,0.007 : INFO -root
+30042022 02:52:52 PM : Creating converter from 3 to 5 : DEBUG -h5py._conv
+30042022 02:52:52 PM : Creating converter from 5 to 3 : DEBUG -h5py._conv

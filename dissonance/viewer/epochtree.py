@@ -6,13 +6,29 @@ from PyQt5.QtWidgets import QTreeView
 from ..trees.base import Node, Tree
 
 
+class RootItem(QStandardItem):
+    def __init__(self, node: Node, color=QColor(0, 0, 0)):
+        super(QStandardItem, self).__init__()
+        self.node = node
+        fnt = QFont()
+        fnt.setBold(True)
+        fnt.setPixelSize(12)
+
+        self.label = f"{node.label}={node.uid}"
+
+        self.setEditable(False)
+        self.setForeground(color)
+        self.setFont(fnt)
+        self.setText(self.label)
+        self.setFlags(self.flags() & ~Qt.ItemIsSelectable)
+
 class GroupItem(QStandardItem):
     def __init__(self, node: Node, color=QColor(0, 0, 0)):
         super(QStandardItem, self).__init__()
         self.node = node
         fnt = QFont()
         fnt.setBold(True)
-        fnt.setPixelSize(11)
+        fnt.setPixelSize(12)
 
         #self.label = ", ".join(map(str, self.node.path.values()))
         #self.label = list(self.node.path.values())[-1]
@@ -25,14 +41,13 @@ class GroupItem(QStandardItem):
 
         self.setFlags(self.flags() | Qt.ItemIsSelectable)
 
-
 class EpochItem(QStandardItem):
     def __init__(self, node: Node, color=QColor(0, 0, 0)):
         super().__init__()
 
         self.node = node
         fnt = QFont()
-        fnt.setPixelSize(10)
+        fnt.setPixelSize(12)
         self.label = node.uid
 
         self.setEditable(False)
@@ -70,7 +85,7 @@ class EpochTree(QTreeView):
 
         # TRANSLATE TREE TO Qt Items ITEMS
         rootNode = self.treeModel.invisibleRootItem()
-        root = GroupItem(at)
+        root = RootItem(at)
         self.add_items(at, root)
         rootNode.appendRow(root)
         self.setModel(self.treeModel)
@@ -87,8 +102,7 @@ class EpochTree(QTreeView):
                 self.unchecked.remove(item.label)
 
             self.at.frame.loc[
-                self.at.frame.index.get_level_values(
-                    "startdate") == item.label,
+                self.at.frame.startdate == item.label,
                 "include"
             ] = True
 
@@ -96,8 +110,7 @@ class EpochTree(QTreeView):
         # EXCLUDE EPOCH
         else:
             self.at.frame.loc[
-                self.at.frame.index.get_level_values(
-                    "startdate") == item.label,
+                self.at.frame.startdate == item.label,
                 "include"
             ] = False
             self.unchecked.add(item.label)

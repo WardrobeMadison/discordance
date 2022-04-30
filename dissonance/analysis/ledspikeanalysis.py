@@ -9,7 +9,7 @@ from ..epochtypes import (EpochBlock, SpikeEpochs, WholeEpoch, WholeEpochs,
 from ..trees import Node
 from .baseanalysis import BaseAnalysis
 from .charting import (MplCanvas, PlotCRF, PlotHill, PlotPsth, PlotRaster,
-                       PlotSwarm, PlotTrace, PlotWeber, PlotWholeTrace)
+                       PlotSwarm, PlotSpikeTrain, PlotWeber, PlotWholeTrace)
 
 
 class LedSpikeAnalysis(BaseAnalysis):
@@ -25,7 +25,7 @@ class LedSpikeAnalysis(BaseAnalysis):
         self.plotmap = dict()
         self.currentplots = []
 
-    def plot(self, node: Node, canvas: MplCanvas = None):
+    def plot(self, node: Node, canvas: MplCanvas = None, useincludeflag=True):
         """Map node level to analysis run & plots created.
         """
         self.currentplots = []
@@ -33,7 +33,7 @@ class LedSpikeAnalysis(BaseAnalysis):
         scope = list(node.path.keys())
         level = len(scope)
 
-        eframe = self.query(filters=[node.path])
+        eframe = self.query(filters=[node.path], useincludeflag=useincludeflag)
 
         # STARTDATE
         if node.isleaf:
@@ -62,7 +62,7 @@ class LedSpikeAnalysis(BaseAnalysis):
         epoch = eframe.epoch.iloc[0]
 
         axes = canvas.grid_axis(1, 2)
-        plttr = PlotTrace(axes[0], epoch)
+        plttr = PlotSpikeTrain(axes[0], epoch)
         pltpsth = PlotPsth(axes[1], epoch, label=epoch.startdate)
         canvas.draw()
 
@@ -168,7 +168,7 @@ class LedSpikeAnalysis(BaseAnalysis):
         """
         grps = groupby(epochs, self.labels)
 
-        n, m = grps.shape[0]+1, 2
+        n, m = grps.shape[0], 2
         axes = canvas.grid_axis(n, m)
         axii = 0
 
@@ -177,7 +177,7 @@ class LedSpikeAnalysis(BaseAnalysis):
 
             # FIRST COLUMN
             pltpsth = PlotPsth(axes[axii], cepochs,
-                               epochs.get_unique("cellname")[0])
+                               cepochs.get_unique("cellname")[0])
             axii += 1
 
             # SECOND COLUMN

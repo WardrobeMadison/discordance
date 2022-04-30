@@ -78,6 +78,8 @@ class TestAddInfo:
     def test_update_cell_labels(self):
         """Combine cellname and experiment date to make unique code"""
 
+        self.setUp()
+
         for flder in self.folders:
             wdir = self.map_dir / flder
 

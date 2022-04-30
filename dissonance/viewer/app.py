@@ -29,8 +29,13 @@ class Worker(QObject):
         self.kwargs = kwargs
 
     def run(self):
-        self.process(*self.args, **self.kwargs)
-        self.finished.emit()
+        try:
+            self.process(*self.args, **self.kwargs)
+            self.finished.emit()
+        except Exception as e: 
+            (type, value, traceback) = sys.exc_info()
+            sys.excepthook(type, value, traceback)
+            raise e
 
 
 class DissonanceUI(QWidget):
@@ -72,8 +77,17 @@ class DissonanceUI(QWidget):
 
         self.filterfilelabel = QLabel(str(self.uncheckedpath))
 
-        # FIRST COLUMNS
+        # SET LAYOUT
+        # COMBINE COLUMNS
         col0 = QVBoxLayout()
+        col1 = QVBoxLayout()
+        self.layout = QHBoxLayout()
+        self.layout.addLayout(col0, 1)
+        self.layout.addLayout(col1, 2)
+        self.layout.addStretch()
+        self.setLayout(self.layout)
+
+        # FIRST COLUMNS
         col0.addWidget(savebttn)
         col0.addWidget(self.filterfilelabel)
         col0.addWidget(treesplitlabel)
@@ -82,38 +96,37 @@ class DissonanceUI(QWidget):
         col0.minimumSize()
 
         # SECOND COLUMN
-        col1 = QVBoxLayout()
-
+        hbox = QHBoxLayout()
         self.scroll_area = QScrollArea()
         self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.scroll_area.horizontalScrollBar().setEnabled(False)
+        self.scroll_area.setWidgetResizable(True)
+        #scrollayout = QVBoxLayout()
+        #self.scroll_area.setLayout(scrollayout)
 
-        self.canvas = MplCanvas(self.scroll_area)
+        #canvaslayout = QVBoxLayout()
+        #scrollayout.addLayout(canvaslayout)
+        #scrollayout.addStretch()
+
+        col1.addLayout(hbox)
+        col1.addWidget(self.scroll_area)
+
+        self.canvas = MplCanvas(parent=self.scroll_area)
+        #canvaslayout.addWidget(self.canvas)
+        self.scroll_area.setWidget(self.canvas)
+
         self.toolbar = NavigationToolbar(self.canvas, self)
+        hbox.addWidget(self.toolbar)
 
+        # EXPORT DATA BUTTON  
         self.exportdata_bttn = QPushButton("Export Data", self)
         self.exportdata_bttn.clicked.connect(self.on_export_bttn_click)
+        hbox.addWidget(self.exportdata_bttn)
 
         # STAGE EXPORT DIALOG
         self.dialog = ExportDataWindow(
             parent=self, charts=None, outputdir=self.export_dir)
         self.dialog.closeEvent
-
-        hbox = QHBoxLayout()
-        hbox.addWidget(self.toolbar)
-        hbox.addWidget(self.exportdata_bttn)
-
-        # ADD WIDGETS
-        self.scroll_area.setWidget(self.canvas)
-        col1.addLayout(hbox)
-        col1.addWidget(self.scroll_area)
-
-        # COMBINE COLUMNS
-        self.layout = QHBoxLayout()
-        self.layout.addLayout(col0, 1)
-        self.layout.addLayout(col1, 2)
-        self.layout.addStretch()
-        self.setLayout(self.layout)
 
         # SHOW WIDGET
         self.showMaximized()
@@ -123,8 +136,6 @@ class DissonanceUI(QWidget):
         #self.logger = LoggerDialog(self)
         #self.logger.show()
         #self.logger.exec_()
-        
-
 
     def on_table_edit(self, item):
         # GET PARAMNAME AND NEW VALUE
@@ -176,34 +187,46 @@ class DissonanceUI(QWidget):
 
             # PLOT NODES
             if len(nodes) == 1:
-                self.tree.plot(nodes[0], self.canvas)
+                if "startdate" in nodes[0].path.keys():
+                    self.tree.plot(nodes[0], self.canvas, useincludeflag=False)
+                    eframe = self.tree.query(filters=[node.path for node in nodes], useincludeflag= False)
+                else:
+                    self.tree.plot(nodes[0], self.canvas)
+                    eframe = self.tree.query(filters=[node.path for node in nodes])
+            else:
+                eframe = self.tree.query(filters=[node.path for node in nodes])
 
             # UPDATE PARAMETER TABLE
-            eframe = self.tree.query(filters=[node.path for node in nodes])
             epochs = eframe.epoch.values
             self.tableWidget.update(epochs)
 
             # UPDATE CHARTS IN DIALOG
             self.dialog.fill_list(self.tree.currentplots)
 
-        self.thread = QThread()
-        self.worker = Worker(update_gui)
-        self.worker.moveToThread(self.thread)
+        def in_sep_thread():
+            self.thread = QThread()
+            self.worker = Worker(update_gui)
+            self.worker.moveToThread(self.thread)
 
-        self.thread.started.connect(self.worker.run)
-        self.worker.finished.connect(self.thread.quit)
-        self.worker.finished.connect(self.worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
+            self.thread.started.connect(self.worker.run)
+            self.worker.finished.connect(self.thread.quit)
+            self.worker.finished.connect(self.worker.deleteLater)
+            self.thread.finished.connect(self.thread.deleteLater)
 
-        self.thread.start()
+            self.thread.start()
 
-        # Final resets
-        self.treeWidget.setSelectionMode(
-            QAbstractItemView.SelectionMode.NoSelection)
-        self.thread.finished.connect(
-            lambda: self.treeWidget.setSelectionMode(
-                QAbstractItemView.SelectionMode.ExtendedSelection)
-        )
+            # Final resets
+            self.treeWidget.setSelectionMode(
+                QAbstractItemView.SelectionMode.NoSelection)
+            self.thread.finished.connect(
+                lambda: self.treeWidget.setSelectionMode(
+                    QAbstractItemView.SelectionMode.ExtendedSelection)
+            )
+
+        if __debug__:
+            update_gui()
+        else:
+            in_sep_thread()
 
     @pyqtSlot()
     def on_save_bttn_click(self):
@@ -214,10 +237,7 @@ class DissonanceUI(QWidget):
         self.uncheckedpath = fileName
         self.filterfilelabel.setText(self.uncheckedpath)
         if fileName:
-            print(fileName)
-            (self.tree.frame.query("include == False")
-                .index.get_level_values("startdate").to_series()
-                .to_csv(fileName, index=False))
+            (self.tree.frame.loc[~self.tree.frame.include, "startdate"].to_csv(fileName, index=False))
 
     @pyqtSlot()
     def on_export_bttn_click(self):
@@ -259,7 +279,7 @@ class ExportDataWindow(QDialog):
         self.charts = list() if charts is None else charts
         if len(self.charts) > 0:
             for ii, chart in enumerate(self.charts):
-                item = QListWidgetItem(f"{type(chart)}_{ii}")
+                item = QListWidgetItem(f"{str(chart)}")
                 self.listwidget.addItem(item)
 
     def closeEvent(self, event):

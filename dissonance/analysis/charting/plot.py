@@ -103,6 +103,9 @@ class PlotPsth(PlotBase):
         if epochs is not None:
             self.append_trace(epochs, label)
 
+    def __str__(self):
+        return f"{type(self).__name__}({','.join(map(str,self.labels))})"
+
     def append_trace(self, epochs:Union[SpikeEpoch, SpikeEpochs], label):
         if isinstance(epochs, IEpoch):
             n = 1
@@ -189,6 +192,9 @@ class PlotRaster(PlotBase):
         if epochs is not None:
             self.append_trace(epochs)
 
+    def __str__(self):
+        return f"{type(self).__name__}({','.join(map(str,self.labels))})"
+
     def append_trace(self, epochs:Union[SpikeEpoch, SpikeEpochs]):
         """Raster plots
 
@@ -272,6 +278,9 @@ class PlotWholeTrace(PlotBase):
         if epoch is not None:
             self.append_trace(epoch)
 
+    def __str__(self):
+        return f"{type(self).__name__}({','.join(map(str,self.labels))})"
+
     def append_trace(self, epoch=Union[WholeEpoch, WholeEpochs]):
         """Plot traces
         """
@@ -281,7 +290,10 @@ class PlotWholeTrace(PlotBase):
             label = epoch.startdate
             genotype = epoch.genotype
         else:
-            label = f'({epoch.get("lightamplitude")[0]}, {epoch.get("lightmean")[0]})'
+            if self.cellsummary:
+                label = epoch.get("cellname")[0]
+            else:
+                label = f'({epoch.get("lightamplitude")[0]}, {epoch.get("lightmean")[0]})'
             genotype = epoch.get("genotype")[0]
 
         if self.cellsummary:
@@ -348,7 +360,7 @@ class PlotWholeTrace(PlotBase):
         ...
 
 
-class PlotTrace(PlotBase):
+class PlotSpikeTrain(PlotBase):
 
     def __init__(self, ax: Axes, epoch:IEpoch=None, igor=False):
         self.ax: Axes = ax
@@ -366,6 +378,9 @@ class PlotTrace(PlotBase):
 
         if epoch is not None:
             self.append_trace(epoch)
+
+    def __str__(self):
+        return f"{type(self).__name__}({','.join(map(str,self.labels))})"
 
     def append_trace(self, epoch:IEpoch):
         """Plot traces
@@ -453,6 +468,9 @@ class PlotSwarm(PlotBase):
 
         if eframe is not None:
             self.append_trace(eframe)
+
+    def __str__(self):
+        return f"{type(self).__name__}({','.join(map(str,self.labels))})"
 
     def append_trace(self, eframe: pd.DataFrame) -> None:
         """Swarm plot :: bar graph of means with SEM and scatter. Show signficance
@@ -572,6 +590,8 @@ class PlotSwarm(PlotBase):
         self.ax.set_yticks = yticks
         self.ax.set_yticklabels = yticks
 
+        self.labels.append([lightamplitude, lightmean])
+
     def to_csv(self, filepath=None):
         ...
 
@@ -598,11 +618,15 @@ class PlotCRF(PlotBase):
 
         # for writing to csv
         self.labels = []
+        self.lightmean = 0.0
         self.xvalues = []
         self.yvalues = []
 
         if eframe is not None:
             self.append_trace(eframe)
+
+    def __str__(self):
+        return f"{type(self).__name__}(lightmean={self.lightmean})"
 
     def append_trace(self, eframe: pd.DataFrame):
         self.cntr += 1
@@ -611,6 +635,7 @@ class PlotCRF(PlotBase):
         sems = []
         genotype = eframe.genotype.iloc[0]
         for (lightamp, lightmean), frame in eframe.groupby(["lightamplitude", "lightmean"]):
+            self.lightmean = lightmean
             if lightmean != 0:
                 contrast = lightamp / lightmean
 
@@ -627,30 +652,33 @@ class PlotCRF(PlotBase):
                 self.peakamps[genotype].append(peakamps)
 
         # SORT VALUES ALONG X AXIS
-        indexes = list(np.arange(len(X)))
-        indexes.sort(key=X.__getitem__)
-        X = np.array(X)
-        Y = np.array(Y)
-        X = X[indexes]
-        Y = Y[indexes]
+        if len(X) > 0:
+            indexes = list(np.arange(len(X)))
+            indexes.sort(key=X.__getitem__)
+            X = np.array(X)
+            Y = np.array(Y)
+            X = X[indexes]
+            Y = Y[indexes]
 
-        self.ax.errorbar(
-            X, Y,
-            yerr=sems,
-            label=genotype,
-            color=self.colors[genotype])
+            # PLOT CRF EVENLY - IGNORE CONTRAST VALUES
+            X_ = np.arange(len(X))
+            self.ax.errorbar(
+                X_, Y,
+                yerr=sems,
+                label=genotype,
+                color=self.colors[genotype])
 
-        self.labels.append(genotype)
-        self.xvalues.append(X)
-        self.yvalues.append(Y)
+            self.labels.append(genotype)
+            self.xvalues.append(X)
+            self.yvalues.append(Y)
 
-        if self.cntr == 2:
-            self.t_test()
+            if self.cntr == 2:
+                self.t_test()
 
-        # FORMAT X AXIS
-        self.ax.spines["bottom"].set_bounds(min(X), max(X))
-        self.ax.set_xticks(X)
-        self.ax.set_xticklabels([f"{int(x*100)}%" for x in X])
+            # FORMAT X AXIS
+            self.ax.spines["bottom"].set_bounds(min(X_), max(X_))
+            self.ax.set_xticks(X_)
+            self.ax.set_xticklabels([f"{int(x*100)}%" for x in X])
 
     def set_axis_labels(self):
         self.ax.legend()
@@ -702,14 +730,19 @@ class PlotHill(PlotBase):
         self.fits = dict()
 
         self.colors = Pallette(igor)
+        self.lightmean = 0.0
 
         if eframe is not None:
             self.append_trace(eframe)
+
+    def __str__(self):
+        return f"{type(self).__name__}(lightmean={self.lightmean})"
 
     def append_trace(self, eframe: pd.DataFrame):
         """HILL FIT ON EACH CELL AND AVERAGE OF EACH CELLS"""
         # EPOCH SEPARATED BY CELL, LIGHTAMPLITUDE. ASSUMING SAME LIGHT MEAN
         genotype = eframe.genotype.iloc[0]
+        self.lightmean = eframe.lightmean.iloc[0]
 
         # TODO will this be done on epoch level?
         # FIT HILL TO EACH CELL - ONLY PLOT PEAK AMOPLITUDES
@@ -762,8 +795,13 @@ class PlotWeber(PlotBase):
 
         self.colors = Pallette(igor)
 
+        self.lightmean = 0.0
+
         if eframe is not None:
             self.append_trace(eframe)
+
+    def __str__(self):
+        return f"{type(self).__name__}(lightmean={self.lightmean})"
 
     def filestem(self):
         return f"PlotWeber_{'_'.join([x for x in self.fits])}"
@@ -772,6 +810,7 @@ class PlotWeber(PlotBase):
         """HILL FIT ON EACH CELL AND AVERAGE OF EACH CELLS"""
         # EPOCH SEPARATED BY CELL, LIGHTAMPLITUDE. ASSUMING SAME LIGHT MEAN
         genotype = eframe.genotype.iloc[0]
+        self.lightmean = eframe.genotype.iloc[0]
 
         # FIT HILL TO EACH CELL - ONLY PLOT PEAK AMPLITUDES
         for cellname, frame in eframe.groupby(["cellname"]):

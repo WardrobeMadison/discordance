@@ -9,10 +9,14 @@ from scipy.stats import sem
 from .baseepoch import EpochBlock, IEpoch
 
 
-def calc_width_at_half_max(values):
+def calc_width_at_half_max(values, holdingpotential):
     """Width at half max (actually half min since data should be negative"""
-    ttp = np.argmin(values)
-    halfmax = np.min(values) / 2.0
+    if holdingpotential == "inhibition":
+        ttp = np.argmax(values)
+        halfmax = np.max(values) / 2.0
+    else:
+        ttp = np.argmin(values)
+        halfmax = np.min(values) / 2.0
 
     if halfmax < 0:
         start = ttp - np.argmax(values[ttp::-1] > halfmax)
@@ -20,7 +24,6 @@ def calc_width_at_half_max(values):
     else:
         start = ttp - np.argmax(values[:ttp:-1] < halfmax)
         end = np.argmax(values[ttp:] < halfmax) + ttp
-
 
     return end-start, (int(start),int(end))
 
@@ -45,7 +48,10 @@ class WholeEpoch(IEpoch):
     @property
     def timetopeak(self) -> float:
         if self._timetopeak is None:
-            self._timetopeak  = np.argmin(self.trace)
+            if self.holdingpotential == "inhibition":
+                self._timetopeak  = np.argmax(self.trace)
+            else: 
+                self._timetopeak  = np.argmin(self.trace)
         return self._timetopeak
 
     @property
@@ -58,13 +64,16 @@ class WholeEpoch(IEpoch):
     @property
     def peakamplitude(self) -> float:
         if self._peakamplitude is None:
-            self._peakamplitude  = np.min(self.trace)
+            if self.holdingpotential == "inhibition":
+                self._peakamplitude  = np.max(self.trace)
+            else: 
+                self._peakamplitude  = np.min(self.trace)
         return self._peakamplitude
 
     @property
     def width_at_half_max(self) -> float:
         if self._widthathalfmax is None:
-            self._widthathalfmax, self._widthrange = calc_width_at_half_max(self.trace)
+            self._widthathalfmax, self._widthrange = calc_width_at_half_max(self.trace, self.holdingpotential)
         return self._widthathalfmax
 
     @property
@@ -77,7 +86,8 @@ class WholeEpochs(EpochBlock):
 
     def __init__(self, epochs: List[WholeEpoch]):
         super().__init__(epochs)
-
+        self.holdingpotential = epochs[0].holdingpotential
+        self.backgroundval = epochs[0].backgroundval
         self._widthathalfmax = None
         self._widthrange = None
 
@@ -95,16 +105,24 @@ class WholeEpochs(EpochBlock):
     @property
     def width_at_half_max(self) -> float:
         if self._widthathalfmax is None:
-            self._widthathalfmax, self._widthrange = calc_width_at_half_max(self.trace)
+            self._widthathalfmax, self._widthrange = calc_width_at_half_max(self.trace, self.holdingpotential)
         return self._widthathalfmax
 
     @property 
     def peakamplitude(self) -> float:
-        return np.min(self.trace)
+        if self.holdingpotential == "inhibition":
+            self._peakamplitude  = np.max(self.trace)
+        else: 
+            self._peakamplitude  = np.min(self.trace)
+        return self._peakamplitude
 
     @property 
     def timetopeak(self) -> float:
-        return np.argmin(self.trace)
+        if self.holdingpotential == "inhibition":
+            self._timetopeak  = np.argmax(self.trace)
+        else: 
+            self._timetopeak  = np.argmin(self.trace)
+        return self._timetopeak
 
 
 

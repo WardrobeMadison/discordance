@@ -22,14 +22,13 @@ class MplCanvas(FigureCanvas):
         if self.offline:
             self.fig, self.axes = plt.subplots(m,n, tight_layout=True, figsize=(width,height))
         else:
-            self.fig = Figure(constrained_layout=True, figsize=(width,height))
+            self.fig = Figure(constrained_layout=True) #figsize=(width,height))
             self.axes = None
         
         # SET BASE DIMENSIONS OF SUBPLOT
         self.basewidth, self.baseheight = width, height
 
         # CREATE PARENT CLASS
-        self.myparent = parent
         super(MplCanvas, self).__init__(self.fig)
         self.setParent(parent)
         
@@ -58,14 +57,16 @@ class MplCanvas(FigureCanvas):
         # ADJUST WIDTH AND HEIGHT OF CHART BASE ON NUMBER OF SUBPLOTS
         self.currentheight = self.baseheight*n
         if not self.offline:
-            viewwidth = self.parent().width() / 100
-            self.currentwidth =  (viewwidth if (viewwidth < self.basewidth * m) else self.basewidth * m) - 1 # PADDING FOR WIDTH
+            # DON'T CHANGE WIDTH  - SHOULD RESIZE TO WINDOW
+            #jviewwidth = self.parent().width() / 100
+            #self.currentwidth =  (viewwidth if (viewwidth < self.basewidth * m) else self.basewidth * m) - 0.25 # PADDING FOR WIDTH
+            ...
         else:
             self.currentwidth = self.basewidth * m
+            self.fig.set_size_inches((self.currentwidth, self.currentheight), forward=True)
 
-        self.fig.set_size_inches((self.currentwidth, self.currentheight), forward=True)
+        # ONLY ADJUST HEIGHT - WIDTH SHOULD RESIZE TO WINDOW
         self.setFixedHeight(self.currentheight*100)
-        self.setFixedWidth(self.currentwidth*100)
 
         # ADD SUBPLOT FOR EACH GRID
         self.axes = [
