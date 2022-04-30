@@ -11,7 +11,7 @@ import pandas as pd
 from matplotlib.pyplot import Axes
 from scipy.stats import sem, ttest_ind
 
-from ...epochtypes import IEpoch, WholeEpoch, WholeEpochs
+from ...epochtypes import IEpoch, WholeEpoch, WholeEpochs, SpikeEpoch, SpikeEpochs
 from ...funks import HillEquation, WeberEquation
 
 
@@ -26,19 +26,44 @@ def p_to_star(p):
         return "ns"
 
 
-# MORE COLORS TO USE: ff7c43, ffa600
-def def_value():
-    """DUMMY FUNCTION FOR DEFAULT DICT COLORS"""
-    return "#003f5c"
+class Pallette:
 
+    black = "#000000"
+    red = "#CC0000"
+    orange = "#FFA500"
 
-COLORS = defaultdict(def_value)
-COLORS["WT"] = "#003f5c"
-COLORS["DR"] = "#2f4b7c"
-COLORS["GA1"] = "#665191"
-COLORS["GG2 control"] = "#a05195"
-COLORS["GG2 KO"] = "#d45087"
-COLORS["None"] = "#f95d6a"
+    ccolors = dict()
+    ccolors["WT"] = "#545354"
+    ccolors["DR"] = "#946073"
+    ccolors["GA1"] = "#715b68"
+    ccolors["GA1 control"] = "#b86473"
+    ccolors["GG2 KO"] = "#d86b69"
+    ccolors["GG2 control"] = "#fe8c3a"
+    ccolors["None"] = "#f07856"
+    #545354
+    #715b68
+    #946073
+    #b86473
+    #d86b69
+    #f07856
+    #fe8c3a
+    #ffa600
+
+    def __init__(self, igor:bool=False):
+        self.igor = igor
+    
+    def __getitem__(self, value):
+        if self.igor:
+            color = None
+            if value in ["control", "DR"]:
+                color =  self.black
+            elif value in ["WT", "GA1", "KO"]:
+                return self.red
+            else:
+                color = self.orange
+            return color
+        else: 
+            return self.ccolors.get(value, self.orange)
 
 
 class PlotBase(ABC):
@@ -62,7 +87,7 @@ class PlotBase(ABC):
 
 class PlotPsth(PlotBase):
 
-    def __init__(self, ax: Axes, epochs=None, label=None):
+    def __init__(self, ax: Axes, epochs:Union[SpikeEpoch, SpikeEpochs]=None, label=None, igor=False):
         self.ax: Axes = ax
 
         self.ax.grid(False)
@@ -70,13 +95,15 @@ class PlotPsth(PlotBase):
         self.ax.set_ylabel("Hz / s")
         self.ax.set_xlabel("10ms bins")
 
+        self.colors = Pallette(igor)
+
         self.labels = []
         self.psths = []
 
         if epochs is not None:
             self.append_trace(epochs, label)
 
-    def append_trace(self, epochs, label):
+    def append_trace(self, epochs:Union[SpikeEpoch, SpikeEpochs], label):
         if isinstance(epochs, IEpoch):
             n = 1
         else:
@@ -92,8 +119,8 @@ class PlotPsth(PlotBase):
         X = (np.arange(len(psth)) + 1 - stimtime/100) / (seconds_conversion)
 
         # PLOT VALUES SHIFT BY STIM TIME
-        self.ax.axvline(ttp, linestyle='--', color=COLORS[name], alpha=0.4)
-        self.ax.plot(X, psth, label=f"{label} (n={n})", c=COLORS[name])
+        self.ax.axvline(ttp, linestyle='--', color=self.colors[name], alpha=0.4)
+        self.ax.plot(X, psth, label=f"{label} (n={n})", c=self.colors[name])
 
         # UPDATE LEGEND WITH EACH APPEND
         self.ax.legend()
@@ -144,7 +171,7 @@ class PlotPsth(PlotBase):
 
 class PlotRaster(PlotBase):
 
-    def __init__(self, ax, epochs=None, title=None):
+    def __init__(self, ax, epochs:Union[SpikeEpoch, SpikeEpochs]=None, title=None, igor=False):
         self.ax = ax
 
         # INITIAL AXIS SETTINGS
@@ -153,6 +180,8 @@ class PlotRaster(PlotBase):
         self.ax.axes.get_xaxis().set_visible(False)
         self.ax.set_title(title)
 
+        self.colors = Pallette(igor)
+
         # USED FOR WRITING OUT DATA IN TO_*() METHODS
         self.labels = []
         self.values = []
@@ -160,7 +189,7 @@ class PlotRaster(PlotBase):
         if epochs is not None:
             self.append_trace(epochs)
 
-    def append_trace(self, epochs):
+    def append_trace(self, epochs:Union[SpikeEpoch, SpikeEpochs]):
         """Raster plots
 
         Args:        #self.ax.legend()
@@ -175,12 +204,12 @@ class PlotRaster(PlotBase):
 
         toplt = []
         for ii, epoch in enumerate(epochs):
-            spikes = epoch.spikes.sp / 10000
+            spikes = epoch.spikes / 10000
             y = [ii+1] * len(spikes)
             toplt.append((spikes, y))
 
         for x, y in toplt:
-            self.ax.scatter(x, y, marker="|", c=COLORS[genotype])
+            self.ax.scatter(x, y, marker="|", c=self.colors[genotype])
             self.values.append(y)
 
         title = f"{epochs.get_unique('lightamplitude')[0]}, {epochs.get_unique('lightmean')[0]}"
@@ -220,17 +249,25 @@ class PlotRaster(PlotBase):
 
 
 class PlotWholeTrace(PlotBase):
+    cmap = plt.get_cmap("tab10")
 
-    def __init__(self, ax, epoch=None):
+    def __init__(self, ax:Axes, epoch:Union[WholeEpoch, WholeEpochs]=None, igor=False, cellsummary=False):
         self.ax = ax
         self.ax.grid(False)
         self.ax.margins(x=0, y=0)
         self.ax.yaxis.set_visible(False)
         self.ax.spines["left"].set_visible(False)
 
+        # IF SUMMARIZING CELL NEED A DIFFERENT COLOR FOR EACH CELL, NOT GENOTYPE
+        self.cellsummary = cellsummary
+        self.colors = Pallette(igor)
+
         # LISTS USED IN EXPORTING DATA
         self.labels = []
         self.values = []
+        
+        # KEEP TRACK OF NUMBER OF PLOTS. MAYBE USED TO CYCLE COLORS IF IN CELL SUMMARY MODE
+        self.cntr = 0
 
         if epoch is not None:
             self.append_trace(epoch)
@@ -244,15 +281,20 @@ class PlotWholeTrace(PlotBase):
             label = epoch.startdate
             genotype = epoch.genotype
         else:
-            label = f'{epoch.get("cellname")[0]}'
+            label = f'({epoch.get("lightamplitude")[0]}, {epoch.get("lightmean")[0]})'
             genotype = epoch.get("genotype")[0]
+
+        if self.cellsummary:
+            color = self.cmap(self.cntr)
+        else:
+            color = self.colors[genotype]
 
         # PLOT TRACE VALUES
         X = np.arange(len(epoch.trace)) - stimtime
         self.ax.plot(
             X,
             epoch.trace, label=label,
-            color=COLORS[genotype],
+            color=color,
             alpha=0.4)
 
         # PLOT HALF WIDTH
@@ -265,13 +307,13 @@ class PlotWholeTrace(PlotBase):
 
         self.ax.plot(
             [x1, x2], [y1, y2],
-            "--", color=COLORS[genotype])
+            "--", color=color)
 
         # MARKER ON PEAK AMPLITUDE
         self.ax.scatter(
             epoch.timetopeak - stimtime, epoch.peakamplitude,
             marker="x",
-            c=COLORS[genotype])
+            c=color)
 
         # APPEND VALUES NEEDED FOR WRITING OUT
         self.labels.append(label)
@@ -294,6 +336,8 @@ class PlotWholeTrace(PlotBase):
         except:
             print("Couldn't remove ticks")
 
+        self.cntr += 1
+
     def to_csv(self, *args, **kwargs):
         ...
 
@@ -306,7 +350,7 @@ class PlotWholeTrace(PlotBase):
 
 class PlotTrace(PlotBase):
 
-    def __init__(self, ax: Axes, epoch=None):
+    def __init__(self, ax: Axes, epoch:IEpoch=None, igor=False):
         self.ax: Axes = ax
 
         self.ax.set_ylabel("pA")
@@ -315,13 +359,15 @@ class PlotTrace(PlotBase):
         self.ax.spines["left"].set_visible(False)
         self.ax.get_yaxis().set_visible(False)
 
+        self.colors = Pallette(igor)
+
         self.labels = []
         self.values = []
 
         if epoch is not None:
             self.append_trace(epoch)
 
-    def append_trace(self, epoch):
+    def append_trace(self, epoch:IEpoch):
         """Plot traces
         """
         # GET ATTRIBUTES FOR PLOT
@@ -332,19 +378,19 @@ class PlotTrace(PlotBase):
             label = f'{epoch.get("cellname")[0]}, {epoch.get("lightamplitude")[0]}, {epoch.get("lightmean")}'
 
         # PLOT SPIKES IF SPIKETRACE
-        if (epoch.type == "spiketrace" and epoch.spikes.sp is not None):
-            y = epoch.trace[epoch.spikes.sp]
+        if (epoch.type == "spiketrace" and epoch.spikes is not None):
+            y = epoch.trace[epoch.spikes]
             self.ax.scatter(
-                epoch.spikes.sp - stimtime,
+                epoch.spikes - stimtime,
                 y,
-                marker="x", c=COLORS[epoch.genotype])
+                marker="x", c=self.colors[epoch.genotype])
 
         # PLOT TRACE VALUES
         X = np.arange(len(epoch.trace)) - stimtime
         self.ax.plot(
             X,
             epoch.trace, label=label,
-            color=COLORS[epoch.get("genotype")[0]],
+            color=self.colors[epoch.get("genotype")[0]],
             alpha=0.4)
 
         # FORMAT AXES
@@ -391,7 +437,7 @@ class PlotTrace(PlotBase):
 
 class PlotSwarm(PlotBase):
 
-    def __init__(self, ax: Axes, metric: str = "peakamplitude", epochs=None):
+    def __init__(self, ax: Axes, metric: str = "peakamplitude", eframe:pd.DataFrame=None, igor=False):
         self.ax: Axes = ax
         self.metric = metric
         self.ax.margins(y=0)
@@ -400,13 +446,15 @@ class PlotSwarm(PlotBase):
         self.ax.spines["bottom"].set_visible(False)
         self.ax.grid(False)
 
+        self.colors = Pallette(igor)
+
         # USE TO WRITE VALUES OUT IN TWO METHODS
         self.values = []
 
-        if epochs is not None:
-            self.append_trace(epochs)
+        if eframe is not None:
+            self.append_trace(eframe)
 
-    def append_trace(self, epochs: pd.DataFrame) -> None:
+    def append_trace(self, eframe: pd.DataFrame) -> None:
         """Swarm plot :: bar graph of means with SEM and scatter. Show signficance
 
         Args:
@@ -418,8 +466,8 @@ class PlotSwarm(PlotBase):
         toplt = []
         ymax = 0.0
         toppoint = 0.0  # NEED AXIS TO BE % ABOVE SEM BAR
-        for ii, (name, frame) in enumerate(epochs.groupby("genotype")):
-            celltraces = frame.trace.values
+        for ii, (name, frame) in enumerate(eframe.groupby("genotype")):
+            celltraces = frame.epoch.values
 
             if self.metric == "peakamplitude":
                 values = np.array([
@@ -446,7 +494,7 @@ class PlotSwarm(PlotBase):
 
             toplt.append(
                 dict(
-                    color=COLORS[name],
+                    color=self.colors[name],
                     label=name,
                     values=values,
                     meanvalue=meanval,
@@ -458,14 +506,14 @@ class PlotSwarm(PlotBase):
                         capsize=12,
                         tick_label=name,
                         alpha=0.5,
-                        color=COLORS[name])
+                        color=self.colors[name])
 
             # PLOT SCATTER
             self.ax.scatter(
                 np.repeat(ii, len(values)),
                 values,
                 alpha=0.25,
-                c=COLORS[name])
+                c=self.colors[name])
 
             self.values.extend(toplt)
 
@@ -500,7 +548,7 @@ class PlotSwarm(PlotBase):
                 color=col)
 
         # FIG SETTINGS
-        lightamplitude, lightmean = epochs[[
+        lightamplitude, lightmean = eframe[[
             "lightamplitude", "lightmean"]].iloc[0]
         self.ax.set_title(f"{self.metric}: {lightamplitude, lightmean}")
 
@@ -536,11 +584,13 @@ class PlotSwarm(PlotBase):
 
 class PlotCRF(PlotBase):
 
-    def __init__(self, ax: Axes, metric, epochs):
+    def __init__(self, ax: Axes, metric:str, eframe:pd.DataFrame=None, igor=False):
         self.ax: Axes = ax
         self.metric = metric
 
         self.set_axis_labels()
+
+        self.colors = Pallette(igor)
 
         # for performing a ttest
         self.peakamps = defaultdict(list)
@@ -551,23 +601,23 @@ class PlotCRF(PlotBase):
         self.xvalues = []
         self.yvalues = []
 
-        if epochs is not None:
-            self.append_trace(epochs)
+        if eframe is not None:
+            self.append_trace(eframe)
 
-    def append_trace(self, epochs: pd.DataFrame):
+    def append_trace(self, eframe: pd.DataFrame):
         self.cntr += 1
         X = []
         Y = []
         sems = []
-        genotype = epochs.genotype.iloc[0]
-        for (lightamp, lightmean), frame in epochs.groupby(["lightamplitude", "lightmean"]):
+        genotype = eframe.genotype.iloc[0]
+        for (lightamp, lightmean), frame in eframe.groupby(["lightamplitude", "lightmean"]):
             if lightmean != 0:
                 contrast = lightamp / lightmean
 
                 # GET PEAK AMPLITUDE FROM EACH PSTH - USED IN SEM
                 peakamps = np.array([
                     epoch.peakamplitude if self.metric == "peakamplitude" else epoch.timetopeak
-                    for epoch in frame.trace.values
+                    for epoch in frame.epoch.values
                 ])
 
                 X.append(contrast)
@@ -588,7 +638,7 @@ class PlotCRF(PlotBase):
             X, Y,
             yerr=sems,
             label=genotype,
-            color=COLORS[genotype])
+            color=self.colors[genotype])
 
         self.labels.append(genotype)
         self.xvalues.append(X)
@@ -599,14 +649,8 @@ class PlotCRF(PlotBase):
 
         # FORMAT X AXIS
         self.ax.spines["bottom"].set_bounds(min(X), max(X))
-        self.ax.set_xticklabels([f"{x*100:0.1f}%" for x in X])
-
-        # FORMAT Y TICKS
-        ylim = self.ax.get_ylim()
-        yticks = [ceil(y) for y in ylim]
-        self.ax.spines["left"].set_bounds(yticks[0], yticks[1])
-        self.ax.set_yticks(yticks)
-        self.ax.set_yticklabels(yticks)
+        self.ax.set_xticks(X)
+        self.ax.set_xticklabels([f"{int(x*100)}%" for x in X])
 
     def set_axis_labels(self):
         self.ax.legend()
@@ -653,24 +697,26 @@ class PlotCRF(PlotBase):
 
 class PlotHill(PlotBase):
 
-    def __init__(self, ax, epochs: pd.DataFrame = None):
+    def __init__(self, ax, eframe: pd.DataFrame = None, igor=False):
         self.ax = ax
         self.fits = dict()
 
-        if epochs is not None:
-            self.append_trace(epochs)
+        self.colors = Pallette(igor)
 
-    def append_trace(self, epochs: pd.DataFrame):
+        if eframe is not None:
+            self.append_trace(eframe)
+
+    def append_trace(self, eframe: pd.DataFrame):
         """HILL FIT ON EACH CELL AND AVERAGE OF EACH CELLS"""
         # EPOCH SEPARATED BY CELL, LIGHTAMPLITUDE. ASSUMING SAME LIGHT MEAN
-        genotype = epochs.genotype.iloc[0]
+        genotype = eframe.genotype.iloc[0]
 
         # TODO will this be done on epoch level?
         # FIT HILL TO EACH CELL - ONLY PLOT PEAK AMOPLITUDES
-        for cellname, frame in epochs.groupby(["cellname"]):
+        for cellname, frame in eframe.groupby(["cellname"]):
             frame = frame.sort_values(["lightamplitude"])
             X = frame.lightamplitude.values
-            Y = frame.trace.apply(lambda x: x.peakamplitude).values
+            Y = frame.epoch.apply(lambda x: x.peakamplitude).values
 
             Y = -1 * Y if max(Y) < 0 else Y
 
@@ -679,8 +725,8 @@ class PlotHill(PlotBase):
             self.fits[cellname] = hill
 
         # FIT HILL TO AVERAGE OF PEAK AMPLITUDES
-        df = epochs.copy()
-        df["peakamp"] = epochs.trace.apply(lambda x: x.peakamplitude).values
+        df = eframe.copy()
+        df["peakamp"] = eframe.epoch.apply(lambda x: x.peakamplitude).values
         dff = df.groupby("lightamplitude").peakamp.mean().reset_index()
 
         # PLOT LINE AND AVERAGES
@@ -689,8 +735,8 @@ class PlotHill(PlotBase):
         hill = HillEquation()
         hill.fit(X, Y)
         X_ = np.linspace(0, np.max(X), 1000)
-        self.ax.plot(X_, hill(X_), color=COLORS[genotype])
-        self.ax.scatter(X, Y, alpha=0.4, color=COLORS[genotype])
+        self.ax.plot(X_, hill(X_), color=self.colors[genotype])
+        self.ax.scatter(X, Y, alpha=0.4, color=self.colors[genotype])
 
         # TODO decide on label based on grouping
         self.fits[f"{genotype}_average"] = hill
@@ -707,29 +753,31 @@ class PlotHill(PlotBase):
 
 class PlotWeber(PlotBase):
 
-    def __init__(self, ax, epochs):
+    def __init__(self, ax:Axes, eframe:pd.DataFrame, igor=False):
         self.ax = ax
         self.fits: Dict[str, WeberEquation] = dict()
 
         self.ax.set_yscale("log")
         self.ax.set_xscale("log")
 
-        if epochs is not None:
-            self.append_trace(epochs)
+        self.colors = Pallette(igor)
+
+        if eframe is not None:
+            self.append_trace(eframe)
 
     def filestem(self):
         return f"PlotWeber_{'_'.join([x for x in self.fits])}"
 
-    def append_trace(self, epochs: pd.DataFrame):
+    def append_trace(self, eframe: pd.DataFrame):
         """HILL FIT ON EACH CELL AND AVERAGE OF EACH CELLS"""
         # EPOCH SEPARATED BY CELL, LIGHTAMPLITUDE. ASSUMING SAME LIGHT MEAN
-        genotype = epochs.genotype.iloc[0]
+        genotype = eframe.genotype.iloc[0]
 
         # FIT HILL TO EACH CELL - ONLY PLOT PEAK AMPLITUDES
-        for cellname, frame in epochs.groupby(["cellname"]):
+        for cellname, frame in eframe.groupby(["cellname"]):
             frame = frame.sort_values(["lightamplitude"])
             X = frame.lightamplitude.values
-            Y = frame.trace.apply(lambda x: x.peakamplitude).values
+            Y = frame.epoch.apply(lambda x: x.peakamplitude).values
 
             weber = WeberEquation()
             weber.fit(X, Y)
@@ -737,8 +785,8 @@ class PlotWeber(PlotBase):
             self.fits[cellname] = weber
 
         # FIT HILL TO AVERAGE OF PEAK AMPLITUDES
-        df = epochs.copy()
-        df["peakamp"] = epochs.trace.apply(lambda x: x.peakamplitude)
+        df = eframe.copy()
+        df["peakamp"] = eframe.epoch.apply(lambda x: x.peakamplitude)
         dff = df.groupby("lightamplitude").peakamp.mean().reset_index()
 
         # FIT WEBER TO AVERAGE PEAK AMPLITUDES
@@ -750,9 +798,9 @@ class PlotWeber(PlotBase):
         topltX = np.arange(np.max(X))
 
         # TODO decide on line labels
-        self.ax.plot(topltX, weber(topltX), color=COLORS[genotype])
+        self.ax.plot(topltX, weber(topltX), color=self.colors[genotype])
         self.ax.scatter(*weber.normalize(X, Y),
-                        alpha=0.4, color=COLORS[genotype])
+                        alpha=0.4, color=self.colors[genotype])
 
         self.fits[f"{genotype}mean"] = weber
 

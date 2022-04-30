@@ -42,7 +42,7 @@ for ii, cnode in enumerate(tree.leaves):
 epoch = tree.query(cnode)
 
 epoch.trace
-epoch.spikes.sp
+epoch.spikes
 
 # stimulus, response, spikes
 I = np.array()

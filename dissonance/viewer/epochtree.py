@@ -34,14 +34,13 @@ class EpochItem(QStandardItem):
         fnt = QFont()
         fnt.setPixelSize(10)
         self.label = node.uid
-        self.number  = node.number
 
         self.setEditable(False)
         self.setForeground(color)
         self.setBackground(QColor(187, 177, 189))
         self.setFont(fnt)
         # self.setText(epoch.startdate)
-        self.setText(f"E{node.number}")
+        self.setText(f"startdate={self.label}")
 
         self.setFlags(self.flags() | Qt.ItemIsUserCheckable |
                       Qt.ItemIsSelectable)

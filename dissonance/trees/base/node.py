@@ -1,15 +1,15 @@
 
+from datetime import datetime
 from pathlib import Path
 from typing import List, Union
 from dataclasses import dataclass, field
 from typing import Iterator, Dict
 
 class Node:
-	def __init__(self, label, uid, number="0'"):
+	def __init__(self, label, uid):
 		self._parent = None
 		self._path = None
 		self.label = label
-		self.number = number
 		self.uid = uid
 		self.children = list()
 
@@ -32,11 +32,14 @@ class Node:
 		return f"Node({self.label}={self.uid}, nchildren={len(self.children)})"
 
 	def __getitem__(self, val):
-		#if isinstance(val, str) or isinstance(val,float) or (val is None):
-		idx = [child.uid for child in self.children].index(val)
-		return self.children[idx]
-		#else:
-		#	return self.children[val]
+		#idx = [child.uid for child in self.children].index(val)
+		for child in self.children:
+			if child.isleaf:
+				if str(child.uid) == val:
+					return child
+			else: 
+				if child.uid == val:
+					return child
 
 	@property
 	def path(self) -> Dict[str, str]:
@@ -129,8 +132,10 @@ class Node:
 		#		return node
 		node = self
 		for ii, (key,val) in enumerate(kwargs.items()):
+			if node.isleaf:
+				return node
 			if ii != 0:
 				node = node[val]
 		return node
-
+		
 

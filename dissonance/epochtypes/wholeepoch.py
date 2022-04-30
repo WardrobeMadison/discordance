@@ -30,8 +30,8 @@ class WholeEpoch(IEpoch):
     def __init__(self, epochgrp:h5py.Group):
 
         super().__init__(epochgrp)
-        self.holdingpotential = epochgrp.get("holdingpotential")
-        self.backgroundval = epochgrp.get("backgroundval")
+        self.holdingpotential = epochgrp.attrs.get("holdingpotential")
+        self.backgroundval = epochgrp.attrs.get("backgroundval")
         self._widthathalfmax = None
         self._timetopeak = None
         self._peakamplitude = None

@@ -9,7 +9,7 @@ def calculate_psth(epoch, inc=100, outputfile=None) -> np.array:
 	except:
 		x = np.zeros(epoch.trace.shape)
 
-	x[epoch.spikes.sp] = 1
+	x[epoch.spikes] = 1
 	psth = np.fromiter(
 		[
 			np.sum(x[ii:ii+inc])

@@ -1,6 +1,7 @@
-from typing import Union
+from typing import Union, List, Iterable
 
 import pandas as pd
+import numpy as np
 from PyQt5.QtCore import pyqtSlot
 from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem
 
@@ -25,18 +26,22 @@ class ParamsTable(QTableWidget):
         "samplerate",
         "tailtime"]
 
-    def __init__(self, epoch: Union[et.SpikeEpoch, et.WholeEpoch]):
+    def __init__(self, epoch: Union[et.SpikeEpoch, et.WholeEpoch]=None):
         super().__init__()
 
-        self.update(epoch)
+        if epoch is not None:
+            self.update(epoch)
 
     @pyqtSlot()
-    def update(self, epoch: Union[et.IEpoch, et.EpochBlock]):
+    def update(self, epochs: List[Union[et.IEpoch, et.EpochBlock]]):
         """Update params table with epoch 
 
         Args:
                 ii (int): Index row of epoch in dataframe
         """
+        if not isinstance(epochs, Iterable):
+            epochs = [epochs]
+
         # self.data.clear()
         self.setRowCount(0)
         self.setRowCount(len(self.params))
@@ -46,10 +51,13 @@ class ParamsTable(QTableWidget):
         for ii, paramname in enumerate(self.params):
             self.setItem(ii, 0,
                             QTableWidgetItem(paramname))
-            val = epoch.get_unique(paramname)
-            text = ",".join(map(str, val))
-            self.setItem(ii, 1,
-                            QTableWidgetItem(text))
+            vals  = list()
+            for epoch in epochs:
+                val = epoch.get_unique(paramname)
+                vals.extend(val)
+
+            text = ", ".join(map(str, list(set(val))))
+            self.setItem(ii, 1, QTableWidgetItem(text))
             data.append([paramname, text, val])
 
         self.df = pd.DataFrame(columns="Param Text Val".split(), data=data)

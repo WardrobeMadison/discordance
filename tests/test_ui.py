@@ -1,12 +1,12 @@
 from pathlib import Path
 import pandas as pd
-from dissonance import viewer, io, epochtypes 
+from dissonance import viewer, io, epochtypes, analysis
 from dissonance.epochtypes import filter
 from time import time
-import unittest
+import pytest
 
 
-class GuiTestCases(unittest.TestCase):
+class TestGui():
 
 	def test_window(self):
 		try:
@@ -28,10 +28,11 @@ class GuiTestCases(unittest.TestCase):
 				)
 
 			dr = io.DissonanceReader(paths)
-			epochs = dr.to_epochs(tracetype = "wholetrace")
-			epochs = epochtypes.SpikeEpochs(epochs)
+			paramnames = ["led", "protocolname", "celltype", "genotype", "cellname", "lightamplitude", "lightmean", "startdate"]
+			params = dr.to_params(paramnames, filters={"tracetype" : "wholetrace"})
+			params = params.loc[params.protocolname.isin(["LedPulseFamily", "LedPulse"])]
 
-			tree = viewer.analysistrees.LedWholeAnalysis(epochs, unchecked)
+			tree = analysis.LedWholeAnalysis(params,paths, unchecked)
 			
 			viewer.run(tree, unchecked, uncheckedpath)
 		except SystemExit as e:

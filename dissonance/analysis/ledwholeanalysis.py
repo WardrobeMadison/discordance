@@ -1,16 +1,14 @@
-from typing import Any, Dict, List, Tuple, Union
-import pandas as pd
 from pathlib import Path
+from typing import Any, Dict, List, Tuple, Union
 
-from dissonance.epochtypes.spikeepoch import SpikeEpoch
+import pandas as pd
 
-from ..epochtypes import (EpochBlock, SpikeEpochs, WholeEpoch, WholeEpochs,
-                          filter, groupby)
-from ..funks import hill
-from ..trees import Node
+from ..epochtypes import EpochBlock, WholeEpoch, WholeEpochs, groupby
 from .baseanalysis import BaseAnalysis
 from .charting import (MplCanvas, PlotCRF, PlotHill, PlotPsth, PlotRaster,
-                       PlotTrace, PlotWeber, PlotWholeTrace)
+                       PlotSwarm, PlotTrace, PlotWeber, PlotWholeTrace)
+from ..trees import Node
+
 
 class LedWholeAnalysis(BaseAnalysis):
 
@@ -33,20 +31,20 @@ class LedWholeAnalysis(BaseAnalysis):
         scope = list(node.path.keys())
         level = len(scope)
 
-        epochs = self.query(node)
+        epochs = self.query(filters=[node.path])
 
         # STARTDATE
         if node.isleaf:
             self.plot_single_epoch(epochs, canvas)
-        # RSTARR
+        # LIGHTMEAN
         elif level == 8:
             self.plot_summary_epochs(epochs, canvas)
-        # LIGHTMEAN
+        # LIGHT AMPLITUDE
         elif level == 7:
             self.plot_summary_epochs(epochs, canvas)
-        # LIGHT AMPLITUDE
+        # LIGHT CELL NAME
         elif level == 6:
-            self.plot_summary_epochs(epochs, canvas)
+            self.plot_summary_cell(epochs, canvas)
         # GENOTYPE
         elif level == 5:
             self.plot_genotype_summary(epochs, canvas)
@@ -56,19 +54,19 @@ class LedWholeAnalysis(BaseAnalysis):
 
         canvas.draw()
 
-    def plot_single_epoch(self, epoch, canvas):
-
+    def plot_single_epoch(self, eframe, canvas):
+        epoch = eframe.epoch.iloc[0]
         axes = canvas.grid_axis(1, 1)
         plttr = PlotWholeTrace(axes[0], epoch)
         canvas.draw()
 
         self.currentplots.append(plttr)
 
-    def plot_summary_epochs(self, epochs: WholeEpochs, canvas: MplCanvas = None):
+    def plot_summary_epochs(self, eframe: pd.DataFrame, canvas: MplCanvas = None):
         """Plot faceted mean trace
         """
         # GROUP EPOCHS UP TO LIGHT AMP AND MEAN
-        grps = groupby(epochs, self.labels)
+        grps = groupby(eframe, self.labels)
 
         # BUILD GRID
         n = grps.shape[0]
@@ -77,9 +75,30 @@ class LedWholeAnalysis(BaseAnalysis):
 
         # PLOT AVERAGE TRACE FOR EACH LIGHT AMP AND MEAN COMBO
         for ii, row in grps.iterrows():
-            traces = row["trace"]
+            epochs = row["epoch"]
 
-            pltraster = PlotWholeTrace(axes[axii], traces)
+            pltraster = PlotWholeTrace(axes[axii], epochs)
+            axii += 1
+
+            self.currentplots.extend([pltraster])
+
+    def plot_summary_cell(self, eframe: pd.DataFrame, canvas: MplCanvas = None):
+        """Plot faceted mean trace
+        """
+        # GROUP EPOCHS UP TO LIGHT AMP AND MEAN
+        grps = groupby(eframe, self.labels)
+
+        # BUILD GRID
+        n = grps.shape[0]
+        axes = canvas.grid_axis(n, 1)
+        axii = 0
+
+        # PLOT AVERAGE TRACE FOR EACH LIGHT AMP AND MEAN COMBO
+        for ii, row in grps.iterrows():
+            epochs = row["epoch"]
+
+            pltraster = PlotWholeTrace(axes[axii], epochs)
+            pltraster.ax.set_title(f"({row['lightamplitude'], row['lightmean']})")
             axii += 1
 
             self.currentplots.extend([pltraster])
@@ -101,7 +120,7 @@ class LedWholeAnalysis(BaseAnalysis):
             axii = 0
 
             for lightmean, frame in grps.groupby("lightmean"):
-                plt = PlotCRF(axes[axii], metric="peakamplitude", epochs=frame)
+                plt = PlotCRF(axes[axii], metric="peakamplitude", eframe=frame)
                 plt.ax.set_title(f"Light Mean = {lightmean}")
                 axii += 1
 
@@ -115,11 +134,11 @@ class LedWholeAnalysis(BaseAnalysis):
 
             for lightmean, frame in grps.groupby("lightmean"):
 
-                plt_amp = PlotHill(axes[axii], epochs=grps)
+                plt_amp = PlotHill(axes[axii], eframe=grps)
                 plt_amp.ax.set_title(f"Light Mean = {lightmean}")
                 axii += 1
                 
-                plt_wbr = PlotWeber(axes[axii], epochs=grps)
+                plt_wbr = PlotWeber(axes[axii], eframe=grps)
                 plt_wbr.ax.set_title(f"Light Mean = {lightmean}")
                 axii += 1
 
@@ -132,11 +151,11 @@ class LedWholeAnalysis(BaseAnalysis):
         # AVERAGE TRACE ON EVERY PLOT
         ## ITERATE THROUGH EVERY AMP X MEAN COMBO
         for (lightamp, lightmean), frame in grps.groupby(["lightamplitude", "lightmean"]):
-            plt = PlotWholeTrace(axes[axii])
+            plt = PlotWholeTrace(axes[axii], cellsummary=True)
             
             # APPEND THE AVERAGE TRACE FOR EACH CELL
             for _, row in frame.iterrows():
-                plt.append_trace(row["trace"])
+                plt.append_trace(row["epoch"])
 
             plt.ax.set_title(f"LightAmp={lightamp}, LightMean={lightmean}")
 
@@ -158,14 +177,16 @@ class LedWholeAnalysis(BaseAnalysis):
         # PEAK AMPLITUDE SWARM PLOTS IN FIRST COLUMN
         ii = 0
         for name, frame in df.groupby(["lightamplitude", "lightmean"]):
-            plt = PlotSwarm(axes[ii], metric="peakamplitude", epochs=frame)
+            plt = PlotSwarm(axes[ii], metric="peakamplitude", eframe=frame)
             ii += 3
+            plt.ax.set_title(name)
             self.currentplots.append(plt)
 
         # TTP SWARM PLOTS IN Seoncd COLUMN
         ii = 1
         for name, frame in df.groupby(["lightamplitude", "lightmean"]):
-            plt = PlotSwarm(axes[ii], metric="timetopeak", epochs=frame)
+            plt = PlotSwarm(axes[ii], metric="timetopeak", eframe=frame)
+            plt.ax.set_title(name)
             ii += 3
             self.currentplots.append(plt)
 
@@ -178,6 +199,7 @@ class LedWholeAnalysis(BaseAnalysis):
                 epoch = fframe.iloc[0, -1]
 
                 plt = PlotWholeTrace(axes[ii], epoch)
+                plt.ax.set_title(name)
                 self.currentplots.append(plt)
             ii += 3
 

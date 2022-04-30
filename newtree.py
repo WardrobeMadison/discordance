@@ -1,9 +1,17 @@
 # %%
 from pathlib import Path
+
+from numpy import isin
 from dissonance.trees import Tree
 from dissonance import epochtypes, io, analysis
 from dissonance.epochtypes import groupby
 import pandas as pd
+import h5py
+
+
+%load_ext autoreload
+%autoreload 2
+
 
 # %%
 ROOTDIR = Path("/home/joe/Projects/DataStore/MappedData")
@@ -39,9 +47,7 @@ paramnames = (
 
 root_dir = ROOTDIR
 filters = {"tracetype":"wholetrace"}
-df, paths = load_epochs(["DR", "WT"],paramnames, filters, nfiles=50)
-
-df
+params, paths = load_epochs(["DR","WT"],paramnames, filters, nfiles=50)
 
 # %%
 #*******************************************************************************
@@ -59,10 +65,8 @@ labels = [
 
 #tree = Tree("Test", labels, keys)
 
-sis = analysis.LedWholeAnalysis(df, paths)
+sis = analysis.LedWholeAnalysis(params, paths)
 
+# %%
 
-filters = [dict(genotype="DR")]
-sis.query(filters)
-
-paths
+print(sis.visual)

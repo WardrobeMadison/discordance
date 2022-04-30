@@ -16,7 +16,7 @@ class SpikeEpoch(IEpoch):
 
     @property
     def spikes(self) -> np.array:
-        return self._spikegrp[:]
+        return np.array(self._spikegrp[:], dtype=int)
 
     @property
     def psth(self) -> np.array:

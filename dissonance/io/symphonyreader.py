@@ -1,3 +1,4 @@
+from collections import defaultdict
 import datetime
 import re
 from pathlib import Path
@@ -5,8 +6,38 @@ from typing import Dict, Iterator
 
 import h5py
 import numpy as np
+import pandas as pd
 
 from dissonance.funks import detect_spikes
+
+import logging
+logger = logging.getLogger(__name__)
+
+
+fout = open("log2.txt", "w+")
+
+
+def get_rstarr_map():
+    rstarrdf = pd.read_csv(Path(__file__).parent.parent.parent / "data/rstarrmap.txt", "\t",
+                           parse_dates=["startdate", "enddate"], 
+                           dtype=dict(
+                                protocolname=str,
+                               	led=str,
+                                lightamplitude=float,
+                                lightamplitude_rstarr=float,
+                                lightmean=float,
+                                lightmean_rstarr=float))
+    rstarrmap = dict()
+    for _, row in rstarrdf.iterrows():
+        rstarrmap[(row["protocolname"], row["led"], row["lightamplitude"], row["lightmean"])] = (
+            row["lightamplitude_rstarr"], row["lightmean_rstarr"])
+    return rstarrmap
+
+
+RSTARRMAP = get_rstarr_map()
+
+
+S1 = np.dtype("|S1")
 
 
 def convert_if_bytes(attr):
@@ -51,6 +82,8 @@ class Experiment(GroupBase):
 
 class Cell:
 
+    RE_DATE = re.compile(r"^.*(\d{4}-?\d{2}-?\d{2})(\w\d?).*$")
+
     def __init__(self, group: h5py.Group):
         self.group = group
         self.h5name = group.name
@@ -61,11 +94,29 @@ class Cell:
 
     @property
     def cellname(self):
-        return convert_if_bytes(self.group["source"].attrs["label"])
+        val = convert_if_bytes(self.group["source"].attrs["label"])
+        if isinstance(val, str):
+            return val
+        else:
+            return "MissingCellName"
 
     @property
     def celltype(self):
-        return convert_if_bytes(self.group["source/properties"].attrs["type"])
+        val = convert_if_bytes(self.group["source/properties"].attrs["type"])
+        if isinstance(val, str):
+            return val
+        else:
+            return "MissingCellType"
+
+    @property
+    def cellkey(self):
+        filepath = Path(self.group.file.filename)
+
+        name = filepath.stem
+        matches = self.RE_DATE.match(name)
+        prefix = matches[1].replace("-", "") + matches[2]
+
+        return f"{prefix}_{self.cellname}"
 
     @property
     def children(self):
@@ -73,9 +124,11 @@ class Cell:
             yield Protocol(self.group[f"epochBlocks/{name}"])
 
 
+# TODO turn into abstract factor distinguished by protocol.
+#   Set a property that has all params needed to write out here. Not in the read method below.
 class Protocol:
 
-    re_name = re.compile(r".*edu\.wisc\.sinhalab\.protocols\.(.*)-.*$")
+    re_name = re.compile(r".*edu\.wisc\.sinhalab\.protocols\.([\w\d ]+)-.*$")
 
     def __init__(self, group: h5py.Group):
         self.group = group
@@ -101,7 +154,6 @@ class Protocol:
     def children(self):
         for name in self.group["epochs"]:
             yield Epoch(self.group[f"epochs/{name}"])
-
 
 class Epoch:
 
@@ -132,7 +184,7 @@ class Epoch:
     def holdingpotential(self):
         val = self._backgrounds["Amp1"]["value"]
         if self.tracetype == "spiketrace":
-            return None
+            return "nan"
         elif val < 0:
             return "inhibitiion"
         else:
@@ -164,7 +216,7 @@ class Epoch:
 
     @property
     def ndf(self):
-        return self.group["protocolParameters"].attrs.get("ndf", None)
+        return self.group["protocolParameters"].attrs.get("ndf", "None")
 
 
 class Background:
@@ -203,7 +255,7 @@ class Response:
 
         self._parameters: Dict = {
             "samplerate": self.group.attrs["sampleRate"],
-            "samplerateunits": self.group.attrs["sampleRateUnit"]
+            "samplerateunits": self.group.attrs["sampleRateUnits"]
         }
 
     def __str__(self):
@@ -260,6 +312,7 @@ class Stimulus:
 class SymphonyReader:
 
     def __init__(self, path):
+        self.finpath = path
         self.fin = h5py.File(path)
         self.exp = Experiment(self.fin)
         self.fout = None
@@ -269,9 +322,6 @@ class SymphonyReader:
         for cell in self.exp.children:
             for protocol in cell.children:
                 for epoch in protocol.children:
-                    ii += 1
-                    if not ii % 100:
-                        print(ii)
                     yield cell, protocol, epoch
 
     def to_h5(self, outputpath: Path):
@@ -283,53 +333,13 @@ class SymphonyReader:
                 epochgrp = expgrp.create_group(f"epoch{ii}")
 
                 # ADD EPOCH ATTRIBUTES
-                epochgrp.attrs["path"] = epoch.h5name
-                epochgrp.attrs["cellname"] = cell.cellname
-                epochgrp.attrs["celltype"] = cell.celltype
-                epochgrp.attrs["tracetype"] = epoch.tracetype
-                epochgrp.attrs["protocolname"] = protocol.name
-                epochgrp.attrs["startdate"] = str(epoch.startdate)
-                epochgrp.attrs["enddate"] = str(epoch.enddate)
-                epochgrp.attrs["interpulseinterval"] = protocol["interpulseInterval"]
-                epochgrp.attrs["led"] = protocol["led"]
-                epochgrp.attrs["lightamplitude"] = protocol.get(
-                    "lightAmplitude", 0.0)
-                epochgrp.attrs["lightmean"] = protocol.get("lightMean", 0.0)
-                epochgrp.attrs["numberofaverages"] = protocol.get(
-                    "numberOfAverages", 0.0)
-                epochgrp.attrs["pretime"] = protocol.get("preTime", 0.0)
-                epochgrp.attrs["backgroundval"] = epoch.backgrounds["Amp1"]["value"]
-                epochgrp.attrs["stimtime"] = protocol.get("stimTime", 0.0)
-                epochgrp.attrs["samplerate"] = protocol.get("sampleRate", 0.0)
-                epochgrp.attrs["tailtime"] = protocol.get("tailTime", 0.0)
+                self._update_attrs(protocol, cell, epoch, epochgrp)
 
                 # ADD RESPONSE DATA - CACHE SPIKES
-                for response in epoch.responses:
-                    values = response.data
-                    ds = epochgrp.create_dataset(
-                        name=response.name, data=values, dtype=float)
-
-                    # for key, val in response:
-                    #    ds.attrs[key] = val
-
-                    ds.attrs["path"] = response.h5name
-
-                    if epoch.tracetype == "spiketrace":
-                        spikes, violationidx = detect_spikes(values)
-
-                        spds = epochgrp.create_dataset(
-                            name="Spikes",
-                            data=spikes,
-                            dtype=float)
-
-                        spds.attrs["violation_idx"] = (
-                            violationidx.astype(float))
+                self._update_response(epoch, epochgrp)
 
                 # ADD GROUP FOR EACH STIMULUS
-                for stimuli in epoch.stimuli:
-                    stimds = epochgrp.create_group(stimuli.name)
-                    for key, val in stimuli:
-                        stimds.attrs[key] = val
+                self._update_stimuli(epoch, epochgrp)
 
         except Exception as e:
             if self.fout is not None:
@@ -338,6 +348,147 @@ class SymphonyReader:
         finally:
             self.fout.close()
 
+    def update_metadata(self, outputpath, attrs=False, responses=False, stimuli=False):
+        try:
+            self.fout = h5py.File(outputpath, mode="r+")
+            expgrp = self.fout["experiment"]
+            for ii, (cell, protocol, epoch) in enumerate(self.reader()):
+
+                epochgrp = expgrp[f"epoch{ii}"]
+
+                # ADD EPOCH ATTRIBUTES
+                if attrs:
+                    self._update_attrs(protocol, cell, epoch, epochgrp)
+
+                # ADD RESPONSE DATA - CACHE SPIKES
+                if responses:
+                    self._update_response(epoch, epochgrp)
+
+                # ADD GROUP FOR EACH STIMULUS
+                if stimuli:
+                    self._update_stimuli(epoch, epochgrp)
+
+        except Exception as e:
+            if self.fout is not None:
+                self.fout.close()
+            raise e
+
+        self.fout.close()
+
+    def update_rstarr(self, outputpath):
+        try:
+            self.fout = h5py.File(outputpath, mode="r+")
+            expgrp = self.fout["experiment"]
+            for ii, (cell, protocol, epoch) in enumerate(self.reader()):
+
+                epochgrp = expgrp[f"epoch{ii}"]
+                try:
+                    del epochgrp.attrs["lightamplitude"]
+                except KeyError:
+                    ...
+                try:
+                    del epochgrp.attrs["lightmean"]
+                except KeyError:
+                    ...
+                try:
+                    del epochgrp.attrs["lightamplitudeSU"]
+                except KeyError:
+                    ...
+                try:
+                    del epochgrp.attrs["lightmeanSU"]
+                except KeyError:
+                    ...
+
+                self._rstarr_conversion(protocol, epoch, epochgrp)
+
+        except Exception as e:
+            if self.fout is not None:
+                self.fout.close()
+            raise e
+
+        self.fout.close()
+
+    def _update_stimuli(self, epoch: h5py.Group, epochgrp: h5py.Group):
+        for stimuli in epoch.stimuli:
+            stimds = epochgrp.create_group(stimuli.name)
+            for key, val in stimuli:
+                stimds.attrs[key.lower()] = val
+
+    def _update_response(self, epoch: h5py.Group, epochgrp: h5py.Group):
+        for response in epoch.responses:
+            values = response.data
+            ds = epochgrp.create_dataset(
+                name=response.name, data=values, dtype=float)
+
+            # for key, val in response:
+            #    ds.attrs[key] = val
+
+            ds.attrs["path"] = response.h5name
+
+            if epoch.tracetype == "spiketrace":
+                spikes, violationidx = detect_spikes(values)
+
+                spds = epochgrp.create_dataset(
+                    name="Spikes",
+                    data=spikes,
+                    dtype=float)
+
+                spds.attrs["violation_idx"] = (
+                    violationidx.astype(float))
+
+    def _update_attrs(self, protocol: h5py.Group, cell: h5py.Group, epoch: h5py.Group, epochgrp: h5py.Group):
+        # ADD EPOCH ATTRIBUTES
+        epochgrp.attrs["path"] = epoch.h5name
+        epochgrp.attrs["cellname"] = cell.cellname
+        epochgrp.attrs["celltype"] = cell.celltype
+        epochgrp.attrs["genotype"] = "PleaseAddGenotype"
+        epochgrp.attrs["tracetype"] = epoch.tracetype
+        epochgrp.attrs["protocolname"] = protocol.name
+        epochgrp.attrs["startdate"] = str(epoch.startdate)
+        epochgrp.attrs["enddate"] = str(epoch.enddate)
+        epochgrp.attrs["interpulseinterval"] = protocol["interpulseInterval"]
+        epochgrp.attrs["led"] = protocol["led"]
+
+        self._rstarr_conversion(protocol, epoch, epochgrp)
+
+        epochgrp.attrs["numberofaverages"] = protocol.get(
+            "numberOfAverages", 0.0)
+        epochgrp.attrs["pretime"] = protocol.get("preTime", 0.0)
+        epochgrp.attrs["backgroundval"] = epoch.backgrounds["Amp1"]["value"]
+        epochgrp.attrs["stimtime"] = protocol.get("stimTime", 0.0)
+        epochgrp.attrs["samplerate"] = protocol.get("sampleRate", 0.0)
+        epochgrp.attrs["tailtime"] = protocol.get("tailTime", 0.0)
+        epochgrp.attrs["ndf"] = epoch.ndf
+        epochgrp.attrs["holdingpotential"] = epoch.holdingpotential
+
+    def _rstarr_conversion(self, protocol, epoch, epochgrp):
+        # SOMTIMES LIGHT AMPLITUDE IS CALLED SOMETHING ELSE
+        lightamp = protocol.get("lightAmplitude", None)
+        if lightamp is None:
+            lightamp = protocol.get("firstLightAmplitude", None)
+        if lightamp is None:
+            lightamp = 0.0
+            logging.info(f"{str(epoch.startdate)}: no lightamplitude.")
+
+        lightmean = protocol.get("lightMean", None)
+        if lightmean is None:
+            lightmean = 0.0
+            logging.info(f"{str(epoch.startdate)}: no lightmean.")
+
+        epochgrp.attrs["lightamplitudeSU"] = lightamp
+        epochgrp.attrs["lightmeanSU"] = lightmean
+
+        try:
+            epochgrp.attrs["lightamplitude"], epochgrp.attrs["lightmean"] = (
+                RSTARRMAP[
+                    (protocol.name, protocol["led"], lightamp, lightmean)])
+        except KeyError:
+            logging.info(
+                f"RStarrConversionError: {','.join(map(str, (protocol.name, protocol['led'],lightamp, lightmean)))}")
+            fout.write(
+                f"RStarrConversionError,{','.join(map(str, (epoch.startdate, protocol.name, protocol['led'],lightamp, lightmean)))}\n")
+            epochgrp.attrs["lightamplitude"], epochgrp.attrs["lightmean"] = -10000, -10000
+
+
     def to_db(self):
         ...
-

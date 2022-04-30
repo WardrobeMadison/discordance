@@ -58,7 +58,8 @@ class MplCanvas(FigureCanvas):
         # ADJUST WIDTH AND HEIGHT OF CHART BASE ON NUMBER OF SUBPLOTS
         self.currentheight = self.baseheight*n
         if not self.offline:
-            self.currentwidth = min(self.parent().width() / 100, self.basewidth * m) - 1 # PADDING FOR WIDTH
+            viewwidth = self.parent().width() / 100
+            self.currentwidth =  (viewwidth if (viewwidth < self.basewidth * m) else self.basewidth * m) - 1 # PADDING FOR WIDTH
         else:
             self.currentwidth = self.basewidth * m
 

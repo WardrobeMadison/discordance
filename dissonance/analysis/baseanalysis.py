@@ -17,7 +17,7 @@ class BaseAnalysis(ABC, Tree):
 
     def __init__(self, params: pd.DataFrame, experimentpaths: List[Path], unchecked: set = None):
         self.files = {
-            path: h5py.File(str(path))["experiment"] for path in experimentpaths
+            path: h5py.File(str(path),"a")["experiment"] for path in experimentpaths
         }
         # GROUP EPOCHS INTO FLAT LIST
         self.unchecked = set() if unchecked is None else unchecked
@@ -48,10 +48,13 @@ class BaseAnalysis(ABC, Tree):
         ...
 
     def plant(self, params: pd.DataFrame):
-        self.keys = params[self.labels].values
+        labels = self.labels
+        if "startdate" not in labels:
+            labels = [*self.labels, "startdate"]
+        self.keys = params[labels].values
 
         # CREATE TREE STRUCTURE
-        super().__init__(self.name, self.labels, self.keys)
+        super().__init__(self.name, labels, self.keys)
 
         params["include"] = params.startdate.apply(lambda x: not (x in self.unchecked))
 
@@ -82,9 +85,10 @@ class BaseAnalysis(ABC, Tree):
         if not isinstance(filters, list):
             filters = [filters]
 
+
         dfs = []
-        vals_ = []
         for filter in filters:
+            if "Name" in filter.keys(): del filter["Name"]
             if len(filter) == 1 and list(filter.keys())[0] == "startdate":
                 dfs.append(self.frame.query(f"""startdate == '{filter["startdate"]}'"""))
             else:
@@ -92,35 +96,44 @@ class BaseAnalysis(ABC, Tree):
                 # BUILD FILTER CONDITION
                 # FILTERED ON INDEX SO ONLY NEED VALUES IN LABEL ORDER
                 condition = []
-               # for key in self.labels:
-               #     temp = filter.get(key)
-               #     if temp is None:
-               #         temp = slice(None)
-               #     condition.append(temp)
                 for key,value in filter.items():
-                    condition.append(
-                        self.frame[key] == value
-                    )
+                    if value is None:
+                        condition.append(
+                            self.frame[key].apply(lambda x: x is None)
+                        )
+                    else:
+                        condition.append(
+                            self.frame[key] == value
+                        )
                 dff = self.frame.loc[reduce(operator.and_, condition), :]
                 
                 # FILTER FOR CHECKED VALUES
                 if useincludeflag is False:
                     dfs.append(dff)
                 else:
-                    dfs.append(dff.loc[dff.include == useincludeflag])
-                # TODO convert to epoch
-                vals = []
-                vals_.extend(vals)
+                    dfs.append(dff.loc[dff.include == True])
         # CONVERT TO EPOCHS IN DATAFRAME    
-        df = (pd.concat(dfs)
-            .reset_index(drop=True)
-            .drop_duplicates(keep="first"))
-
-        df["epoch"] = df.apply(lambda x: 
-            self.tracetype(self.files[x.exppath][f"epoch{int(x.number)}"]), 
-            axis=1)
-
-        if len(vals_) == 1:
-            return vals_[0]
+        if len(dfs) == 0:
+            raise Exception("No epochs returns")
         else:
-            return self.tracestype(vals_)
+            df = (pd.concat(dfs))
+            df = df.reset_index(drop=True)
+            df = df.drop_duplicates(keep="first")
+
+        if df.shape[0] != 0:
+            def func(row):
+                try:
+                    return self.tracetype(self.files[row.exppath][f"epoch{int(row.number)}"])
+                except Exception as e:
+                    print(row.exppath)
+                    raise e
+
+            df["epoch"] = df.apply(lambda x: 
+                func(x),
+                axis=1)
+        else:
+            raise Exception("No epochs returns")
+
+        return df
+
+

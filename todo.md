@@ -1,17 +1,23 @@
 # TODO 
 
+
+LedPulse
+Green LED
+0.0, 0.0
+datetime.datetime(2021, 7, 28, 12, 13, 10, 886507)
+
 ## Review with Jenna
 
 Spike Analysis
-- [ ] Cell summary: light amplitude and light mean
-- [ ] Get a different color map
-- [ ] Fix CRF axes - x values off and y values should be rounded, put light mean in title
+- [X] Cell summary: light amplitude and light mean
+- [X] Get a different color map
+- [X] Fix CRF axes - x values off and y values should be rounded, put light mean in title
 
 Whole Cell Analysis
-- [ ] Whole Cell Analysis: Split on background amp1 (inhibition > 0, excitation < 0. holdingpotential)
+- [-] Whole Cell Analysis: Split on background amp1 (inhibition > 0, excitation < 0. holdingpotential)
 - [ ] Epoch: print background amp value just for inhibition. Make inhibition analysis split on background amp 1 value
-- [ ] Genotype comparison: Don't label by cell
-- [ ] Genotype summary: Change colors for cell traces. Put labels on hill and weber fits. Weber fit is UVLED only
+- [X] Genotype comparison: Don't label by cell
+- [X] Genotype summary: Change colors for cell traces. Put labels on hill and weber fits. Weber fit is UVLED only
 
 
 ## GUI

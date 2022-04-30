@@ -34,16 +34,6 @@ class IEpoch(ABC):
         self.led = epochgrp.attrs.get("led")
         self.lightamplitude = epochgrp.attrs.get("lightamplitude")
         self.lightmean = epochgrp.attrs.get("lightmean")
-        try:
-            self.lightamplitude, self.lightmean = RSTARRMAP[(
-                self.protocolname, self.led, self.lightamplitude, self.lightmean)]
-        except:
-            print(
-                f"RstarrConversionError,{self.startdatetime},{self.protocolname},{self.led},{self.lightamplitude},{self.lightmean}")
-        self.pctcontrast = (
-            self.lightamplitude / self.lightmean
-            if self.lightmean != 0.0
-            else 0.0)
         self.numberofaverages = epochgrp.attrs.get("numberofaverages")
         self.samplerate = epochgrp.attrs.get("samplerate")
         self.pretime = epochgrp.attrs.get("pretime") * 10
@@ -51,9 +41,24 @@ class IEpoch(ABC):
         self.tailtime = epochgrp.attrs.get("tailtime") * 10
         self.startdate = epochgrp.attrs.get("startdate")
         self.enddate = epochgrp.attrs.get("enddate")
-        self.number = epochgrp.attrs.get("number")
+        self.number = int(epochgrp.name.split("/")[-1][5:])
         self.stimuli = {key: val for key,
                         val in epochgrp[self.led].attrs.items()}
+        # DERIVE RSTARR VALUES
+        try:
+            self.lightamplitude, self.lightmean = RSTARRMAP[(
+                self.protocolname, self.led, self.lightamplitude, self.lightmean)]
+        except:
+            #print(
+            #    f"RstarrConversionError,{self.startdate},{self.protocolname},{self.led},{self.lightamplitude},{self.lightmean}")
+            ...
+        self.pctcontrast = (
+            self.lightamplitude / self.lightmean
+            if self.lightmean != 0.0
+            else 0.0)
+
+    def __hash__(self):
+        return hash(self.startdate)
 
     def __str__(self):
         return f"Epoch(cell_name={self.cellname}, start_date={self.startdate})"
@@ -72,7 +77,8 @@ class IEpoch(ABC):
             try:
                 setattr(self, paramname, value)
             except:
-                print(f"Couldn't set {paramname, value} on object {self}.")
+                #print(f"Couldn't set {paramname, value} on object {self}.")
+                ...
             return
         else:
             print(f"Can't change {paramname} to {value}")
@@ -97,7 +103,7 @@ class EpochBlock(ABC):
 
     def __init__(self, epochs: List[IEpoch]):
         self._epochs: List[IEpoch] = epochs
-        self._epochs.sort(key=lambda x: x.number)
+        self._epchs = sorted(self._epochs, key=lambda x: x.number)
 
         if len(epochs) > 0:
             self.key = epochs[0].startdate
@@ -122,6 +128,10 @@ class EpochBlock(ABC):
     def __iter__(self) -> Iterable[IEpoch]:
         yield from self._epochs
 
+    def __hash__(self):
+        startdates = set(self.get_unique("startdate"))
+        return hash(startdates)
+
     @property
     def epochs(self) -> List[IEpoch]:
         return self._epochs
@@ -129,6 +139,7 @@ class EpochBlock(ABC):
     def append(self, epoch) -> None:
         self._trace_len = None
         self._epochs.append(epoch)
+
 
     @property
     def trace_len(self):

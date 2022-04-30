@@ -1,20 +1,20 @@
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
-import pandas as pd
 
+import pandas as pd
 from dissonance.epochtypes.spikeepoch import SpikeEpoch
 
 from ..epochtypes import (EpochBlock, SpikeEpochs, WholeEpoch, WholeEpochs,
                           filter, groupby)
-from ..funks import hill
 from ..trees import Node
 from .baseanalysis import BaseAnalysis
 from .charting import (MplCanvas, PlotCRF, PlotHill, PlotPsth, PlotRaster,
-                       PlotTrace, PlotWeber, PlotWholeTrace, PlotSwarm)
+                       PlotSwarm, PlotTrace, PlotWeber, PlotWholeTrace)
+
 
 class LedSpikeAnalysis(BaseAnalysis):
 
-    def __init__(self, params:pd.DataFrame, experimentpaths:List[Path], unchecked: set = None):
+    def __init__(self, params: pd.DataFrame, experimentpaths: List[Path], unchecked: set = None):
         # CONSTRUCT BASE, FILTER ON TRACE TYPE, LED AND PROTOCOL NAME
         super().__init__(
             params,
@@ -33,31 +33,33 @@ class LedSpikeAnalysis(BaseAnalysis):
         scope = list(node.path.keys())
         level = len(scope)
 
-        epochs = self.query(node)
+        eframe = self.query(filters=[node.path])
 
         # STARTDATE
         if node.isleaf:
-            self.plot_single_epoch(epochs, canvas)
+            self.plot_single_epoch(eframe, canvas)
         # light amplitude
         elif level == 8:
-            self.plot_summary_epochs(epochs, canvas)
+            self.plot_summary_epochs(eframe, canvas)
         # light mean
         elif level == 7:
-            #TODO light mean anlaysis - analyze faceted light amplitudes
+            # TODO light mean anlaysis - analyze faceted light amplitudes
             ...
         # CELLNAME
         elif level == 6:
-            self.plot_summary_cell(epochs, canvas)
+            self.plot_summary_cell(eframe, canvas)
         # GENOTYPE
         elif level == 5:
-            self.plot_genotype_summary(epochs, canvas)
+            self.plot_genotype_summary(eframe, canvas)
         # CELLTYPE
         elif level == 4:
-            self.plot_genotype_comparison(epochs, canvas)
+            self.plot_genotype_comparison(eframe, canvas)
 
         canvas.draw()
 
-    def plot_single_epoch(self, epoch, canvas):
+    def plot_single_epoch(self, eframe: pd.DataFrame, canvas):
+
+        epoch = eframe.epoch.iloc[0]
 
         axes = canvas.grid_axis(1, 2)
         plttr = PlotTrace(axes[0], epoch)
@@ -76,23 +78,25 @@ class LedSpikeAnalysis(BaseAnalysis):
         if led.lower() == "uv led" and protocolname.lower() == "ledpulse":
             # ADD AN EXTRA HEADER ROW FOR GRID SHAPE
             #n, m = grps.shape[0]+1, 2
-            n,m = 1, 2
+            n, m = 1, 2
             axes = canvas.grid_axis(n, m)
             axii = 2
 
-            plt_amp = PlotCRF(axes[0], metric="peakamplitude", epochs=grps)
-            plt_ttp = PlotCRF(axes[1], metric="timetopeak", epochs=grps)
+            # TODO iterate by lightmean
+            plt_amp = PlotCRF(axes[0], metric="peakamplitude", eframe=grps)
+            plt_ttp = PlotCRF(axes[1], metric="timetopeak", eframe=grps)
 
             self.currentplots.extend([plt_amp, plt_ttp])
 
         elif led.lower() == "green led" and protocolname.lower() == "ledpulsefamily":
             # ADD AN EXTRA HEADER ROW FOR GRID SHAPE
             #n, m = grps.shape[0]+1, 2
-            n,m = 1, 2
+            # TODO iterate by lightmean
+            n, m = 1, 2
             axes = canvas.grid_axis(n, m)
             axii = 2
 
-            plt_amp = PlotHill(axes[0], epochs=grps)
+            plt_amp = PlotHill(axes[0], eframe=grps)
             #plt_ttp = PlotHill(axes[1], metric="timetopeak", epochs=grps)
             self.currentplots.extend([plt_amp])
 
@@ -111,14 +115,14 @@ class LedSpikeAnalysis(BaseAnalysis):
         # PEAK AMPLITUDE SWARM PLOTS IN FIRST COLUMN
         ii = 0
         for name, frame in df.groupby(["lightamplitude", "lightmean"]):
-            plt = PlotSwarm(axes[ii], metric="peakamplitude", epochs=frame)
+            plt = PlotSwarm(axes[ii], metric="peakamplitude", eframe=frame)
             ii += 3
             self.currentplots.append(plt)
 
         # TTP SWARM PLOTS IN Seoncd COLUMN
         ii = 1
         for name, frame in df.groupby(["lightamplitude", "lightmean"]):
-            plt = PlotSwarm(axes[ii], metric="timetopeak", epochs=frame)
+            plt = PlotSwarm(axes[ii], metric="timetopeak", eframe=frame)
             ii += 3
             self.currentplots.append(plt)
 
@@ -134,25 +138,27 @@ class LedSpikeAnalysis(BaseAnalysis):
             self.currentplots.append(plt)
             ii += 3
 
-    def plot_summary_cell(self, epochs: SpikeEpochs, canvas: MplCanvas = None):
+    def plot_summary_cell(self, eframe: pd.DataFrame, canvas: MplCanvas = None):
         """Plot faceted mean psth
         """
         # DIFFERENT ROW FEACH EACH CELL, RSTARR
-        grps = groupby(epochs, self.labels)
+        grps = groupby(eframe, self.labels)
         n, m = grps.shape[0], 2
         axes = canvas.grid_axis(n, m)
         axii = 0
 
         # ITERATE FOR EVERY LIGHTAMPLITUDE, LIGHTMEAN COMBO
         for ii, row in grps.iterrows():
-            traces = row["trace"]
+            epochs = row["epoch"]
 
             # FIRST COLUMN
-            pltpsth = PlotPsth(axes[axii], traces, epochs.get_unique("cellname")[0])
+            pltpsth = PlotPsth(axes[axii], epochs, label=str(row["cellname"]))
+            pltpsth.ax.set_title(f"({row.lightamplitude}, {row.lightmean})")
             axii += 1
 
             # SECOND COLUMN
-            pltraster = PlotRaster(axes[axii], traces)
+            pltraster = PlotRaster(axes[axii], epochs)
+            pltraster.ax.set_title(f"({row.lightamplitude}, {row.lightmean})")
             axii += 1
 
             self.currentplots.extend([pltpsth, pltraster])
@@ -167,10 +173,11 @@ class LedSpikeAnalysis(BaseAnalysis):
         axii = 0
 
         for ii, row in grps.iterrows():
-            cepochs = row["trace"]
+            cepochs = row["epoch"]
 
             # FIRST COLUMN
-            pltpsth = PlotPsth(axes[axii], cepochs, epochs.get_unique("cellname")[0])
+            pltpsth = PlotPsth(axes[axii], cepochs,
+                               epochs.get_unique("cellname")[0])
             axii += 1
 
             # SECOND COLUMN
@@ -196,5 +203,3 @@ class LedSpikeAnalysis(BaseAnalysis):
         # TODO get arguments needed for gui from plotting functions like fit params
         level = len(node.path.values()) - 1
         func = self.plotmap[level]
-
-
