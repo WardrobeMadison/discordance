@@ -19,8 +19,8 @@ def plt_spikes(epoch:SpikeEpoch, outputfile:Path=None):
 	fig = plt.subplot()
 	plt.plot(epoch.trace)
 	plt.grid(True)
-	y = epoch.trace[epoch.spikes.sp]
-	plt.scatter(epoch.spikes.sp, y, marker="x", c="#FFA500")
+	y = epoch.trace[epoch.spikes]
+	plt.scatter(epoch.spikes, y, marker="x", c="#FFA500")
 
 	plt.title(epoch.startdate)
 	plt.ylabel("pA")

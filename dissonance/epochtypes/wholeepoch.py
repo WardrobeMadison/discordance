@@ -3,10 +3,10 @@ from typing import List, Tuple
 import numpy as np
 from ..funks.psth import calculate_psth
 from ..funks import hill
-from h5py._hl.dataset import Dataset
+import h5py
 from scipy.stats import sem
 
-from .baseepoch import DissonanceParams, EpochBlock, IEpoch
+from .baseepoch import EpochBlock, IEpoch
 
 
 def calc_width_at_half_max(values):
@@ -14,24 +14,33 @@ def calc_width_at_half_max(values):
     ttp = np.argmin(values)
     halfmax = np.min(values) / 2.0
 
-    start = np.argmax(values < halfmax)
-    end = np.argmax(values[ttp:] > halfmax) + ttp
+    if halfmax < 0:
+        start = ttp - np.argmax(values[ttp::-1] > halfmax)
+        end = np.argmax(values[ttp:] > halfmax) + ttp
+    else:
+        start = ttp - np.argmax(values[:ttp:-1] < halfmax)
+        end = np.argmax(values[ttp:] < halfmax) + ttp
 
-    return end-start, (start,end)
+
+    return end-start, (int(start),int(end))
 
 
 class WholeEpoch(IEpoch):
 
-    def __init__(self, epochpath: str,
-                 parameters: DissonanceParams = None,
-                 response: Dataset = None,
-                 number="0"):
+    def __init__(self, epochgrp:h5py.Group):
 
-        super().__init__(epochpath, parameters, response, number)
+        super().__init__(epochgrp)
+        self.holdingpotential = epochgrp.attrs.get("holdingpotential")
+        self.backgroundval = epochgrp.attrs.get("backgroundval")
         self._widthathalfmax = None
         self._timetopeak = None
         self._peakamplitude = None
         self._widthrange = None
+
+    @property
+    def trace(self):
+        vals = self._response_ds[:] 
+        return vals - np.mean(vals[:int(self.pretime)])
 
     @property
     def timetopeak(self) -> float:
@@ -49,7 +58,7 @@ class WholeEpoch(IEpoch):
     @property
     def peakamplitude(self) -> float:
         if self._peakamplitude is None:
-            self._peakamplitude  = np.max(self.trace)
+            self._peakamplitude  = np.min(self.trace)
         return self._peakamplitude
 
     @property
@@ -66,12 +75,15 @@ class WholeEpochs(EpochBlock):
 
     type = "wholetrace"
 
-    def __init__(self, epochs: List[WholeEpoch], keys):
-        super().__init__(epochs, keys)
+    def __init__(self, epochs: List[WholeEpoch]):
+        super().__init__(epochs)
+
+        self._widthathalfmax = None
+        self._widthrange = None
 
     @property
     def trace(self) -> float:
-        return np.mean(self.traces, axis=1)
+        return np.mean(self.traces, axis=0)
 
     @property
     def widthrange(self) -> float:

@@ -1,19 +1,39 @@
 import sys
+from functools import lru_cache
 from pathlib import Path
 
-from matplotlib.backends.backend_qt5agg import (
-    NavigationToolbar2QT as NavigationToolbar)
+from matplotlib.backends.backend_qt5agg import \
+    NavigationToolbar2QT as NavigationToolbar
 from PyQt5.Qt import Qt
-from PyQt5.QtCore import QModelIndex, pyqtSlot
-from PyQt5.QtWidgets import (QAbstractItemView, QApplication, QFileDialog,
-                             QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
-                             QPushButton, QScrollArea, QVBoxLayout, QWidget)
-from functools import lru_cache
+from PyQt5.QtCore import (QModelIndex, QObject, Qt, QThread, pyqtSignal,
+                          pyqtSlot)
+from PyQt5.QtWidgets import (QAbstractItemView, QApplication,
+                             QDialog, QFileDialog, QHBoxLayout, QLabel,
+                             QListWidget, QListWidgetItem, QPushButton,
+                             QScrollArea, QVBoxLayout, QWidget)
 
-from . import components as cp
+from ..analysis.charting import MplCanvas
+from .epochtree import EpochTree
+from .log import LoggerDialog
+from .paramstable import ParamsTable
 
 
-class App(QWidget):
+class Worker(QObject):
+    finished = pyqtSignal()
+    progress = pyqtSignal(int)
+
+    def __init__(self, process, *args, **kwargs):
+        super().__init__()
+        self.process = process
+        self.args = args
+        self.kwargs = kwargs
+
+    def run(self):
+        self.process(*self.args, **self.kwargs)
+        self.finished.emit()
+
+
+class DissonanceUI(QWidget):
 
     def __init__(self, tree, unchecked: set = None, uncheckedpath: Path = None, export_dir: Path = None):
         super().__init__()
@@ -34,10 +54,8 @@ class App(QWidget):
         self.setWindowTitle("Dissonance")
         self.setGeometry(self.left, self.top, self.width, self.height)
 
-        initepoch = self.tree.frame.epoch.iloc[0]
-
         # EPOCH TRACE INFORMATION TABLE
-        self.tableWidget = cp.ParamsTable(initepoch)
+        self.tableWidget = ParamsTable()
         header = self.tableWidget.horizontalHeader()
         header.setStretchLastSection(True)
 
@@ -49,7 +67,7 @@ class App(QWidget):
 
         # TRACE TREE VIEWER
         treesplitlabel = QLabel(", ".join(self.tree.labels), self)
-        self.treeWidget = cp.et.EpochTree(self.tree, unchecked=self.unchecked)
+        self.treeWidget = EpochTree(self.tree, unchecked=self.unchecked)
         self.treeWidget.selectionModel().selectionChanged.connect(self.on_tree_select)
 
         self.filterfilelabel = QLabel(str(self.uncheckedpath))
@@ -70,15 +88,20 @@ class App(QWidget):
         self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.scroll_area.horizontalScrollBar().setEnabled(False)
 
-        self.canvas = cp.MplCanvas(self.scroll_area)
+        self.canvas = MplCanvas(self.scroll_area)
         self.toolbar = NavigationToolbar(self.canvas, self)
 
-        exportdata = QPushButton("Export Data", self)
-        exportdata.clicked.connect(self.on_export_bttn_click)
+        self.exportdata_bttn = QPushButton("Export Data", self)
+        self.exportdata_bttn.clicked.connect(self.on_export_bttn_click)
+
+        # STAGE EXPORT DIALOG
+        self.dialog = ExportDataWindow(
+            parent=self, charts=None, outputdir=self.export_dir)
+        self.dialog.closeEvent
 
         hbox = QHBoxLayout()
         hbox.addWidget(self.toolbar)
-        hbox.addWidget(exportdata)
+        hbox.addWidget(self.exportdata_bttn)
 
         # ADD WIDGETS
         self.scroll_area.setWidget(self.canvas)
@@ -96,6 +119,13 @@ class App(QWidget):
         self.showMaximized()
         self.show()
 
+        # SHOW LOGGING WINDOW
+        #self.logger = LoggerDialog(self)
+        #self.logger.show()
+        #self.logger.exec_()
+        
+
+
     def on_table_edit(self, item):
         # GET PARAMNAME AND NEW VALUE
         idx = self.tableWidget.selectionModel().currentIndex()
@@ -105,7 +135,7 @@ class App(QWidget):
 
         if paramname.lower() in ("celltype", "genotype"):
             nodes = self.get_nodes_from_selection()
-            epochs = self.tree.query(nodes)
+            epochs = self.tree.query(filters=[node.path for node in nodes])
 
             # UPDATE EPOCHS
             if len(nodes) > 1:
@@ -139,14 +169,41 @@ class App(QWidget):
         return nodes
 
     def on_tree_select(self, item: QModelIndex):
-        # SELECT V MULTI SELECT
-        nodes = self.get_nodes_from_selection()
 
-        if len(nodes) == 1:
-            self.tree.plot(nodes[0], self.canvas)
+        def update_gui():
+            # SELECT V MULTI SELECT
+            nodes = self.get_nodes_from_selection()
 
-        epoch = self.tree.query(nodes)
-        self.tableWidget.update(epoch)
+            # PLOT NODES
+            if len(nodes) == 1:
+                self.tree.plot(nodes[0], self.canvas)
+
+            # UPDATE PARAMETER TABLE
+            eframe = self.tree.query(filters=[node.path for node in nodes])
+            epochs = eframe.epoch.values
+            self.tableWidget.update(epochs)
+
+            # UPDATE CHARTS IN DIALOG
+            self.dialog.fill_list(self.tree.currentplots)
+
+        self.thread = QThread()
+        self.worker = Worker(update_gui)
+        self.worker.moveToThread(self.thread)
+
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+
+        self.thread.start()
+
+        # Final resets
+        self.treeWidget.setSelectionMode(
+            QAbstractItemView.SelectionMode.NoSelection)
+        self.thread.finished.connect(
+            lambda: self.treeWidget.setSelectionMode(
+                QAbstractItemView.SelectionMode.ExtendedSelection)
+        )
 
     @pyqtSlot()
     def on_save_bttn_click(self):
@@ -164,18 +221,23 @@ class App(QWidget):
 
     @pyqtSlot()
     def on_export_bttn_click(self):
+        self.exportdata_bttn.setEnabled(False)
         charts = self.tree.currentplots
-        dialog = ExportDataWindow(charts=charts, outputdir=self.export_dir)
-        dialog.show()
+        self.dialog.fill_list(charts)
+        self.dialog.show()
+        self.dialog.exec_()
 
 
-class ExportDataWindow(QWidget):
+class ExportDataWindow(QDialog):
 
-    def __init__(self, charts=None, outputdir: Path = None):
-        super(ExportDataWindow, self).__init__()
+    def __init__(self, parent=None, charts=None, outputdir: Path = None):
+        super(ExportDataWindow, self).__init__(parent)
 
-        self.charts = charts
+        self.charts = list() if charts is None else charts
         self.outputdir = outputdir
+
+        self.setWindowTitle("Options")
+        self.resize(600, 600)
 
         # EXPORT BUTTON
         exportbttn = QPushButton("Export Selected Data")
@@ -183,17 +245,26 @@ class ExportDataWindow(QWidget):
 
         # LIST OF CHART DATA TO EXPORT
         self.listwidget = QListWidget(self)
-        for ii, chart in enumerate(charts):
-            item = QListWidgetItem(f"{type(chart)}_{ii}")
-            self.listwidget.addItem(item)
-
         self.listwidget.setSelectionMode(QAbstractItemView.MultiSelection)
+        self.fill_list(charts)
 
         # WIDGET LAYOUT
         layout = QVBoxLayout()
         layout.addWidget(self.listwidget)
         layout.addWidget(exportbttn)
         self.setLayout(layout)
+
+    def fill_list(self, charts):
+        self.listwidget.clear()
+        self.charts = list() if charts is None else charts
+        if len(self.charts) > 0:
+            for ii, chart in enumerate(self.charts):
+                item = QListWidgetItem(f"{type(chart)}_{ii}")
+                self.listwidget.addItem(item)
+
+    def closeEvent(self, event):
+        self.parent().exportdata_bttn.setEnabled(True)
+        event.accept()
 
     @pyqtSlot()
     def on_export_bttn_click(self):
@@ -207,5 +278,5 @@ class ExportDataWindow(QWidget):
 
 def run(tree, unchecked, uncheckedpath: Path = None):
     app = QApplication(sys.argv)
-    ex = App(tree, unchecked, uncheckedpath)
+    ex = DissonanceUI(tree, unchecked, uncheckedpath)
     sys.exit(app.exec_())

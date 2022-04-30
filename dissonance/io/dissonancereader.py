@@ -1,91 +1,134 @@
-import multiprocessing
-from pathlib import Path
-from typing import List
 import multiprocessing as mp
-from pathos.multiprocessing import ProcessingPool
 import re
+from functools import partial
+from pathlib import Path
+from typing import Dict, List
 
 import h5py
-
-from dissonance.epochtypes.baseepoch import DissonanceParams
-
-from .. import epochtypes as et
-
+import pandas as pd
 
 RE_DATE = re.compile(r"^.*(\d{4}-\d{2}-\d{2})(\w\d?).*$")
 
 
 class DissonanceReader:
 
-    def __init__(self, filepaths: List[Path]):
-        self.experimentpaths = filepaths
+    def __init__(self, paths: List[Path]):
+        self.experimentpaths = []
+        for path in paths:
+            if path.is_dir():
+                self.experimentpaths.extend(path.glob("*.h5"))
+            else:
+                self.experimentpaths.append(path)
 
-    def h5_to_epochs(self, filepath, **kwargs):
+    @staticmethod
+    def file_to_paramstable(filepath: Path, paramnames: List[str], filters: Dict = None):
         try:
             matches = RE_DATE.match(str(filepath))
             prefix = matches[1].replace("-", "") + matches[2]
 
+            data = []
             h5file = h5py.File(str(filepath), "a")
-            traces = []
             experiment = h5file["experiment"]
-            for ii, epochname in enumerate(experiment):
+            for epochname in experiment:
                 epoch = experiment[epochname]
 
-                condition = all([epoch.attrs[key] == val for key,val in kwargs.items()])
+                condition = all(
+                    [epoch.attrs.get(key) == val for key, val in filters.items()])
                 if condition:
-                    number=f"{ii+1:04d}"
+                    number = f"{int(epochname[5:]):04d}"
 
-                    # GET PARAMETERS
-                    #params = et.DissonanceParams()
-                    #disargs = {
-                    #    key: val
-                    #    for key, val in epoch.attrs.items()
-                    #    if key in DissonanceParams.__annotations__.keys()}
-                    params = et.DissonanceParams(**epoch.attrs)
+                    params = {key: epoch.attrs.get(key) for key in paramnames}
+                    params["number"] = number
+                    params["tracetype"] = epoch.attrs["tracetype"]
+                    data.append(params)
 
-                    # SEPARATE TRACES
-                    resp = epoch["Amp1"]
-                    if params.tracetype == "spiketrace":
-                        spikes = et.EpochSpikeInfo(
-                            resp.attrs["sp"],
-                            resp.attrs["spike_amps"],
-                            resp.attrs["min_spike_peak_idx"],
-                            resp.attrs["max_noise_peak_time"],
-                            resp.attrs["violation_idx"]
-                        )
-
-                        trace = et.SpikeEpoch(
-                            epoch.name,
-                            params,
-                            spikes,
-                            resp,
-                            number=number)
-                    else:
-                        trace = et.WholeEpoch(
-                            epoch.name,
-                            params,
-                            resp,
-                            number=number)
-
-                    traces.append(trace)
-            return traces
+            if len(data) > 0:
+                df = pd.DataFrame.from_dict(data)
+                df["startdate"] = pd.to_datetime(df["startdate"])
+                df["exppath"] = filepath
+                print(f"{filepath}: {df.shape[0]}")
+                return df
+            else:
+                return None
         except Exception as e:
             print(filepath)
             print(e)
-            return []
-
-    @staticmethod
-    def init_mp(l):
-        global lock
-        lock = l
+            return None
 
     def to_epochs(self, **kwargs) -> List:
         traces = []
-        #l = multiprocessing.Lock()
-        #with mp.Pool(processes=nprocesses, initializer=self.init_mp, initargs=(1,)) as p:
-        #    for exptraces in p.imap(self.h5_to_epochs, self.experimentpaths):
-        #        traces.extend(exptraces)
         for ii, filepath in enumerate(self.experimentpaths):
-            print(f"Loading {ii} / {len(self.experimentpaths)}: {filepath}")
+            print(f"Loading {ii+1} / {len(self.experimentpaths)}: {filepath}")
             traces.extend(self.h5_to_epochs(filepath, **kwargs))
         return traces
+
+    def to_params(self, paramnames: List[str], filters: Dict, nprocesses: int = 5) -> pd.DataFrame:
+        dfs = []
+        func = partial(self.file_to_paramstable,
+                       paramnames=paramnames, filters=filters)
+
+        if nprocesses == 1:
+            for experimentpath in self.experimentpaths:
+                df = func(experimentpath)
+                dfs.append(df)
+        else:
+            with mp.Pool(processes=nprocesses) as p:
+                for df in p.map(func, self.experimentpaths):
+                    dfs.append(df)
+
+        return pd.concat(dfs)
+
+
+class DissonanceUpdater:
+    RE_DATE = re.compile(r"^.*(\d{4}-\d{2}-\d{2})(\w\d?).*$")
+
+    def __init__(self, disfilepath: Path):
+        self.filepath = disfilepath
+
+    def update_cell_labels(self):
+        f = h5py.File(str(self.filepath), "r+")
+        matches = self.RE_DATE.match(str(self.filepath))
+
+        prefix = matches[1].replace("-", "") + matches[2]
+        for epochgrp in f["experiment"]:
+            epoch = f[f"experiment/{epochgrp}"]
+            epoch.attrs["cellname"] = f'{prefix}_{epoch.attrs["cellname"].split("_")[-1]}'
+
+    def undo_update_cell_labels(self):
+        f = h5py.File(self.filepath, "r+")
+
+        for name in f["experiment"]:
+            epoch = f[f"experiment/{name}"]
+            cellname = epoch.attrs["cellname"]
+            epoch.attrs["cellname"] = cellname.split("_")[0]
+
+        f.close()
+
+    def add_attribute(self, paramname: str, paramval: object, filters: Dict) -> None:
+        """Adding attribute to epochs in h5 file
+
+        Args:
+                filename (str): Path to h5py file
+                attr (pd.DataFrame): Indexed on params
+        """
+        f = h5py.File(self.filepath, "r+")
+
+        for name in f["experiment"]:
+            epoch = f[f"experiment/{name}"]
+            if all([
+                    epoch.attrs[key] == val
+                    for key, val in filters.items()]):
+                epoch.attrs[paramname] = paramval
+
+        f.close()
+
+    def add_genotype(self, genotype):
+        f = h5py.File(self.filepath, "r+")
+
+        for name in f["experiment"]:
+
+            epoch = f[f"experiment/{name}"]
+            del epoch.attrs["genotype"]
+            epoch.attrs["genotype"] = genotype
+
+        f.close()

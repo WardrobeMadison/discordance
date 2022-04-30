@@ -16,9 +16,9 @@ class WeberEquation:
 
 	def fit(self, X, Y, p0 = (-1,), **kwargs):
 		# NORMALIZE FIT DATA
-		X_, Y_ = self.sort_along_x(X, Y)
+		X_, Y_ = self.normalize(X, Y)
 
-		fit = curve_fit(self.weberequation, X_, Y_, p0 = -p0, **kwargs)
+		fit = curve_fit(self.equation, X_, Y_, p0 = p0, **kwargs)
 
 		#You can get the residual sum of squares (ss_tot) with
 		#You can get the total sum of squares (ss_tot) with
@@ -30,7 +30,7 @@ class WeberEquation:
 
 	@staticmethod
 	def normalize(X,Y):
-		indexes = range(len(X))
+		indexes = list(range(len(X)))
 		indexes.sort(key=X.__getitem__)
 
 		X_ = X[indexes]

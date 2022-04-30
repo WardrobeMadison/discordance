@@ -10,30 +10,23 @@ from . import baseepoch as bt
 from . import spikeepoch as st
 from . import wholeepoch as wt
 
-def groupby(traces: bt.EpochBlock, grpkeys) -> pd.DataFrame:
+def groupby(frame:pd.DataFrame, grpkeys) -> pd.DataFrame:
 	"""
 	Convert Traces to table with Epochs grouped by grpkeys
 	"""
 	grpd = defaultdict(list)
-	epochtype =  type(traces[0]) # ASSUME SINGLE TYPE PER LIST
+	epochtype =  type(frame.epoch.iloc[0])# ASSUME SINGLE TYPE PER LIST
 
 	if epochtype == wt.WholeEpoch: types = wt.WholeEpochs
 	elif epochtype == st.SpikeEpoch: types = st.SpikeEpochs
 	else: types = None
 
-	for trace in traces.epochs:
-		key = "___".join(map(str,(getattr(trace,arg) for arg in grpkeys)))
-		grpd[key].append(trace)
-
-	# CONVERT TRACE LIST TO TRACES
 	data = []
-	for key, grp in grpd.items():
-		if len(grp) > 0:
-			data.append([*key.split("___"), types(grp)])
-	
-	df = pd.DataFrame(columns = [*grpkeys, "trace"], data=data)
+	for key, grp in frame.groupby(grpkeys):
+		data.append([*key, types(grp["epoch"].values)])
 
-	return df
+	
+	return pd.DataFrame(columns = [*grpkeys, "epoch"], data=data)
 
 def filter(epochs, **kwargs):
 	out = []
