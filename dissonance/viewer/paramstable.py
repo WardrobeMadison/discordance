@@ -33,7 +33,6 @@ class ParamsTable(QTableWidget):
         if epoch is not None:
             self.update(epoch)
 
-    @pyqtSlot(list)
     def update_rows(self, epochs: List[Union[et.IEpoch, et.EpochBlock]]):
         """Update params table with epoch 
 
@@ -63,7 +62,6 @@ class ParamsTable(QTableWidget):
 
         self.df = pd.DataFrame(columns="Param Text Val".split(), data=data)
 
-    @pyqtSlot()
     def on_table_edit(self):
         idx = self.selectionModel().currentIndex()
         row, col = idx.row(), idx.column()

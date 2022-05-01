@@ -25,6 +25,9 @@ class LedSpikeAnalysis(BaseAnalysis):
         self.plotmap = dict()
         self.currentplots = []
 
+    def __str__(self):
+        return type(self).__name__
+
     def plot(self, node: Node, canvas: MplCanvas = None, useincludeflag=True):
         """Map node level to analysis run & plots created.
         """
@@ -55,6 +58,8 @@ class LedSpikeAnalysis(BaseAnalysis):
         # CELLTYPE
         elif level == 4:
             self.plot_genotype_comparison(eframe, self.canvas)
+
+        self.canvas.draw()
 
     def plot_single_epoch(self, eframe: pd.DataFrame, canvas):
 

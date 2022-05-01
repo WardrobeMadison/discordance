@@ -3,7 +3,7 @@ from .node import Node
 
 class Tree(Node):
 	
-	def __init__(self, name: str, labels: List[str], keys: List[Tuple]):
+	def __init__(self, name:str, labels: List[str], keys: List[Tuple]):
 		"""Tree structure. Used in selecting data for analysis.
 
 		Parameters

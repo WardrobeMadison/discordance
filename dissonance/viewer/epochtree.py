@@ -4,7 +4,10 @@ from PyQt5.QtCore import pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QColor, QFont
 from PyQt5.QtWidgets import QTreeView
 
-from ..trees.base import Node, Tree
+from dissonance.analysis.analysistree import AnalysisTree
+
+from ..analysis.trees.base import Node, Tree
+
 
 
 class RootItem(QStandardItem):
@@ -67,7 +70,7 @@ class EpochTree(QTreeView):
 
     newselection = pyqtSignal(list)
 
-    def __init__(self, at: Tree, unchecked: set = None):
+    def __init__(self, at: AnalysisTree, unchecked: set = None):
         self.unchecked = set() if unchecked is None else unchecked
         super().__init__()
         self.setHeaderHidden(True)
@@ -75,17 +78,17 @@ class EpochTree(QTreeView):
         self.plant(at)
 
         # connections
-        self.selectionModel().selectionChanged.connect(self.on_tree_select)
+        #self.selectionModel().selectionChanged.connect(self.on_tree_select)
         self.model().itemChanged.connect(self.toggle_check)
 
-    def plant(self, at):
+    def plant(self, at: AnalysisTree):
 
         self.treeModel = QStandardItemModel()
         self.setModel(self.treeModel)
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.fill_model(at)
 
-    def fill_model(self,at):
+    def fill_model(self, at: AnalysisTree):
         self.at = at
         # REMOVE DATA CURRENTLY IN TREE MODEL
         self.treeModel.removeRows( 0, self.treeModel.rowCount())
@@ -153,7 +156,7 @@ class EpochTree(QTreeView):
                 idx).node for idx in idxs]
         return nodes
 
-    @pyqtSlot()
     def on_tree_select(self):
         # SELECT V MULTI SELECT
-        self.newselection.emit(self.selected_nodes)
+        #self.newselection.emit(self.selected_nodes)
+        return self.selected_nodes

@@ -21,7 +21,17 @@ class BaseAnalysis(ABC):
         }
         # GROUP EPOCHS INTO FLAT LIST
         self.unchecked = set() if unchecked is None else unchecked
-        self.plant(params)
+        self.update_frame(params)
+
+    def update_frame(self, params:pd.DataFrame):
+        labels = self.labels
+        if "startdate" not in labels:
+            labels = [*self.labels, "startdate"]
+        self.keys = params[labels].values
+
+        params["include"] = params.startdate.apply(lambda x: not (x in self.unchecked))
+
+        self.frame = params
 
     @property
     @abstractproperty
@@ -46,20 +56,6 @@ class BaseAnalysis(ABC):
     @abstractproperty
     def plot(self, node: Node, canvas: MplCanvas = None):
         ...
-
-    def plant(self, params: pd.DataFrame):
-        labels = self.labels
-        if "startdate" not in labels:
-            labels = [*self.labels, "startdate"]
-        self.keys = params[labels].values
-
-        # CREATE TREE STRUCTURE
-        super().__init__(self.name, labels, self.keys)
-
-        params["include"] = params.startdate.apply(lambda x: not (x in self.unchecked))
-
-        # CREATE DATAFRAME FOR INCES LOOKUP OF EPOCHS BY PARAMETERS	FOR FASTER QUERIES
-        self.frame = params
 
     def update(self, node, paramname: str, value: Any):
         epochs = self.query(node, useincludeflag=None)

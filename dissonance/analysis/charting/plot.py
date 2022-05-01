@@ -465,6 +465,7 @@ class PlotSwarm(PlotBase):
 
         # USE TO WRITE VALUES OUT IN TWO METHODS
         self.values = []
+        self.labels = []
 
         if eframe is not None:
             self.append_trace(eframe)

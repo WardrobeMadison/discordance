@@ -13,6 +13,7 @@ from PyQt5.QtWidgets import (QAbstractItemView, QApplication,
                              QScrollArea, QVBoxLayout, QWidget)
 
 from ..analysis.charting import MplCanvas
+from .. analysis import BaseAnalysis, AnalysisTree
 from .epochtree import EpochTree
 from .log import LoggerDialog
 from .paramstable import ParamsTable
@@ -73,13 +74,14 @@ class CanvasWorker(QObject):
 
 class DissonanceUI(QWidget):
 
-    def __init__(self, tree, unchecked: set = None, uncheckedpath: Path = None, export_dir: Path = None):
+    def __init__(self, analysis: BaseAnalysis, unchecked: set = None, uncheckedpath: Path = None, export_dir: Path = None):
         super().__init__()
         # EPOCH INFORMATION
         self.unchecked = unchecked
         self.uncheckedpath = "unchecked.csv" if uncheckedpath is None else uncheckedpath
         self.export_dir = export_dir
-        self.tree = tree
+        self.analysis = analysis
+        self.tree = AnalysisTree(str(analysis), analysis.labels, analysis.frame)
 
         # SET WINDOW
         self.left = 0
@@ -94,8 +96,8 @@ class DissonanceUI(QWidget):
         header = self.paramstable.horizontalHeader()
         header.setStretchLastSection(True)
 
-        #self.paramstable.itemDelegate().closeEditor.connect(self.on_table_edit)
-        self.paramstable.edited.connect(self.on_table_edit)
+        self.paramstable.itemDelegate().closeEditor.connect(self.on_table_edit)
+        #self.paramstable.edited.connect(self.on_table_edit)
 
     def init_tree(self):
         # TRACE TREE VIEWER
@@ -117,6 +119,7 @@ class DissonanceUI(QWidget):
         treesplitlabel = QLabel(", ".join(self.tree.labels), self)
         # LABEL FOR CURRENT FILE BEING USED TO STORE STARTDATES OF UNCHECK EPOCHS
         self.filterfilelabel = QLabel(str(self.uncheckedpath))
+        self.treeWidget.selectionModel().selectionChanged.connect(self.on_tree_select)
 
         # SET LAYOUT
         # COMBINE COLUMNS
@@ -172,52 +175,57 @@ class DissonanceUI(QWidget):
         #self.logger.show()
         #self.logger.exec_()
 
-    @pyqtSlot(list)
-    def on_table_edit(self, vals):
+    def on_table_edit(self):
         # GET PARAMNAME AND NEW VALUE
-        paramname = vals[0]
-        value = vals[1]
+        #paramname = vals[0]
+        #value = vals[1]
+        idx = self.paramstable.selectionModel().currentIndex()
+        row, col = idx.row(), idx.column()
+        paramname = self.paramstable.model().index(row, 0).data()
+        value = self.paramstable.model().index(row, 1).data()
 
         if paramname.lower() in ("celltype", "genotype"):
             nodes = self.treeWidget.selected_nodes
-            epochs = self.tree.query(filters=[node.path for node in nodes])
+            eframe = self.analysis.query(filters=[node.path for node in nodes])
 
-            # UPDATE EPOCHS
-            if len(nodes) > 1:
-                for epoch in epochs:
-                    epoch.update(paramname, value)
-                epochs[0]._response_ds.flush()
-            else:
-                epochs.update(paramname, value)
-                epochs._response_ds.flush()
+            newframe = self.analysis.frame
+            for _, row in eframe.iterrows():
+                row["epoch"].update(paramname, value)
+                if paramname in newframe.columns:
+                    newframe.loc[newframe.startdate == row["startdate"], paramname] = value
+
+            eframe.epoch.iloc[0]._response_ds.flush()
 
             # REFRESH AND REATTATCH TREE
-            self.tree.tracetype
-            self.tree = type(self.tree)(self.tree.tracestype(
-                self.tree.frame["epoch"].to_list()))
+            self.analysis.update_frame(newframe)
+            self.tree = AnalysisTree(str(self.analysis), self.analysis.labels, newframe)
+
             self.treeWidget.fill_model(self.tree)
 
-    @pyqtSlot()
-    def on_tree_select(self, nodes):
+    def on_tree_select(self, item):
+
+        nodes = self.treeWidget.selected_nodes
 
         def update_gui():
             # PLOT NODES
-            if len(nodes) == 1:
+            if len(nodes) == 0:
+                return
+            elif len(nodes) == 1:
                 if "startdate" in nodes[0].path.keys():
-                    self.tree.plot(nodes[0], self.canvas, useincludeflag=False)
-                    eframe = self.tree.query(filters=[node.path for node in nodes], useincludeflag= False)
+                    self.analysis.plot(nodes[0], self.canvas, useincludeflag=False)
+                    eframe = self.analysis.query(filters=[node.path for node in nodes], useincludeflag= False)
                 else:
-                    self.tree.plot(nodes[0], self.canvas)
-                    eframe = self.tree.query(filters=[node.path for node in nodes])
+                    self.analysis.plot(nodes[0], self.canvas)
+                    eframe = self.analysis.query(filters=[node.path for node in nodes])
             else:
-                eframe = self.tree.query(filters=[node.path for node in nodes])
+                eframe = self.analysis.query(filters=[node.path for node in nodes])
 
             # UPDATE PARAMETER TABLE
             epochs = eframe.epoch.values
-            self.paramstable.update(epochs)
+            self.paramstable.update_rows(epochs)
 
             # UPDATE CHARTS IN DIALOG
-            self.dialog.fill_list(self.tree.currentplots)
+            self.dialog.fill_list(self.analysis.currentplots)
 
         def in_sep_thread():
             self.thread = QThread()

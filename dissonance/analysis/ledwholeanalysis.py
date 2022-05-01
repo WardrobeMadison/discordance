@@ -23,6 +23,9 @@ class LedWholeAnalysis(BaseAnalysis):
         # USED IN SAVING PLOTS AND EXPORTING DATA
         self.currentplots = []
 
+    def __str__(self):
+        return type(self).__name__
+
     def plot(self, node: Node, canvas: MplCanvas = None, useincludeflag=True):
         """Map node level to analysis run & plots created.
         """
@@ -52,7 +55,7 @@ class LedWholeAnalysis(BaseAnalysis):
         elif level == 5:
             self.plot_genotype_comparison(epochs, canvas)
 
-        #canvas.draw()
+        canvas.draw()
 
     def plot_single_epoch(self, eframe, canvas):
         epoch = eframe.epoch.iloc[0]
