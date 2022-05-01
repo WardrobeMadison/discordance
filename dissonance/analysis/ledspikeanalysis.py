@@ -1,65 +1,40 @@
-from pathlib import Path
-from typing import Any, Dict, List, Tuple, Union
-
 import pandas as pd
 from dissonance.epochtypes.spikeepoch import SpikeEpoch
 
-from ..epochtypes import (EpochBlock, SpikeEpochs, WholeEpoch, WholeEpochs,
-                          filter, groupby)
-from .trees import Node
-from .baseanalysis import BaseAnalysis
+from ..epochtypes import SpikeEpochs, groupby
+from .baseanalysis import IAnalysis
 from .charting import (MplCanvas, PlotCRF, PlotHill, PlotPsth, PlotRaster,
-                       PlotSwarm, PlotSpikeTrain, PlotWeber, PlotWholeTrace)
+                       PlotSwarm, PlotSpikeTrain)
 
 
-class LedSpikeAnalysis(BaseAnalysis):
+class LedSpikeAnalysis(IAnalysis):
 
-    def __init__(self, params: pd.DataFrame, experimentpaths: List[Path], unchecked: set = None):
+    def __init__(self):
         # CONSTRUCT BASE, FILTER ON TRACE TYPE, LED AND PROTOCOL NAME
-        super().__init__(
-            params,
-            experimentpaths,
-            unchecked)
-
-        # USED IN SAVING PLOTS AND EXPORTING` DATA
-        self.plotmap = dict()
         self.currentplots = []
 
     def __str__(self):
         return type(self).__name__
 
-    def plot(self, node: Node, canvas: MplCanvas = None, useincludeflag=True):
+    def plot(self, level:str, eframe:pd.DataFrame, canvas: MplCanvas = None):
         """Map node level to analysis run & plots created.
         """
         self.currentplots = []
         self.canvas = canvas
 
-        scope = list(node.path.keys())
-        level = len(scope)
-
-        eframe = self.query(filters=[node.path], useincludeflag=useincludeflag)
-
-        # STARTDATE
-        if node.isleaf:
+        if level == "startdate":
             self.plot_single_epoch(eframe, self.canvas)
-        # light amplitude
-        elif level == 8:
+        elif level == "lightamplitude":
             self.plot_summary_epochs(eframe, self.canvas)
-        # light mean
-        elif level == 7:
-            # TODO light mean anlaysis - analyze faceted light amplitudes
+        elif level == "lightmean":
+            # TODO light mean analysis - analyze faceted light amplitudes
             ...
-        # CELLNAME
-        elif level == 6:
+        elif level == "cellname":
             self.plot_summary_cell(eframe, self.canvas)
-        # GENOTYPE
-        elif level == 5:
+        elif level == "genotype":
             self.plot_genotype_summary(eframe, self.canvas)
-        # CELLTYPE
-        elif level == 4:
+        elif level == "celltype":
             self.plot_genotype_comparison(eframe, self.canvas)
-
-        self.canvas.draw()
 
     def plot_single_epoch(self, eframe: pd.DataFrame, canvas):
 
@@ -73,8 +48,8 @@ class LedSpikeAnalysis(BaseAnalysis):
         self.currentplots.append(plttr)
         self.currentplots.append(pltpsth)
 
-    def plot_genotype_summary(self, epochs, canvas):
-        grps = groupby(epochs, self.labels)
+    def plot_genotype_summary(self, eframe: pd.DataFrame, canvas):
+        grps = groupby(eframe, self.labels)
 
         # PLOT FIT GRAPHS IN FIRST ROW IF NEEDED
         led = grps.led.iloc[0]
@@ -104,7 +79,7 @@ class LedSpikeAnalysis(BaseAnalysis):
             #plt_ttp = PlotHill(axes[1], metric="timetopeak", epochs=grps)
             self.currentplots.extend([plt_amp])
 
-    def plot_genotype_comparison(self, epochs: EpochBlock, canvas: MplCanvas = None):
+    def plot_genotype_comparison(self, epochs: pd.DataFrame, canvas: MplCanvas = None):
         """Compare epochs by genotype
 
         Args:
@@ -167,10 +142,10 @@ class LedSpikeAnalysis(BaseAnalysis):
 
             self.currentplots.extend([pltpsth, pltraster])
 
-    def plot_summary_epochs(self, epochs: SpikeEpochs, canvas: MplCanvas = None):
+    def plot_summary_epochs(self, eframe: pd.DataFrame, canvas: MplCanvas = None):
         """Plot faceted mean psth
         """
-        grps = groupby(epochs, self.labels)
+        grps = groupby(eframe, self.labels)
 
         n, m = grps.shape[0], 2
         axes = canvas.grid_axis(n, m)
@@ -202,8 +177,3 @@ class LedSpikeAnalysis(BaseAnalysis):
 
     @property
     def tracetype(self): return SpikeEpoch
-
-    def get_args(self, node):
-        # TODO get arguments needed for gui from plotting functions like fit params
-        level = len(node.path.values()) - 1
-        func = self.plotmap[level]

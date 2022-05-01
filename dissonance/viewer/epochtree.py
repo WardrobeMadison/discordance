@@ -1,13 +1,15 @@
 from datetime import datetime
+from lib2to3.pytree import Base
 from PyQt5.Qt import QStandardItem, QStandardItemModel, Qt, QAbstractItemView
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QColor, QFont
 from PyQt5.QtWidgets import QTreeView
 
 from dissonance.analysis.analysistree import AnalysisTree
+from dissonance.analysis.baseanalysis import EpochIO
 
 from ..analysis.trees.base import Node, Tree
-
+from ..analysis import IAnalysis
 
 
 class RootItem(QStandardItem):
@@ -68,37 +70,49 @@ class EpochItem(QStandardItem):
 
 class EpochTreeWidget(QTreeView):
 
-    newSelection = pyqtSignal(list)
+    newSelection = pyqtSignal(object)
+    newSelectionForPlot = pyqtSignal(str, object)
 
-    def __init__(self, tree: AnalysisTree, unchecked: set = None):
+    def __init__(self, name, splits, epochio: EpochIO, unchecked: set = None):
         super().__init__()
+        self.name = name
+        self.splits = splits
         self.setHeaderHidden(True)
 
         self.unchecked = set() if unchecked is None else unchecked
-        self.plant(tree)
+        self.epochio = epochio
 
+        self.createModel(epochio)
         self.initConnections()
 
     def initConnections(self):
         self.model().itemChanged.connect(self.onCheckToggle)
         self.selectionModel().selectionChanged.connect(self.onTreeSelect)
 
-    def plant(self, tree: AnalysisTree):
-
+    def createModel(self, epochio: EpochIO):
         self.treeModel = QStandardItemModel()
         self.setModel(self.treeModel)
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.fill_model(tree)
+        self.plantTree(epochio)
 
-    def fill_model(self, tree: AnalysisTree):
-        self.tree = tree
+    def plantTree(self, epochio: EpochIO):
+        self.tree = epochio.to_tree(self.name, self.splits)
         # REMOVE DATA CURRENTLY IN TREE MODEL
-        self.treeModel.removeRows( 0, self.treeModel.rowCount())
+        self.treeModel.removeRows(0, self.treeModel.rowCount())
         # TRANSLATE TREE TO Qt Items ITEMS
         rootNode = self.treeModel.invisibleRootItem()
-        root = RootItem(tree)
-        self.add_items(tree, root)
+        root = RootItem(self.tree)
+        self.add_items(self.tree, root)
         rootNode.appendRow(root)
+
+    @pyqtSlot(str, object)
+    def updateTree(self, paramname, value):
+        self.epochio.update(
+            filters = [node.path for node in self.selectedNodes],
+            paramname = paramname, value = value)
+
+        # REFRESH AND REATTATCH TREE
+        self.plantTree(self.epochio)
 
     #@pyqtSlot()
     def onCheckToggle(self, item: QStandardItem):
@@ -147,7 +161,7 @@ class EpochTreeWidget(QTreeView):
                 self.add_items(node, item)
 
     @property
-    def selected_nodes(self):
+    def selectedNodes(self):
         # SELECT V MULTI SELECT
         idxs = self.selectedIndexes()
         nodes = []
@@ -163,5 +177,17 @@ class EpochTreeWidget(QTreeView):
     def onTreeSelect(self):
         # SELECT V MULTI SELECT
         #self.newselection.emit(self.selected_nodes)
-        #return self.selected_nodes
-        self.newSelection.emit(self.selected_nodes)
+        nodes = self.selectedNodes
+        if len(nodes) == 0:
+            eframe = None
+        elif len(nodes) == 1:
+            if "startdate" in nodes[0].path.keys():
+                eframe = self.epochio.query(filters=[node.path for node in nodes], useincludeflag=False)
+            else:
+                eframe = self.epochio.query(filters=[node.path for node in nodes])
+        else:
+            eframe = self.epochio.query(filters=[node.path for node in nodes])
+
+        self.newSelection.emit(eframe)
+        if len(nodes) == 1:
+            self.newSelectionForPlot.emit(nodes[0].label, eframe)

@@ -5,12 +5,12 @@ import pandas as pd
 
 from ..epochtypes import EpochBlock, WholeEpoch, WholeEpochs, groupby
 from .trees import Node
-from .baseanalysis import BaseAnalysis
+from .baseanalysis import IAnalysis
 from .charting import (MplCanvas, PlotCRF, PlotHill, PlotSwarm, PlotWeber,
                        PlotWholeTrace)
 
 
-class LedWholeAnalysis(BaseAnalysis):
+class LedWholeAnalysis(IAnalysis):
 
     def __init__(
             self, params: pd.DataFrame, experimentpaths: List[Path], unchecked: set = None):
@@ -54,8 +54,6 @@ class LedWholeAnalysis(BaseAnalysis):
         # CELLTYPE
         elif level == 5:
             self.plot_genotype_comparison(epochs, canvas)
-
-        canvas.draw()
 
     def plot_single_epoch(self, eframe, canvas):
         epoch = eframe.epoch.iloc[0]

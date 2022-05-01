@@ -63,9 +63,10 @@ class TestGui():
 			params = dr.to_params(paramnames, filters={"tracetype" : "spiketrace"})
 			params = params.loc[params.protocolname.isin(["LedPulseFamily", "LedPulse"])]
 
-			tree = analysis.LedSpikeAnalysis(params,paths, unchecked)
+			epochio = analysis.EpochIO(params, paths)
+			lsa = analysis.LedSpikeAnalysis()
 			
-			viewer.run(tree, unchecked, uncheckedpath)
+			viewer.run(epochio, lsa, unchecked, uncheckedpath)
 		except SystemExit as e:
 			...
 		finally:

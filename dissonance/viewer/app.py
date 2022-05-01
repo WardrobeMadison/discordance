@@ -12,32 +12,35 @@ from PyQt5.QtWidgets import (QAbstractItemView, QApplication,
                              QListWidget, QListWidgetItem, QPushButton,
                              QScrollArea, QVBoxLayout, QWidget)
 
+from .graphwidget import GraphWidget
 from ..analysis.charting import MplCanvas
-from .. analysis import BaseAnalysis, AnalysisTree
+from .. analysis import IAnalysis, AnalysisTree, EpochIO
 from .epochtree import EpochTreeWidget
 from .log import LoggerDialog
 from .paramstable import ParamsTable
+from dissonance import analysis
 
 
 class DissonanceUI(QWidget):
 
-    def __init__(self, analysis: BaseAnalysis, unchecked: set = None, uncheckedpath: Path = None, export_dir: Path = None):
+    def __init__(self, epochio: EpochIO, analysis: IAnalysis, unchecked: set = None, uncheckedpath: Path = None, export_dir: Path = None):
         super().__init__()
         # EPOCH INFORMATION
         self.unchecked = unchecked
         self.uncheckedpath = "unchecked.csv" if uncheckedpath is None else uncheckedpath
         self.export_dir = export_dir
-        self.analysis = analysis
 
-        # SET WINDOW
+        # SET GEOMETRY
         self.left = 0
         self.top = 0
         self.width = 1200
         self.height = 800
-        self.initUI()
+
+        # INIT UI
+        self.initUI(epochio, analysis)
 
 
-    def initUI(self):
+    def initUI(self, epochio, analysis):
         self.setWindowTitle("Dissonance")
         self.setGeometry(self.left, self.top, self.width, self.height)
 
@@ -47,7 +50,7 @@ class DissonanceUI(QWidget):
         savebttn = QPushButton("Save filters", self)
         savebttn.clicked.connect(self.on_save_bttn_click)
         
-        self.init_tree()
+        self.treeWidget = EpochTreeWidget(str(analysis), analysis.labels, epochio, unchecked=self.unchecked)
         treesplitlabel = QLabel(", ".join(self.treeWidget.tree.labels), self)
         # LABEL FOR CURRENT FILE BEING USED TO STORE STARTDATES OF UNCHECK EPOCHS
         self.filterfilelabel = QLabel(str(self.uncheckedpath))
@@ -80,22 +83,23 @@ class DissonanceUI(QWidget):
         col1.addLayout(hbox)
         col1.addWidget(self.scroll_area)
 
-        self.canvas = MplCanvas(parent=self.scroll_area)
-        self.scroll_area.setWidget(self.canvas)
-
-        self.toolbar = NavigationToolbar(self.canvas, self)
-        hbox.addWidget(self.toolbar)
+        canvas = MplCanvas(self.scroll_area)
+        self.graphWidget = GraphWidget(analysis, canvas=canvas)
+        self.toolbar = NavigationToolbar(canvas, self)
 
         # EXPORT DATA BUTTON  
         self.exportdata_bttn = QPushButton("Export Data", self)
+
+        # SECOND COLUMN WIDGETS
+        hbox.addWidget(self.toolbar)
         hbox.addWidget(self.exportdata_bttn)
+        self.scroll_area.setWidget(self.graphWidget)
 
 
         # STAGE EXPORT DIALOG
         self.dialog = ExportDataWindow(
             parent=self, charts=None, outputdir=self.export_dir)
         self.dialog.closeEvent
-
 
         self.initConnections()
 
@@ -115,65 +119,22 @@ class DissonanceUI(QWidget):
         header = self.paramstable.horizontalHeader()
         header.setStretchLastSection(True)
 
-    def init_tree(self):
-        # TRACE TREE VIEWER
-        # TREE CONNECTIONS
-        tree = AnalysisTree(str(self.analysis), self.analysis.labels, self.analysis.frame)
-        self.treeWidget = EpochTreeWidget(tree, unchecked=self.unchecked)
-
     def initConnections(self):
         #self.treeWidget.selectionModel().selectionChanged.connect(self.onTreeSelect)
-        self.paramstable.rowEdited.connect(self.onRowEdit)
-        self.treeWidget.newSelection.connect(self.onTreeSelect)
+        self.treeWidget.newSelectionForPlot.connect(self.graphWidget.plot)
+        self.treeWidget.newSelection.connect(self.updateTableOnTreeSelect)
+
+        self.paramstable.rowEdited.connect(self.treeWidget.updateTree)
+
         self.exportdata_bttn.clicked.connect(self.on_export_bttn_click)
 #endregion
 
 #region SLOTS*******************************************************************
-    @pyqtSlot(list)
-    def onRowEdit(self, params):
-        paramname = params[0]
-        value = params[1]
-
-        if paramname.lower() in ("celltype", "genotype"):
-            nodes = self.treeWidget.selected_nodes
-
-            self.analysis.update(
-                filters = [node.path for node in nodes],
-                paramname = paramname, value = value
-            )
-
-            # REFRESH AND REATTATCH TREE
-            tree = AnalysisTree(str(self.analysis), self.analysis.labels, self.analysis.frame)
-            self.treeWidget.fill_model(tree)
-
-    @pyqtSlot(list)
-    def onTreeSelect(self, nodes):
-        #nodes = self.treeWidget.selected_nodes
-
-        # PLOT NODES
-        if len(nodes) == 0:
-            return
-        elif len(nodes) == 1:
-            if "startdate" in nodes[0].path.keys():
-                self.analysis.plot(nodes[0], self.canvas, useincludeflag=False)
-                eframe = self.analysis.query(filters=[node.path for node in nodes], useincludeflag= False)
-            else:
-                self.analysis.plot(nodes[0], self.canvas)
-                eframe = self.analysis.query(filters=[node.path for node in nodes])
-        else:
-            eframe = self.analysis.query(filters=[node.path for node in nodes])
-
-        # UPDATE PARAMETER TABLE
+    @pyqtSlot(object)
+    def updateTableOnTreeSelect(self, eframe):
         epochs = eframe.epoch.values
         self.paramstable.onNewEpochs(epochs)
-
-        # UPDATE CHARTS IN DIALOG
-        self.dialog.fill_list(self.analysis.currentplots)
-
-    @pyqtSlot(object)
-    def update_canvas(self, canvas):
-        self.canvas = canvas
-        self.canvas.draw()
+        self.dialog.fillList(self.graphWidget.currentplots)
 
     @pyqtSlot()
     def on_save_bttn_click(self):
@@ -190,7 +151,7 @@ class DissonanceUI(QWidget):
     def on_export_bttn_click(self):
         self.exportdata_bttn.setEnabled(False)
         charts = self.analysis.currentplots
-        self.dialog.fill_list(charts)
+        self.dialog.fillList(charts)
         self.dialog.show()
         self.dialog.exec_()
 #endregion
@@ -209,12 +170,12 @@ class ExportDataWindow(QDialog):
 
         # EXPORT BUTTON
         exportbttn = QPushButton("Export Selected Data")
-        exportbttn.clicked.connect(self.on_export_bttn_click)
+        exportbttn.clicked.connect(self.onExportBttnClick)
 
         # LIST OF CHART DATA TO EXPORT
         self.listwidget = QListWidget(self)
         self.listwidget.setSelectionMode(QAbstractItemView.MultiSelection)
-        self.fill_list(charts)
+        self.fillList(charts)
 
         # WIDGET LAYOUT
         layout = QVBoxLayout()
@@ -223,7 +184,7 @@ class ExportDataWindow(QDialog):
         self.setLayout(layout)
 
     @pyqtSlot(list)
-    def fill_list(self, charts):
+    def fillList(self, charts):
         self.listwidget.clear()
         self.charts = list() if charts is None else charts
         if len(self.charts) > 0:
@@ -236,7 +197,7 @@ class ExportDataWindow(QDialog):
         event.accept()
 
     @pyqtSlot()
-    def on_export_bttn_click(self):
+    def onExportBttnClick(self):
         for index in self.listwidget.selectedIndexes():
             try:
                 self.charts[index.row()].to_csv(outputdir=self.outputdir)
@@ -245,7 +206,7 @@ class ExportDataWindow(QDialog):
         self.close()
 
 
-def run(tree, unchecked, uncheckedpath: Path = None):
+def run(epochio, analysis, unchecked, uncheckedpath: Path = None):
     app = QApplication(sys.argv)
-    ex = DissonanceUI(tree, unchecked, uncheckedpath)
+    ex = DissonanceUI(epochio, analysis, unchecked, uncheckedpath)
     sys.exit(app.exec_())

@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem
 from .. import epochtypes as et
 
 class ParamsTable(QTableWidget):
-    rowEdited = pyqtSignal(list)
+    rowEdited = pyqtSignal(str, object)
 
     params = [
         "cellname",
@@ -77,4 +77,4 @@ class ParamsTable(QTableWidget):
         paramname = self.model().index(row, 0).data()
         value = self.model().index(row, 1).data()
 
-        self.rowEdited.emit([paramname, value])
+        self.rowEdited.emit(paramname, value)

@@ -60,13 +60,13 @@ class MplCanvas(FigureCanvas):
             # DON'T CHANGE WIDTH  - SHOULD RESIZE TO WINDOW
             #jviewwidth = self.parent().width() / 100
             #self.currentwidth =  (viewwidth if (viewwidth < self.basewidth * m) else self.basewidth * m) - 0.25 # PADDING FOR WIDTH
-            ...
+            self.setFixedWidth(self.parent().width())
+            # ONLY ADJUST HEIGHT - WIDTH SHOULD RESIZE TO WINDOW
+            self.setFixedHeight(self.currentheight*100)
         else:
             self.currentwidth = self.basewidth * m
             self.fig.set_size_inches((self.currentwidth, self.currentheight), forward=True)
 
-        # ONLY ADJUST HEIGHT - WIDTH SHOULD RESIZE TO WINDOW
-        self.setFixedHeight(self.currentheight*100)
 
         # ADD SUBPLOT FOR EACH GRID
         self.axes = [

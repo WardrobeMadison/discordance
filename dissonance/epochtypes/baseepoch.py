@@ -172,3 +172,5 @@ class EpochBlock(ABC):
 
     def get_unique(self, paramname) -> np.array:
         return np.unique(self.get(paramname))
+
+

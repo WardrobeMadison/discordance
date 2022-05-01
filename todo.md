@@ -22,6 +22,7 @@ Whole Cell Analysis
 - [X] Associate raster epoch plots with number of epoch for easier filtering
 - [X] Change cell label to include experiment name
 - [X] Display name of filter file being used
+
 - [X] Test updating of celltyes and genotypes within GUI
 
 ## ANALYSIS

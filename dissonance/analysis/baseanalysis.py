@@ -9,11 +9,12 @@ from functools import reduce
 import h5py
 
 from .trees import Node, Tree
-from ..epochtypes import groupby, EpochBlock, IEpoch
+from ..epochtypes import groupby, EpochBlock, IEpoch, epoch_factory
 from .charting import MplCanvas
+from .analysistree import AnalysisTree
 
 
-class BaseAnalysis(ABC):
+class EpochIO(ABC):
 
     def __init__(self, params: pd.DataFrame, experimentpaths: List[Path], unchecked: set = None):
         self.files = {
@@ -21,41 +22,14 @@ class BaseAnalysis(ABC):
         }
         # GROUP EPOCHS INTO FLAT LIST
         self.unchecked = set() if unchecked is None else unchecked
-        self.update_frame(params)
+        self.set_frame(params)
+        
+    def to_tree(self, name, splits) -> AnalysisTree:
+        return AnalysisTree(name, splits, self.frame)
 
-    def update_frame(self, params:pd.DataFrame):
-        labels = self.labels
-        if "startdate" not in labels:
-            labels = [*self.labels, "startdate"]
-        self.keys = params[labels].values
-
+    def set_frame(self, params:pd.DataFrame):
         params["include"] = params.startdate.apply(lambda x: not (x in self.unchecked))
-
         self.frame = params
-
-    @property
-    @abstractproperty
-    def name(self):
-        ...
-
-    @property
-    @abstractproperty
-    def labels(self) -> List[str]:
-        ...
-
-    @property
-    @abstractproperty
-    def tracetype(self) -> IEpoch:
-        ...
-
-    @property
-    @abstractproperty
-    def tracestype(self) -> EpochBlock:
-        ...
-
-    @abstractproperty
-    def plot(self, node: Node, canvas: MplCanvas = None):
-        ...
 
     def update(self, filters:List[Dict], paramname: str, value: Any):
         eframe = self.query(filters=filters)
@@ -68,7 +42,7 @@ class BaseAnalysis(ABC):
 
         eframe.epoch.iloc[0]._response_ds.flush()
 
-        self.update_frame(newframe)
+        self.set_frame(newframe)
 
     def query(self, filters=List[Dict], useincludeflag=True) -> pd.DataFrame:
         """Relate nodes from tree to underlying dataframe. Only passes inclued nodes
@@ -120,7 +94,7 @@ class BaseAnalysis(ABC):
         if df.shape[0] != 0:
             def func(row):
                 try:
-                    return self.tracetype(self.files[row.exppath][f"epoch{int(row.number)}"])
+                    return epoch_factory(self.files[row.exppath][f"epoch{int(row.number)}"])
                 except Exception as e:
                     print(row.exppath)
                     raise e
@@ -134,3 +108,28 @@ class BaseAnalysis(ABC):
         return df
 
 
+class IAnalysis(ABC):
+
+    @property
+    @abstractproperty
+    def name(self):
+        ...
+
+    @property
+    @abstractproperty
+    def labels(self) -> List[str]:
+        ...
+
+    @property
+    @abstractproperty
+    def tracetype(self) -> IEpoch:
+        ...
+
+    @property
+    @abstractproperty
+    def tracestype(self) -> EpochBlock:
+        ...
+
+    @abstractproperty
+    def plot(self, eframe: pd.DataFrame, canvas: MplCanvas = None):
+        ...
