@@ -52,7 +52,7 @@ class LedWholeAnalysis(BaseAnalysis):
         elif level == 5:
             self.plot_genotype_comparison(epochs, canvas)
 
-        canvas.draw()
+        #canvas.draw()
 
     def plot_single_epoch(self, eframe, canvas):
         epoch = eframe.epoch.iloc[0]

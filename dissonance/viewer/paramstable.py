@@ -32,8 +32,8 @@ class ParamsTable(QTableWidget):
         if epoch is not None:
             self.update(epoch)
 
-    @pyqtSlot()
-    def update(self, epochs: List[Union[et.IEpoch, et.EpochBlock]]):
+    @pyqtSlot(list)
+    def update_rows(self, epochs: List[Union[et.IEpoch, et.EpochBlock]]):
         """Update params table with epoch 
 
         Args:

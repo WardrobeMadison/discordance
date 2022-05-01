@@ -8,7 +8,7 @@ Spike Analysis
 - [X] Fix CRF axes - x values off and y values should be rounded, put light mean in title
 
 Whole Cell Analysis
-- [-] Whole Cell Analysis: Split on background amp1 (inhibition > 0, excitation < 0. holdingpotential)
+- [X] Whole Cell Analysis: Split on background amp1 (inhibition > 0, excitation < 0. holdingpotential)
 - [ ] Epoch: print background amp value just for inhibition. Make inhibition analysis split on background amp 1 value
 - [X] Genotype comparison: Don't label by cell
 - [X] Genotype summary: Change colors for cell traces. Put labels on hill and weber fits. Weber fit is UVLED only

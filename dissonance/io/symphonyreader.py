@@ -186,9 +186,9 @@ class Epoch:
         if self.tracetype == "spiketrace":
             return "nan"
         elif val < 0:
-            return "inhibitiion"
-        else:
             return "excitation"
+        else:
+            return "inhibitiion"
 
     @property
     def backgrounds(self):
@@ -217,7 +217,6 @@ class Epoch:
     @property
     def ndf(self):
         return self.group["protocolParameters"].attrs.get("ndf", "None")
-
 
 class Background:
 

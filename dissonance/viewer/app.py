@@ -37,6 +37,42 @@ class Worker(QObject):
             sys.excepthook(type, value, traceback)
             raise e
 
+class CanvasWorker(QObject):
+    finished = pyqtSignal()
+    updatecanvas = pyqtSignal(object)
+    updatetable = pyqtSignal(list)
+    updatedialog = pyqtSignal(list)
+
+    def __init__(self, nodes, tree, canvas):
+        super().__init__()
+        self.nodes = nodes
+        self.tree = tree
+        self.canvas = canvas
+
+    def run(self):
+        # PLOT NODES
+        nodes = self.get_nodes_from_selection()
+
+        # PLOT NODES
+        if len(nodes) == 1:
+            if "startdate" in nodes[0].path.keys():
+                self.canvas = self.tree.plot(nodes[0], self.canvas, useincludeflag=False)
+                eframe = self.tree.query(filters=[node.path for node in nodes], useincludeflag= False)
+            else:
+                self.canvas = self.tree.plot(nodes[0], self.canvas)
+                eframe = self.tree.query(filters=[node.path for node in nodes])
+        else:
+            eframe = self.tree.query(filters=[node.path for node in nodes])
+
+        self.updatecanvas.emit(self.canvas)
+
+        # UPDATE PARAMETER TABLE
+        epochs = eframe.epoch.values
+        self.updatetable.emit(epochs)
+
+        # UPDATE CHARTS IN DIALOG
+        self.updatedialog.emit(self.tree.currentplots)
+
 
 class DissonanceUI(QWidget):
 
@@ -222,11 +258,44 @@ class DissonanceUI(QWidget):
                 lambda: self.treeWidget.setSelectionMode(
                     QAbstractItemView.SelectionMode.ExtendedSelection)
             )
+        
+        def use_canvas_worker():
+            nodes = self.get_nodes_from_selection()
 
-        if __debug__:
-            update_gui()
-        else:
-            in_sep_thread()
+            self.thread = QThread()
+            self.worker = CanvasWorker(nodes, self.tree, self.canvas)
+
+            self.worker.moveToThread(self.thread)
+
+            self.worker.updatecanvas.connect(self.update_canvas)
+            self.worker.updatetable.connect(self.tableWidget.update_rows)
+            self.worker.updatedialog.connect(self.dialog.fill_list)
+
+            self.thread.started.connect(self.worker.run)
+            self.worker.finished.connect(self.thread.quit)
+            self.worker.finished.connect(self.worker.deleteLater)
+            self.thread.finished.connect(self.thread.deleteLater)
+
+            self.thread.start()
+
+            # Final resets
+            self.treeWidget.setSelectionMode(
+                QAbstractItemView.SelectionMode.NoSelection)
+            self.thread.finished.connect(
+                lambda: self.treeWidget.setSelectionMode(
+                    QAbstractItemView.SelectionMode.ExtendedSelection)
+            )
+
+        #if __debug__:
+        update_gui()
+        #else:
+        #in_sep_thread()
+        #use_canvas_worker()
+
+    @pyqtSlot(object)
+    def update_canvas(self, canvas):
+        self.canvas = canvas
+        self.canvas.draw()
 
     @pyqtSlot()
     def on_save_bttn_click(self):
@@ -274,6 +343,7 @@ class ExportDataWindow(QDialog):
         layout.addWidget(exportbttn)
         self.setLayout(layout)
 
+    @pyqtSlot(list)
     def fill_list(self, charts):
         self.listwidget.clear()
         self.charts = list() if charts is None else charts
