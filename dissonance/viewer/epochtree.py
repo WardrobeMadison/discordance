@@ -1,5 +1,6 @@
 from datetime import datetime
 from PyQt5.Qt import QStandardItem, QStandardItemModel, Qt, QAbstractItemView
+from PyQt5.QtCore import pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QColor, QFont
 from PyQt5.QtWidgets import QTreeView
 
@@ -64,31 +65,35 @@ class EpochItem(QStandardItem):
 
 class EpochTree(QTreeView):
 
+    newselection = pyqtSignal(list)
+
     def __init__(self, at: Tree, unchecked: set = None):
         self.unchecked = set() if unchecked is None else unchecked
         super().__init__()
         self.setHeaderHidden(True)
 
         self.plant(at)
+
+        # connections
+        self.selectionModel().selectionChanged.connect(self.on_tree_select)
         self.model().itemChanged.connect(self.toggle_check)
 
     def plant(self, at):
-        self.at = at
 
         self.treeModel = QStandardItemModel()
+        self.setModel(self.treeModel)
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.fill_model(at)
 
     def fill_model(self,at):
+        self.at = at
         # REMOVE DATA CURRENTLY IN TREE MODEL
         self.treeModel.removeRows( 0, self.treeModel.rowCount())
-
         # TRANSLATE TREE TO Qt Items ITEMS
         rootNode = self.treeModel.invisibleRootItem()
         root = RootItem(at)
         self.add_items(at, root)
         rootNode.appendRow(root)
-        self.setModel(self.treeModel)
 
     def toggle_check(self, item: QStandardItem):
         """Update unchecked list on toggle
@@ -135,4 +140,20 @@ class EpochTree(QTreeView):
                 parentitem.appendRow(item)
                 self.add_items(node, item)
 
-#2021-09-07 17:05:39.946686'
+    @property
+    def selected_nodes(self):
+        # SELECT V MULTI SELECT
+        idxs = self.selectedIndexes()
+        nodes = []
+        if len(idxs) == 1:
+            treeitem = self.model().itemFromIndex(idxs[0])
+            nodes.append(treeitem.node)
+        else:
+            nodes = [self.model().itemFromIndex(
+                idx).node for idx in idxs]
+        return nodes
+
+    @pyqtSlot()
+    def on_tree_select(self):
+        # SELECT V MULTI SELECT
+        self.newselection.emit(self.selected_nodes)

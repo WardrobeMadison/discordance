@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Tuple, Union
 import pandas as pd
 
 from ..epochtypes import EpochBlock, WholeEpoch, WholeEpochs, groupby
-from ..trees import Node
+from .trees import Node
 from .baseanalysis import BaseAnalysis
 from .charting import (MplCanvas, PlotCRF, PlotHill, PlotSwarm, PlotWeber,
                        PlotWholeTrace)

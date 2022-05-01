@@ -8,12 +8,12 @@ import operator
 from functools import reduce
 import h5py
 
-from ..trees import Node, Tree
+from .trees import Node, Tree
 from ..epochtypes import groupby, EpochBlock, IEpoch
 from .charting import MplCanvas
 
 
-class BaseAnalysis(ABC, Tree):
+class BaseAnalysis(ABC):
 
     def __init__(self, params: pd.DataFrame, experimentpaths: List[Path], unchecked: set = None):
         self.files = {

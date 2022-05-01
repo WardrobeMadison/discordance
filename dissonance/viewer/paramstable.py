@@ -2,13 +2,14 @@ from typing import Union, List, Iterable
 
 import pandas as pd
 import numpy as np
-from PyQt5.QtCore import pyqtSlot
+from PyQt5.QtCore import pyqtSlot, pyqtSignal
 from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem
 
 from .. import epochtypes as et
 
 
 class ParamsTable(QTableWidget):
+    edited = pyqtSignal(list)
 
     params = [
         "cellname",
@@ -61,3 +62,11 @@ class ParamsTable(QTableWidget):
             data.append([paramname, text, val])
 
         self.df = pd.DataFrame(columns="Param Text Val".split(), data=data)
+
+    @pyqtSlot()
+    def on_table_edit(self):
+        idx = self.selectionModel().currentIndex()
+        row, col = idx.row(), idx.column()
+        paramname = self.model().index(row, 0).data()
+        value = self.model().index(row, 1).data()
+        self.edited.emit([paramname, value])

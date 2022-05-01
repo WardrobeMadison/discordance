@@ -51,18 +51,15 @@ class CanvasWorker(QObject):
 
     def run(self):
         # PLOT NODES
-        nodes = self.get_nodes_from_selection()
-
-        # PLOT NODES
-        if len(nodes) == 1:
-            if "startdate" in nodes[0].path.keys():
-                self.canvas = self.tree.plot(nodes[0], self.canvas, useincludeflag=False)
-                eframe = self.tree.query(filters=[node.path for node in nodes], useincludeflag= False)
+        if len(self.nodes) == 1:
+            if "startdate" in self.nodes[0].path.keys():
+                self.canvas = self.tree.plot(self.nodes[0], self.canvas, useincludeflag=False)
+                eframe = self.tree.query(filters=[node.path for node in self.nodes], useincludeflag= False)
             else:
-                self.canvas = self.tree.plot(nodes[0], self.canvas)
-                eframe = self.tree.query(filters=[node.path for node in nodes])
+                self.canvas = self.tree.plot(self.nodes[0], self.canvas)
+                eframe = self.tree.query(filters=[node.path for node in self.nodes])
         else:
-            eframe = self.tree.query(filters=[node.path for node in nodes])
+            eframe = self.tree.query(filters=[node.path for node in self.nodes])
 
         self.updatecanvas.emit(self.canvas)
 
@@ -91,26 +88,34 @@ class DissonanceUI(QWidget):
         self.height = 800
         self.initUI()
 
+    def init_params_table(self):
+        # EPOCH TRACE INFORMATION TABLE
+        self.paramstable = ParamsTable()
+        header = self.paramstable.horizontalHeader()
+        header.setStretchLastSection(True)
+
+        #self.paramstable.itemDelegate().closeEditor.connect(self.on_table_edit)
+        self.paramstable.edited.connect(self.on_table_edit)
+
+    def init_tree(self):
+        # TRACE TREE VIEWER
+        # TREE CONNECTIONS
+        self.treeWidget = EpochTree(self.tree, unchecked=self.unchecked)
+        self.treeWidget.newselection.connect(self.on_tree_select)
+
     def initUI(self):
         self.setWindowTitle("Dissonance")
         self.setGeometry(self.left, self.top, self.width, self.height)
 
-        # EPOCH TRACE INFORMATION TABLE
-        self.tableWidget = ParamsTable()
-        header = self.tableWidget.horizontalHeader()
-        header.setStretchLastSection(True)
-
-        self.tableWidget.itemDelegate().closeEditor.connect(self.on_table_edit)
+        self.init_params_table()
 
         # SAVE UNCHECKED FILTERS
         savebttn = QPushButton("Save filters", self)
         savebttn.clicked.connect(self.on_save_bttn_click)
-
-        # TRACE TREE VIEWER
+        
+        self.init_tree()
         treesplitlabel = QLabel(", ".join(self.tree.labels), self)
-        self.treeWidget = EpochTree(self.tree, unchecked=self.unchecked)
-        self.treeWidget.selectionModel().selectionChanged.connect(self.on_tree_select)
-
+        # LABEL FOR CURRENT FILE BEING USED TO STORE STARTDATES OF UNCHECK EPOCHS
         self.filterfilelabel = QLabel(str(self.uncheckedpath))
 
         # SET LAYOUT
@@ -128,7 +133,7 @@ class DissonanceUI(QWidget):
         col0.addWidget(self.filterfilelabel)
         col0.addWidget(treesplitlabel)
         col0.addWidget(self.treeWidget, 10)
-        col0.addWidget(self.tableWidget, 4)
+        col0.addWidget(self.paramstable, 4)
         col0.minimumSize()
 
         # SECOND COLUMN
@@ -137,12 +142,6 @@ class DissonanceUI(QWidget):
         self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.scroll_area.horizontalScrollBar().setEnabled(False)
         self.scroll_area.setWidgetResizable(True)
-        #scrollayout = QVBoxLayout()
-        #self.scroll_area.setLayout(scrollayout)
-
-        #canvaslayout = QVBoxLayout()
-        #scrollayout.addLayout(canvaslayout)
-        #scrollayout.addStretch()
 
         col1.addLayout(hbox)
         col1.addWidget(self.scroll_area)
@@ -173,54 +172,35 @@ class DissonanceUI(QWidget):
         #self.logger.show()
         #self.logger.exec_()
 
-    def on_table_edit(self, item):
+    @pyqtSlot(list)
+    def on_table_edit(self, vals):
         # GET PARAMNAME AND NEW VALUE
-        idx = self.tableWidget.selectionModel().currentIndex()
-        row, col = idx.row(), idx.column()
-        paramname = self.tableWidget.model().index(row, 0).data()
-        value = self.tableWidget.model().index(row, 1).data()
+        paramname = vals[0]
+        value = vals[1]
 
         if paramname.lower() in ("celltype", "genotype"):
-            nodes = self.get_nodes_from_selection()
+            nodes = self.treeWidget.selected_nodes
             epochs = self.tree.query(filters=[node.path for node in nodes])
 
             # UPDATE EPOCHS
             if len(nodes) > 1:
                 for epoch in epochs:
                     epoch.update(paramname, value)
-                    #print(epoch.startdate, paramname,value)
-
-                # TODO wrap this into epochs object? how to handle updates?
                 epochs[0]._response_ds.flush()
             else:
-                epoch.update(paramname, value)
+                epochs.update(paramname, value)
                 epochs._response_ds.flush()
 
             # REFRESH AND REATTATCH TREE
-            # TODO make updating work refresh tree
             self.tree.tracetype
             self.tree = type(self.tree)(self.tree.tracestype(
                 self.tree.frame["epoch"].to_list()))
             self.treeWidget.fill_model(self.tree)
 
-    def get_nodes_from_selection(self):
-        # SELECT V MULTI SELECT
-        idxs = self.treeWidget.selectedIndexes()
-        nodes = []
-        if len(idxs) == 1:
-            treeitem = self.treeWidget.model().itemFromIndex(idxs[0])
-            nodes.append(treeitem.node)
-        else:
-            nodes = [self.treeWidget.model().itemFromIndex(
-                idx).node for idx in idxs]
-        return nodes
-
-    def on_tree_select(self, item: QModelIndex):
+    @pyqtSlot()
+    def on_tree_select(self, nodes):
 
         def update_gui():
-            # SELECT V MULTI SELECT
-            nodes = self.get_nodes_from_selection()
-
             # PLOT NODES
             if len(nodes) == 1:
                 if "startdate" in nodes[0].path.keys():
@@ -234,7 +214,7 @@ class DissonanceUI(QWidget):
 
             # UPDATE PARAMETER TABLE
             epochs = eframe.epoch.values
-            self.tableWidget.update(epochs)
+            self.paramstable.update(epochs)
 
             # UPDATE CHARTS IN DIALOG
             self.dialog.fill_list(self.tree.currentplots)
@@ -268,7 +248,7 @@ class DissonanceUI(QWidget):
             self.worker.moveToThread(self.thread)
 
             self.worker.updatecanvas.connect(self.update_canvas)
-            self.worker.updatetable.connect(self.tableWidget.update_rows)
+            self.worker.updatetable.connect(self.paramstable.update_rows)
             self.worker.updatedialog.connect(self.dialog.fill_list)
 
             self.thread.started.connect(self.worker.run)

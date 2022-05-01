@@ -6,7 +6,7 @@ from dissonance.epochtypes.spikeepoch import SpikeEpoch
 
 from ..epochtypes import (EpochBlock, SpikeEpochs, WholeEpoch, WholeEpochs,
                           filter, groupby)
-from ..trees import Node
+from .trees import Node
 from .baseanalysis import BaseAnalysis
 from .charting import (MplCanvas, PlotCRF, PlotHill, PlotPsth, PlotRaster,
                        PlotSwarm, PlotSpikeTrain, PlotWeber, PlotWholeTrace)
