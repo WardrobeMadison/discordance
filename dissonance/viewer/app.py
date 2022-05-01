@@ -19,59 +19,6 @@ from .log import LoggerDialog
 from .paramstable import ParamsTable
 
 
-class Worker(QObject):
-    finished = pyqtSignal()
-    progress = pyqtSignal(int)
-
-    def __init__(self, process, *args, **kwargs):
-        super().__init__()
-        self.process = process
-        self.args = args
-        self.kwargs = kwargs
-
-    def run(self):
-        try:
-            self.process(*self.args, **self.kwargs)
-            self.finished.emit()
-        except Exception as e: 
-            (type, value, traceback) = sys.exc_info()
-            sys.excepthook(type, value, traceback)
-            raise e
-
-class CanvasWorker(QObject):
-    finished = pyqtSignal()
-    updatecanvas = pyqtSignal(object)
-    updatetable = pyqtSignal(list)
-    updatedialog = pyqtSignal(list)
-
-    def __init__(self, nodes, tree, canvas):
-        super().__init__()
-        self.nodes = nodes
-        self.tree = tree
-        self.canvas = canvas
-
-    def run(self):
-        # PLOT NODES
-        if len(self.nodes) == 1:
-            if "startdate" in self.nodes[0].path.keys():
-                self.canvas = self.tree.plot(self.nodes[0], self.canvas, useincludeflag=False)
-                eframe = self.tree.query(filters=[node.path for node in self.nodes], useincludeflag= False)
-            else:
-                self.canvas = self.tree.plot(self.nodes[0], self.canvas)
-                eframe = self.tree.query(filters=[node.path for node in self.nodes])
-        else:
-            eframe = self.tree.query(filters=[node.path for node in self.nodes])
-
-        self.updatecanvas.emit(self.canvas)
-
-        # UPDATE PARAMETER TABLE
-        epochs = eframe.epoch.values
-        self.updatetable.emit(epochs)
-
-        # UPDATE CHARTS IN DIALOG
-        self.updatedialog.emit(self.tree.currentplots)
-
-
 class DissonanceUI(QWidget):
 
     def __init__(self, analysis: BaseAnalysis, unchecked: set = None, uncheckedpath: Path = None, export_dir: Path = None):
@@ -226,53 +173,6 @@ class DissonanceUI(QWidget):
 
             # UPDATE CHARTS IN DIALOG
             self.dialog.fill_list(self.analysis.currentplots)
-
-        def in_sep_thread():
-            self.thread = QThread()
-            self.worker = Worker(update_gui)
-            self.worker.moveToThread(self.thread)
-
-            self.thread.started.connect(self.worker.run)
-            self.worker.finished.connect(self.thread.quit)
-            self.worker.finished.connect(self.worker.deleteLater)
-            self.thread.finished.connect(self.thread.deleteLater)
-
-            self.thread.start()
-
-            # Final resets
-            self.treeWidget.setSelectionMode(
-                QAbstractItemView.SelectionMode.NoSelection)
-            self.thread.finished.connect(
-                lambda: self.treeWidget.setSelectionMode(
-                    QAbstractItemView.SelectionMode.ExtendedSelection)
-            )
-        
-        def use_canvas_worker():
-            nodes = self.get_nodes_from_selection()
-
-            self.thread = QThread()
-            self.worker = CanvasWorker(nodes, self.tree, self.canvas)
-
-            self.worker.moveToThread(self.thread)
-
-            self.worker.updatecanvas.connect(self.update_canvas)
-            self.worker.updatetable.connect(self.paramstable.update_rows)
-            self.worker.updatedialog.connect(self.dialog.fill_list)
-
-            self.thread.started.connect(self.worker.run)
-            self.worker.finished.connect(self.thread.quit)
-            self.worker.finished.connect(self.worker.deleteLater)
-            self.thread.finished.connect(self.thread.deleteLater)
-
-            self.thread.start()
-
-            # Final resets
-            self.treeWidget.setSelectionMode(
-                QAbstractItemView.SelectionMode.NoSelection)
-            self.thread.finished.connect(
-                lambda: self.treeWidget.setSelectionMode(
-                    QAbstractItemView.SelectionMode.ExtendedSelection)
-            )
 
         #if __debug__:
         update_gui()
