@@ -57,17 +57,18 @@ class BaseAnalysis(ABC):
     def plot(self, node: Node, canvas: MplCanvas = None):
         ...
 
-    def update(self, node, paramname: str, value: Any):
-        epochs = self.query(node, useincludeflag=None)
-        keys = node.path
+    def update(self, filters:List[Dict], paramname: str, value: Any):
+        eframe = self.query(filters=filters)
+        newframe = self.frame
 
-        # UPDATE EACH EPOCH
-        for epoch in epochs:
-            epoch.update(keys, paramname, value)
+        for _, row in eframe.iterrows():
+            row["epoch"].update(paramname, value)
+            if paramname in newframe.columns:
+                newframe.loc[newframe.startdate == row["startdate"], paramname] = value
 
-        # REMAKE THE WHOLE CLASS.
-        epochs = self.frame.epoch.to_list()
-        self.__init__(epochs, self.unchecked)
+        eframe.epoch.iloc[0]._response_ds.flush()
+
+        self.update_frame(newframe)
 
     def query(self, filters=List[Dict], useincludeflag=True) -> pd.DataFrame:
         """Relate nodes from tree to underlying dataframe. Only passes inclued nodes

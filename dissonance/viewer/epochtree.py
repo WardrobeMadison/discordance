@@ -66,39 +66,42 @@ class EpochItem(QStandardItem):
         self.setCheckState(Qt.Checked)
 
 
-class EpochTree(QTreeView):
+class EpochTreeWidget(QTreeView):
 
-    newselection = pyqtSignal(list)
+    newSelection = pyqtSignal(list)
 
-    def __init__(self, at: AnalysisTree, unchecked: set = None):
-        self.unchecked = set() if unchecked is None else unchecked
+    def __init__(self, tree: AnalysisTree, unchecked: set = None):
         super().__init__()
         self.setHeaderHidden(True)
 
-        self.plant(at)
+        self.unchecked = set() if unchecked is None else unchecked
+        self.plant(tree)
 
-        # connections
-        #self.selectionModel().selectionChanged.connect(self.on_tree_select)
-        self.model().itemChanged.connect(self.toggle_check)
+        self.initConnections()
 
-    def plant(self, at: AnalysisTree):
+    def initConnections(self):
+        self.model().itemChanged.connect(self.onCheckToggle)
+        self.selectionModel().selectionChanged.connect(self.onTreeSelect)
+
+    def plant(self, tree: AnalysisTree):
 
         self.treeModel = QStandardItemModel()
         self.setModel(self.treeModel)
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.fill_model(at)
+        self.fill_model(tree)
 
-    def fill_model(self, at: AnalysisTree):
-        self.at = at
+    def fill_model(self, tree: AnalysisTree):
+        self.tree = tree
         # REMOVE DATA CURRENTLY IN TREE MODEL
         self.treeModel.removeRows( 0, self.treeModel.rowCount())
         # TRANSLATE TREE TO Qt Items ITEMS
         rootNode = self.treeModel.invisibleRootItem()
-        root = RootItem(at)
-        self.add_items(at, root)
+        root = RootItem(tree)
+        self.add_items(tree, root)
         rootNode.appendRow(root)
 
-    def toggle_check(self, item: QStandardItem):
+    #@pyqtSlot()
+    def onCheckToggle(self, item: QStandardItem):
         """Update unchecked list on toggle
 
         Args:
@@ -156,7 +159,9 @@ class EpochTree(QTreeView):
                 idx).node for idx in idxs]
         return nodes
 
-    def on_tree_select(self):
+    @pyqtSlot()
+    def onTreeSelect(self):
         # SELECT V MULTI SELECT
         #self.newselection.emit(self.selected_nodes)
-        return self.selected_nodes
+        #return self.selected_nodes
+        self.newSelection.emit(self.selected_nodes)

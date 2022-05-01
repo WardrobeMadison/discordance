@@ -7,9 +7,8 @@ from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem
 
 from .. import epochtypes as et
 
-
 class ParamsTable(QTableWidget):
-    edited = pyqtSignal(list)
+    rowEdited = pyqtSignal(list)
 
     params = [
         "cellname",
@@ -30,10 +29,15 @@ class ParamsTable(QTableWidget):
     def __init__(self, epoch: Union[et.SpikeEpoch, et.WholeEpoch]=None):
         super().__init__()
 
-        if epoch is not None:
-            self.update(epoch)
+        self.initConnections()
 
-    def update_rows(self, epochs: List[Union[et.IEpoch, et.EpochBlock]]):
+        if epoch is not None:
+            self.fill_table(epoch)
+        
+    def initConnections(self):
+        self.itemDelegate().closeEditor.connect(self.onTableEdit)
+
+    def fill_table(self, epochs: List[Union[et.IEpoch, et.EpochBlock]]):
         """Update params table with epoch 
 
         Args:
@@ -61,10 +65,16 @@ class ParamsTable(QTableWidget):
             data.append([paramname, text, val])
 
         self.df = pd.DataFrame(columns="Param Text Val".split(), data=data)
+    
+    @pyqtSlot(list)
+    def onNewEpochs(self, epochs):
+        self.fill_table(epochs)
 
-    def on_table_edit(self):
+    @pyqtSlot()
+    def onTableEdit(self):
         idx = self.selectionModel().currentIndex()
         row, col = idx.row(), idx.column()
         paramname = self.model().index(row, 0).data()
         value = self.model().index(row, 1).data()
-        self.edited.emit([paramname, value])
+
+        self.rowEdited.emit([paramname, value])
