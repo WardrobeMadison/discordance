@@ -1,19 +1,8 @@
 from abc import ABC, abstractproperty
-from collections import defaultdict
-from pathlib import Path
 from typing import Dict, Iterable, Iterator, List, Tuple
 
 import h5py
 import numpy as np
-import pandas as pd
-
-# RSTARR MAPPING
-rstarrdf = pd.read_csv(Path(__file__).parent.parent.parent / "data/rstarrmap.txt", "\t",
-                       parse_dates=["startdate", "enddate"])
-RSTARRMAP = defaultdict(list)
-for _, row in rstarrdf.iterrows():
-    RSTARRMAP[(row["protocolname"], row["led"], row["lightamplitude"], row["lightmean"])] = (
-        row["lightamplitude_rstarr"], row["lightmean_rstarr"])
 
 
 class IEpoch(ABC):
@@ -42,9 +31,6 @@ class IEpoch(ABC):
         self.startdate = epochgrp.attrs.get("startdate")
         self.enddate = epochgrp.attrs.get("enddate")
         self.number = int(epochgrp.name.split("/")[-1][5:])
-        #self.stimuli = {key: val for key,
-        #                val in epochgrp[self.led].attrs.items()}
-        # DERIVE RSTARR VALUES
         self.pctcontrast = (
             self.lightamplitude / self.lightmean
             if self.lightmean != 0.0

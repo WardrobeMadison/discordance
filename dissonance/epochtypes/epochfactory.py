@@ -2,10 +2,15 @@ import h5py
 
 from .spikeepoch import SpikeEpoch
 from .wholeepoch import WholeEpoch
+from .noiseepoch import NoiseEpoch
 
 def epoch_factory(epochgrp: h5py.Group):
-    tracetype = epochgrp.attrs["tracetype"]
-    if tracetype == "spiketrace":
-        return SpikeEpoch(epochgrp)
-    elif tracetype == "wholetrace":
-        return WholeEpoch(epochgrp)
+    protocolname = epochgrp.attrs["protocolname"]
+    if protocolname == "LedNoiseFamily":
+        return NoiseEpoch(epochgrp)
+    elif protocolname in ["LedPulse", "LedPulseFamiliy"]:
+        tracetype = epochgrp.attrs["tracetype"]
+        if tracetype == "spiketrace":
+            return SpikeEpoch(epochgrp)
+        elif tracetype == "wholetrace":
+            return WholeEpoch(epochgrp)

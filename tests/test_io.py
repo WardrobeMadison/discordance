@@ -4,18 +4,9 @@ import logging
 from multiprocessing import Pool
 from pathlib import Path
 
-from dissonance import epochtypes, io, viewer
+from dissonance import epochtypes, io, viewer, init_log
 
-import sys
-sys.stdout = open("delete.txt", "w+")
-
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-formatter=logging.Formatter('%(asctime)s : %(message)s : %(levelname)s -%(name)s',datefmt='%d%m%Y %I:%M:%S %p')
-fh = logging.FileHandler("log.txt")
-fh.setFormatter(formatter)
-logger.addHandler(fh)
-
+logger = init_log()
 
 def write_file(file, wodir):
     try:
@@ -23,9 +14,8 @@ def write_file(file, wodir):
         sr = io.SymphonyReader(file)
         sr.to_h5(wodir / file.name)
     except Exception as e:
-        print(f"FILEFAILED {file}")
-        print(e)
-        #raise e
+        logger.warning(f"FILEFAILED {file}")
+        logger.warning(e)
 
     return f"Done reading {file}"
 
@@ -53,7 +43,6 @@ class TestIO():
 
             with Pool(nprocesses) as p:
                 for x in p.imap(func, files):
-
                     print(x)
     
     def test_to_h5(self):

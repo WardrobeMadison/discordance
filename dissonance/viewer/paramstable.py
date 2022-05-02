@@ -60,9 +60,9 @@ class ParamsTable(QTableWidget):
                 val = epoch.get_unique(paramname)
                 vals.extend(val)
 
-            text = ", ".join(map(str, list(set(val))))
+            text = ", ".join(map(str, list(set(vals))))
             self.setItem(ii, 1, QTableWidgetItem(text))
-            data.append([paramname, text, val])
+            data.append([paramname, text, vals])
 
         self.df = pd.DataFrame(columns="Param Text Val".split(), data=data)
     

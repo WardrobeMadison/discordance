@@ -28,7 +28,7 @@ class EpochIO(ABC):
         return AnalysisTree(name, splits, self.frame)
 
     def set_frame(self, params:pd.DataFrame):
-        params["include"] = params.startdate.apply(lambda x: not (x in self.unchecked))
+        params.loc[:, "include"] = params.startdate.apply(lambda x: not (x in self.unchecked))
         self.frame = params
 
     def update(self, filters:List[Dict], paramname: str, value: Any):

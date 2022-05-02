@@ -1,9 +1,11 @@
 from pathlib import Path
 import pandas as pd
-from dissonance import viewer, io, epochtypes, analysis
+from dissonance import viewer, io, epochtypes, analysis, init_log
 from dissonance.epochtypes import filter
 from time import time
 import pytest
+
+logger = init_log()
 
 ROOT_DIR = Path("/home/joe/Projects/DataStore/MappedData")
 

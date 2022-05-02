@@ -11,13 +11,10 @@ from dissonance.funks import detect_spikes
 
 logger = logging.getLogger(__name__)
 
-
-fout = open("log2.txt", "w+")
-
-
 def get_rstarr_map():
     rstarrdf = pd.read_csv(
-        Path(__file__).parent.parent.parent / "data/rstarrmap.txt", "\t",
+        Path(__file__).parent.parent.parent / "data/rstarrmap.txt", 
+        delimiter="\t",
         parse_dates=["startdate", "enddate"],
         dtype=dict(
             protocolname=str,
@@ -32,10 +29,7 @@ def get_rstarr_map():
             row["lightamplitude_rstarr"], row["lightmean_rstarr"])
     return rstarrmap
 
-
 RSTARRMAP = get_rstarr_map()
-
-
 S1 = np.dtype("|S1")
 
 
@@ -482,10 +476,8 @@ class SymphonyReader:
                 RSTARRMAP[
                     (protocol.name, protocol["led"], lightamp, lightmean)])
         except KeyError:
-            logging.info(
+            logging.warning(
                 f"RStarrConversionError: {','.join(map(str, (protocol.name, protocol['led'],lightamp, lightmean)))}")
-            fout.write(
-                f"RStarrConversionError,{','.join(map(str, (epoch.startdate, protocol.name, protocol['led'],lightamp, lightmean)))}\n")
             epochgrp.attrs["lightamplitude"], epochgrp.attrs["lightmean"] = -10000, -10000
 
     def to_db(self):

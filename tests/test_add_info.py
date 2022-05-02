@@ -1,21 +1,11 @@
 import sys
-import pytest
 sys.path.append("..")
-import logging
-from dissonance import io
-from multiprocessing import Pool
-import h5py
-import re
+from dissonance import io, init_log
 
 from pathlib import Path
-from dissonance.io import DissonanceUpdater, DissonanceReader, SymphonyReader
+from dissonance.io import DissonanceUpdater, SymphonyReader
 
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-formatter=logging.Formatter('%(asctime)s : %(message)s : %(levelname)s -%(name)s',datefmt='%d%m%Y %I:%M:%S %p')
-fh = logging.FileHandler("log.txt")
-fh.setFormatter(formatter)
-logger.addHandler(fh)
+init_log()
 
 class TestAddInfo:
 
