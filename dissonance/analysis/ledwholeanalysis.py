@@ -12,48 +12,29 @@ from .charting import (MplCanvas, PlotCRF, PlotHill, PlotSwarm, PlotWeber,
 
 class LedWholeAnalysis(IAnalysis):
 
-    def __init__(
-            self, params: pd.DataFrame, experimentpaths: List[Path], unchecked: set = None):
-        # CONSTRUCT BASE, FILTER ON TRACE TYPE, LED AND PROTOCOL NAME
-        super().__init__(
-            params,
-            experimentpaths,
-            unchecked)
-
-        # USED IN SAVING PLOTS AND EXPORTING DATA
+    def __init__(self):
         self.currentplots = []
 
     def __str__(self):
         return type(self).__name__
 
-    def plot(self, node: Node, canvas: MplCanvas = None, useincludeflag=True):
+    def plot(self, level: str, eframe:pd.DataFrame, canvas: MplCanvas = None):
         """Map node level to analysis run & plots created.
         """
         self.currentplots = []
 
-        scope = list(node.path.keys())
-        level = len(scope)
-
-        epochs = self.query(filters=[node.path], useincludeflag=useincludeflag)
-
-        # STARTDATE
-        if node.isleaf:
-            self.plot_single_epoch(epochs, canvas)
-        # LIGHTMEAN
-        elif level == 9:
-            self.plot_summary_epochs(epochs, canvas)
-        # LIGHT AMPLITUDE
-        elif level == 8:
-            self.plot_summary_epochs(epochs, canvas)
-        # LIGHT CELL NAME
-        elif level == 7:
-            self.plot_summary_cell(epochs, canvas)
-        # GENOTYPE
-        elif level == 6:
-            self.plot_genotype_summary(epochs, canvas)
-        # CELLTYPE
-        elif level == 5:
-            self.plot_genotype_comparison(epochs, canvas)
+        if level == "startdate":
+            self.plot_single_epoch(eframe, canvas)
+        elif level == "lightmean":
+            self.plot_summary_epochs(eframe, canvas)
+        elif level == "lightamplitude":
+            self.plot_summary_epochs(eframe, canvas)
+        elif level == "cellname":
+            self.plot_summary_cell(eframe, canvas)
+        elif level == "genotype":
+            self.plot_genotype_summary(eframe, canvas)
+        elif level == "celltype":
+            self.plot_genotype_comparison(eframe, canvas)
 
     def plot_single_epoch(self, eframe, canvas):
         epoch = eframe.epoch.iloc[0]

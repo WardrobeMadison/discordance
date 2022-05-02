@@ -31,9 +31,10 @@ class TestGui():
 			params = dr.to_params(paramnames, filters={"tracetype" : "wholetrace"})
 			params = params.loc[params.protocolname.isin(["LedPulseFamily", "LedPulse"])]
 
-			tree = analysis.LedWholeAnalysis(params,paths, unchecked)
+			epochio = analysis.EpochIO(params, paths)
+			wa = analysis.LedWholeAnalysis()
 			
-			viewer.run(tree, unchecked, uncheckedpath)
+			viewer.run(epochio, wa, unchecked, uncheckedpath)
 		except SystemExit as e:
 			...
 		finally:
