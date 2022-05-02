@@ -3,3 +3,4 @@ from .ledwholeanalysis import LedWholeAnalysis
 from .baseanalysis import IAnalysis, EpochIO
 from . import charting
 from .analysistree import AnalysisTree
+from .browsing import BrowsingAnalysis

@@ -32,8 +32,11 @@ class DissonanceReader:
             for epochname in experiment:
                 epoch = experiment[epochname]
 
-                condition = all(
-                    [epoch.attrs.get(key) == val for key, val in filters.items()])
+                if filters is not None:
+                    condition = all(
+                        [epoch.attrs.get(key) == val for key, val in filters.items()])
+                else:
+                    condition = True
                 if condition:
                     number = f"{int(epochname[5:]):04d}"
 
@@ -62,7 +65,7 @@ class DissonanceReader:
             traces.extend(self.h5_to_epochs(filepath, **kwargs))
         return traces
 
-    def to_params(self, paramnames: List[str], filters: Dict, nprocesses: int = 5) -> pd.DataFrame:
+    def to_params(self, paramnames: List[str], filters: Dict=None, nprocesses: int = 5) -> pd.DataFrame:
         dfs = []
         func = partial(self.file_to_paramstable,
                        paramnames=paramnames, filters=filters)

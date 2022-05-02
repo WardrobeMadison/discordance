@@ -360,6 +360,96 @@ class PlotWholeTrace(PlotBase):
         ...
 
 
+class PlotTrace(PlotBase):
+
+    def __init__(self, ax: Axes, epoch:IEpoch=None, igor=False):
+        self.ax: Axes = ax
+
+        self.ax.set_ylabel("pA")
+        self.ax.set_xlabel("seconds")
+        self.ax.margins(x=0, y=0)
+        self.ax.spines["left"].set_visible(False)
+        self.ax.get_yaxis().set_visible(False)
+
+        self.colors = Pallette(igor)
+
+        self.labels = []
+        self.values = []
+
+        if epoch is not None:
+            self.append_trace(epoch)
+
+    def __str__(self):
+        return f"{type(self).__name__}({','.join(map(str,self.labels))})"
+
+    def append_trace(self, epoch:IEpoch):
+        """Plot traces
+        """
+        # GET ATTRIBUTES FOR PLOT
+        stimtime = epoch.get("stimtime")[0]
+        if isinstance(epoch, IEpoch):
+            label = epoch.startdate
+        else:
+            label = f'{epoch.get("cellname")[0]}, {epoch.get("lightamplitude")[0]}, {epoch.get("lightmean")}'
+
+        # PLOT SPIKES IF SPIKETRACE
+        if (epoch.type == "spiketrace" and epoch.spikes is not None):
+            y = epoch.trace[epoch.spikes]
+            self.ax.scatter(
+                epoch.spikes - stimtime,
+                y,
+                marker="x", c=self.colors[epoch.genotype])
+
+        # PLOT TRACE VALUES
+        X = np.arange(len(epoch.trace)) - stimtime
+        self.ax.plot(
+            X,
+            epoch.trace, label=label,
+            color=self.colors[epoch.get("genotype")[0]],
+            alpha=0.4)
+
+        # FORMAT AXES
+        xticks = (
+            [min(X)]
+            + list(np.arange(0, max(X), 10000))
+        )
+        if max(X) not in xticks:
+            xticks.append(max(X))
+        xlabels = [f"{x/10000:.1f}" for x in xticks]
+
+        self.ax.set_xticks(xticks)
+        self.ax.set_xticklabels(xlabels)
+
+        self.labels.append(label)
+        self.values.append(epoch.trace)
+
+    def to_csv(self, outputdir=None):
+        columns = "Chart Label Time Value".split()
+
+        dfs = []
+        for label, values in zip(self.labels, self.values):
+            df = pd.DataFrame(columns=columns)
+            df["Value"] = values
+            df["Time"] = np.arange(len(values))
+            # TODO split label up to get component keys. Try to associate a label with every epoch list for unique attributes
+            df["Label"] = label
+            df["Chart"] = "Trace"
+            dfs.append(df)
+
+        df = pd.concat(dfs)
+        filename = f"PlotTrace_{datetime.now()}.csv"
+        if outputdir:
+            filename = outputdir / filename
+
+        df.to_csv(filename, index=False)
+
+    def to_image(self, *args, **kwargs):
+        ...
+
+    def to_igor(self, *args, **kwargs):
+        ...
+
+
 class PlotSpikeTrain(PlotBase):
 
     def __init__(self, ax: Axes, epoch:IEpoch=None, igor=False):
