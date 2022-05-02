@@ -1,4 +1,3 @@
-from nbformat import write
 import pytest
 from functools import partial
 import logging

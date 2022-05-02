@@ -5,12 +5,12 @@ from dissonance.epochtypes import filter
 from time import time
 import pytest
 
+ROOT_DIR = Path("/home/joe/Projects/DataStore/MappedData")
 
 class TestGui():
 
 	def test_window_wholecell(self):
 		try:
-			root_dir = Path("/home/joe/Projects/DataStore/MappedData")
 			#uncheckedpath = Path("DemoForJenna.txt")
 			#unchecked = io.read_unchecked_file(uncheckedpath)
 			unchecked = None
@@ -22,7 +22,7 @@ class TestGui():
 			for fldr in folders:
 				paths.extend(
 					[	file
-						for ii, file in enumerate((root_dir/fldr).glob("*.h5"))
+						for ii, file in enumerate((ROOT_DIR/fldr).glob("*.h5"))
 					]
 				)
 
@@ -42,7 +42,7 @@ class TestGui():
 
 	def test_window_spikecell(self):
 		try:
-			root_dir = Path("/home/joe/Projects/DataStore/MappedData")
+
 			#uncheckedpath = Path("DemoForJenna.txt")
 			#unchecked = io.read_unchecked_file(uncheckedpath)
 			unchecked = None
@@ -54,8 +54,7 @@ class TestGui():
 			for fldr in folders:
 				paths.extend(
 					[	file
-						for ii, file in enumerate((root_dir/fldr).glob("*.h5"))
-						if ii < 5
+						for ii, file in enumerate((ROOT_DIR/fldr).glob("*.h5"))
 					]
 				)
 
@@ -75,7 +74,6 @@ class TestGui():
 
 	def test_window_browsing(self):
 		try:
-			root_dir = Path("/home/joe/Projects/DataStore/MappedData")
 			#uncheckedpath = Path("DemoForJenna.txt")
 			#unchecked = io.read_unchecked_file(uncheckedpath)
 			unchecked = None
@@ -87,7 +85,7 @@ class TestGui():
 			for fldr in folders:
 				paths.extend(
 					[	file
-						for ii, file in enumerate((root_dir/fldr).glob("*.h5"))
+						for ii, file in enumerate((ROOT_DIR/fldr).glob("*.h5"))
 						if ii < 5
 					]
 				)

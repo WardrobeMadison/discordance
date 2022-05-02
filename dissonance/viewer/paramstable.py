@@ -32,12 +32,12 @@ class ParamsTable(QTableWidget):
         self.initConnections()
 
         if epoch is not None:
-            self.fill_table(epoch)
+            self.fillTable(epoch)
         
     def initConnections(self):
         self.itemDelegate().closeEditor.connect(self.onTableEdit)
 
-    def fill_table(self, epochs: List[Union[et.IEpoch, et.EpochBlock]]):
+    def fillTable(self, epochs: List[Union[et.IEpoch, et.EpochBlock]]):
         """Update params table with epoch 
 
         Args:
@@ -68,7 +68,7 @@ class ParamsTable(QTableWidget):
     
     @pyqtSlot(list)
     def onNewEpochs(self, epochs):
-        self.fill_table(epochs)
+        self.fillTable(epochs)
 
     @pyqtSlot()
     def onTableEdit(self):

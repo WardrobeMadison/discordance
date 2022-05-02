@@ -20,6 +20,7 @@ class GraphWidget(QWidget):
 
     def __init__(self, analysis: IAnalysis, canvas: MplCanvas):
         super().__init__()
+
         self.analysis = analysis
         self.canvas = canvas
         self.currentplots = []

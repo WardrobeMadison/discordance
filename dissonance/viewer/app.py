@@ -109,7 +109,6 @@ class DissonanceUI(QWidget):
         # STAGE EXPORT DIALOG
         self.dialog = ExportDataWindow(
             parent=self, charts=None, outputdir=self.export_dir)
-        self.dialog.closeEvent
 
         self.initConnections()
 

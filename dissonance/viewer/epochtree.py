@@ -102,7 +102,7 @@ class EpochTreeWidget(QTreeView):
         # TRANSLATE TREE TO Qt Items ITEMS
         rootNode = self.treeModel.invisibleRootItem()
         root = RootItem(self.tree)
-        self.add_items(self.tree, root)
+        self.addItems(self.tree, root)
         rootNode.appendRow(root)
 
     @pyqtSlot(str, object)
@@ -141,7 +141,7 @@ class EpochTreeWidget(QTreeView):
             self.unchecked.add(item.label)
             item.setBackground(QColor(255, 255, 255, 0))
 
-    def add_items(self, parentnode: Node, parentitem: QStandardItem):
+    def addItems(self, parentnode: Node, parentitem: QStandardItem):
         """Translate nodes of tree to QT items for treeview
 
         Args:
@@ -158,7 +158,7 @@ class EpochTreeWidget(QTreeView):
             else:
                 item = GroupItem(node)
                 parentitem.appendRow(item)
-                self.add_items(node, item)
+                self.addItems(node, item)
 
     @property
     def selectedNodes(self):
