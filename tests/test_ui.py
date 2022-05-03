@@ -93,11 +93,12 @@ class TestGui():
 				)
 
 			dr = io.DissonanceReader(paths)
-			paramnames = ["led", "protocolname", "celltype", "genotype", "cellname", "lightamplitude", "lightmean", "startdate"]
+			lsa = analysis.BrowsingAnalysis()
+			paramnames = ["led", "protocolname", "celltype", "genotype", "cellname","tracetype", "backgroundval", "lightamplitude", "lightmean", "startdate"]
 			params = dr.to_params(paramnames)
+			params = params.loc[params.protocolname.isin(["LedPulse", "LedPulseFamily"])]
 
 			epochio = analysis.EpochIO(params, paths)
-			lsa = analysis.BrowsingAnalysis()
 			
 			viewer.run(epochio, lsa, unchecked, uncheckedpath)
 		except SystemExit as e:

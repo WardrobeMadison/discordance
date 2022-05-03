@@ -19,8 +19,8 @@ class GraphWidget(MplCanvas):
     redrawCanvas = pyqtSignal()
     currentPlots = pyqtSignal(list)
 
-    def __init__(self, analysis: IAnalysis):
-        super().__init__()
+    def __init__(self, parent, analysis: IAnalysis):
+        super().__init__(parent)
 
         self.analysis = analysis
         self.currentplots = []

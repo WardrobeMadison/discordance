@@ -90,6 +90,8 @@ class EpochIO(ABC):
             df = (pd.concat(dfs))
             df = df.reset_index(drop=True)
             df = df.drop_duplicates(keep="first")
+            # HACK why are there NAs here?
+            df = df[~df.isna()]
 
         if df.shape[0] != 0:
             def func(row):

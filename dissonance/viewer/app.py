@@ -19,18 +19,6 @@ from .graphwidget import GraphWidget
 from .paramstable import ParamsTable
 
 
-class Worker(QObject):
-    finished = pyqtSignal()
-
-    def __init__(self, process):
-        super().__init__()
-        self.process = process
-
-    @pyqtSlot(str, object)
-    def plot(self, level, eframe):
-        self.process(level, eframe)
-        self.finished.emit()
-
 
 class DissonanceUI(QWidget):
 
@@ -95,7 +83,7 @@ class DissonanceUI(QWidget):
         col1.addWidget(self.scroll_area)
 
         #canvas = MplCanvas(self.scroll_area)
-        self.graphWidget = GraphWidget(analysis)
+        self.graphWidget = GraphWidget(self.scroll_area, analysis)
         self.toolbar = NavigationToolbar(self.graphWidget, self)
 
         # EXPORT DATA BUTTON
@@ -134,9 +122,9 @@ class DissonanceUI(QWidget):
         self.exportdata_bttn.clicked.connect(self.on_export_bttn_click)
 
         # PLOT ON A SEPARATE THREAD
-        thread = QThread(self)
-        self.graphWidget.moveToThread(thread)
-        thread.start()
+        #thread = QThread(self)
+        #self.graphWidget.moveToThread(thread)
+        #thread.start()
 
         # ADD THREAD CONNECTIONS
         self.treeWidget.newSelectionForPlot.connect(self.graphWidget.plot)
@@ -147,7 +135,7 @@ class DissonanceUI(QWidget):
 # region SLOTS*******************************************************************
     @pyqtSlot()
     def redrawCanvas(self):
-        self.graphWidget.canvas.draw()
+        self.graphWidget.draw()
 
     @pyqtSlot(object)
     def updateTableOnTreeSelect(self, eframe):
