@@ -139,8 +139,9 @@ class DissonanceUI(QWidget):
 
     @pyqtSlot(object)
     def updateTableOnTreeSelect(self, eframe):
-        epochs = eframe.epoch.values
-        self.paramstable.onNewEpochs(epochs)
+        if eframe is not None:
+            epochs = eframe.epoch.values
+            self.paramstable.onNewEpochs(epochs)
 
     @pyqtSlot()
     def on_save_bttn_click(self):

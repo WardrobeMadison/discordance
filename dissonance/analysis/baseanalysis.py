@@ -32,17 +32,18 @@ class EpochIO(ABC):
         self.frame = params
 
     def update(self, filters:List[Dict], paramname: str, value: Any):
+        # FILTER DATATABLE TO APPLICABLE EPOCHS
         eframe = self.query(filters=filters)
-        newframe = self.frame
 
         for _, row in eframe.iterrows():
+            # UPDATE H5 GROUP ATTRIBUTES
             row["epoch"].update(paramname, value)
-            if paramname in newframe.columns:
-                newframe.loc[newframe.startdate == row["startdate"], paramname] = value
+            # UPDATE EPOCHIO DATATABLE PARAMETERS
+            if paramname in self.frame.columns:
+                self.frame.loc[self.frame.startdate == row["startdate"], paramname] = value
 
-        eframe.epoch.iloc[0]._response_ds.flush()
-
-        self.set_frame(newframe)
+        # FLUSH CHANGES MADE TO ANY H5 FILES
+        for experimentgrp in self.files.values(): experimentgrp.file.flush()
 
     def query(self, filters=List[Dict], useincludeflag=True) -> pd.DataFrame:
         """Relate nodes from tree to underlying dataframe. Only passes inclued nodes
@@ -59,9 +60,10 @@ class EpochIO(ABC):
 
         dfs = []
         for filter in filters:
-            if "Name" in filter.keys(): del filter["Name"]
+            if "Name" in filter.keys(): 
+                del filter["Name"]
             if len(filter) == 1 and list(filter.keys())[0] == "startdate":
-                dfs.append(self.frame.query(f"""startdate == '{filter["startdate"]}'"""))
+                dfs.append(self.frame.query(f"startdate == {filter['startdate']:!r}"))
             else:
                 # DICTIONARY OF ALL VALUES
                 # BUILD FILTER CONDITION

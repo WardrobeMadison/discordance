@@ -25,7 +25,9 @@ class BrowsingAnalysis(IAnalysis):
         if level == "startdate":
             self.plot_single_epoch(eframe, self.canvas)
         elif level == "lightmean":
-            self.plot_summary_epoch(eframe, self.canvas)
+            self.plot_summary_epochs(eframe, self.canvas)
+        elif level == "lightamplitude":
+            self.plot_summary_epochs(eframe, self.canvas)
 
     def plot_single_epoch(self, eframe: pd.DataFrame, canvas):
 
@@ -59,6 +61,7 @@ class BrowsingAnalysis(IAnalysis):
                 self.currentplots.extend([pltpsth, pltraster])
 
         elif eframe.tracetype.iloc[0] == "wholetrace":
+            grps = groupby(eframe, self.labels)
             n, m = grps.shape[0], 2
             axes = canvas.grid_axis(n, m)
             axii = 0
