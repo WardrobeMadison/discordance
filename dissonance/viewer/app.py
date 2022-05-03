@@ -15,24 +15,14 @@ from ..analysis import EpochIO, IAnalysis
 from ..analysis.charting import MplCanvas
 from .epochtree import EpochTreeWidget
 from .exportwindow import ExportDataWindow
-from .graphwidget import GraphWidget
+from .graphwidget import GraphWidget, PlotWorker
 from .paramstable import ParamsTable
 
 
-class Worker(QObject):
-    finished = pyqtSignal()
-
-    def __init__(self, process):
-        super().__init__()
-        self.process = process
-
-    @pyqtSlot(str, object)
-    def plot(self, level, eframe):
-        self.process(level, eframe)
-        self.finished.emit()
-
 
 class DissonanceUI(QWidget):
+
+    drawOnCanvas = pyqtSignal(str, object, object)
 
     def __init__(self, epochio: EpochIO, analysis: IAnalysis, unchecked: set = None, uncheckedpath: Path = None, export_dir: Path = None):
         super().__init__()
@@ -51,6 +41,8 @@ class DissonanceUI(QWidget):
         self.initUI(epochio, analysis)
 
     def initUI(self, epochio, analysis):
+        self.worker = PlotWorker(analysis)
+
         self.setWindowTitle("Dissonance")
         self.setGeometry(self.left, self.top, self.width, self.height)
 
@@ -95,8 +87,9 @@ class DissonanceUI(QWidget):
         col1.addWidget(self.scroll_area)
 
         #canvas = MplCanvas(self.scroll_area)
-        self.graphWidget = GraphWidget(analysis)
-        self.toolbar = NavigationToolbar(self.graphWidget, self)
+        #self.graphWidget = GraphWidget(self.scroll_area, analysis)
+        self.canvas = MplCanvas(self.scroll_area)
+        self.toolbar = NavigationToolbar(self.canvas, self)
 
         # EXPORT DATA BUTTON
         self.exportdata_bttn = QPushButton("Export Data", self)
@@ -104,7 +97,8 @@ class DissonanceUI(QWidget):
         # SECOND COLUMN WIDGETS
         hbox.addWidget(self.toolbar)
         hbox.addWidget(self.exportdata_bttn)
-        self.scroll_area.setWidget(self.graphWidget)
+        #self.scroll_area.setWidget(self.graphWidget)
+        self.scroll_area.setWidget(self.canvas)
 
         # STAGE EXPORT DIALOG
         self.dialog = ExportDataWindow(
@@ -134,21 +128,36 @@ class DissonanceUI(QWidget):
         self.exportdata_bttn.clicked.connect(self.on_export_bttn_click)
 
         # PLOT ON A SEPARATE THREAD
-        thread = QThread(self)
-        self.graphWidget.moveToThread(thread)
-        thread.start()
+        #thread = QThread(self)
+        #self.graphWidget.moveToThread(thread)
+        #thread.start()
 
         # ADD THREAD CONNECTIONS
-        self.treeWidget.newSelectionForPlot.connect(self.graphWidget.plot)
-        self.graphWidget.redrawCanvas.connect(self.redrawCanvas)
-        self.graphWidget.currentPlots.connect(self.dialog.fillList)
+        #self.treeWidget.newSelectionForPlot.connect(self.graphWidget.plot)
+        #self.graphWidget.currentPlots.connect(self.dialog.fillList)
+
+        # PLOT ON A SEPARATE THREAD
+        thread = QThread(self)
+        self.worker.moveToThread(thread)
+        thread.start()
+
+        self.treeWidget.newSelectionForPlot.connect(self.plotOnCanvas)
+        self.drawOnCanvas.connect(self.worker.plot)
+        self.worker.redrawCanvas.connect(self.drawCanvas)
+        self.worker.currentPlots.connect(self.dialog.fillList)
+
+    @pyqtSlot(str, object)
+    def plotOnCanvas(self, level, eframe):
+        self.drawOnCanvas.emit(level, eframe, self.canvas)
+
+    @pyqtSlot(object)
+    def drawCanvas(self, canvas):
+        self.canvas = canvas
+        self.canvas.draw()
+
 # endregion
 
 # region SLOTS*******************************************************************
-    @pyqtSlot()
-    def redrawCanvas(self):
-        self.graphWidget.canvas.draw()
-
     @pyqtSlot(object)
     def updateTableOnTreeSelect(self, eframe):
         epochs = eframe.epoch.values

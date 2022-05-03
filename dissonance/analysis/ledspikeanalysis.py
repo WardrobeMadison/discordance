@@ -20,21 +20,19 @@ class LedSpikeAnalysis(IAnalysis):
         """Map node level to analysis run & plots created.
         """
         self.currentplots = []
-        self.canvas = canvas
-
         if level == "startdate":
-            self.plot_single_epoch(eframe, self.canvas)
+            self.plot_single_epoch(eframe, canvas)
         elif level == "lightamplitude":
-            self.plot_summary_epochs(eframe, self.canvas)
+            self.plot_summary_epochs(eframe, canvas)
         elif level == "lightmean":
             # TODO light mean analysis - analyze faceted light amplitudes
             ...
         elif level == "cellname":
-            self.plot_summary_cell(eframe, self.canvas)
+            self.plot_summary_cell(eframe, canvas)
         elif level == "genotype":
-            self.plot_genotype_summary(eframe, self.canvas)
+            self.plot_genotype_summary(eframe, canvas)
         elif level == "celltype":
-            self.plot_genotype_comparison(eframe, self.canvas)
+            self.plot_genotype_comparison(eframe, canvas)
 
     def plot_single_epoch(self, eframe: pd.DataFrame, canvas):
 
@@ -43,7 +41,6 @@ class LedSpikeAnalysis(IAnalysis):
         axes = canvas.grid_axis(1, 2)
         plttr = PlotSpikeTrain(axes[0], epoch)
         pltpsth = PlotPsth(axes[1], epoch, label=epoch.startdate)
-        canvas.draw()
 
         self.currentplots.append(plttr)
         self.currentplots.append(pltpsth)
