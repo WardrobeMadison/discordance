@@ -15,20 +15,21 @@ from PyQt5.QtWidgets import (QAbstractItemView, QApplication, QDialog,
 from ..analysis import IAnalysis
 from ..analysis.charting import MplCanvas
 
-class GraphWidget(QWidget):
+class GraphWidget(MplCanvas):
     redrawCanvas = pyqtSignal()
+    currentPlots = pyqtSignal(list)
 
-    def __init__(self, analysis: IAnalysis, canvas: MplCanvas):
+    def __init__(self, analysis: IAnalysis):
         super().__init__()
 
         self.analysis = analysis
-        self.canvas = canvas
         self.currentplots = []
 
     @pyqtSlot(str, object)
     def plot(self, level: str, eframe: pd.DataFrame):
-        self.analysis.plot(level, eframe, self.canvas)
+        self.analysis.plot(level, eframe, self)
         self.currentplots = self.analysis.currentplots
 
         self.redrawCanvas.emit()
+        self.currentPlots.emit(self.currentplots)
 

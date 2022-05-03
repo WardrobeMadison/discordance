@@ -94,9 +94,9 @@ class DissonanceUI(QWidget):
         col1.addLayout(hbox)
         col1.addWidget(self.scroll_area)
 
-        canvas = MplCanvas(self.scroll_area)
-        self.graphWidget = GraphWidget(analysis, canvas=canvas)
-        self.toolbar = NavigationToolbar(canvas, self)
+        #canvas = MplCanvas(self.scroll_area)
+        self.graphWidget = GraphWidget(analysis)
+        self.toolbar = NavigationToolbar(self.graphWidget, self)
 
         # EXPORT DATA BUTTON
         self.exportdata_bttn = QPushButton("Export Data", self)
@@ -141,7 +141,7 @@ class DissonanceUI(QWidget):
         # ADD THREAD CONNECTIONS
         self.treeWidget.newSelectionForPlot.connect(self.graphWidget.plot)
         self.graphWidget.redrawCanvas.connect(self.redrawCanvas)
-
+        self.graphWidget.currentPlots.connect(self.dialog.fillList)
 # endregion
 
 # region SLOTS*******************************************************************
@@ -153,7 +153,6 @@ class DissonanceUI(QWidget):
     def updateTableOnTreeSelect(self, eframe):
         epochs = eframe.epoch.values
         self.paramstable.onNewEpochs(epochs)
-        self.dialog.fillList(self.graphWidget.currentplots)
 
     @pyqtSlot()
     def on_save_bttn_click(self):
@@ -170,8 +169,6 @@ class DissonanceUI(QWidget):
     @pyqtSlot()
     def on_export_bttn_click(self):
         self.exportdata_bttn.setEnabled(False)
-        charts = self.analysis.currentplots
-        self.dialog.fillList(charts)
         self.dialog.show()
         self.dialog.exec_()
 # endregion
