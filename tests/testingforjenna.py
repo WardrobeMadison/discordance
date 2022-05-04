@@ -193,7 +193,7 @@ def gui_whole():
         params = dr.to_params(paramnames, filters={"tracetype" : "wholetrace"})
         params = params.loc[params.protocolname.isin(["LedPulseFamily", "LedPulse"])]
 
-        epochio = analysis.EpochIO(params, paths)
+        epochio = io.EpochIO(params, paths)
         wa = analysis.LedWholeAnalysis()
         
         viewer.run(epochio, wa, unchecked, uncheckedpath)
@@ -225,7 +225,7 @@ def gui_spike():
         params = dr.to_params(paramnames, filters={"tracetype" : "spiketrace"})
         params = params.loc[params.protocolname.isin(["LedPulseFamily", "LedPulse"])]
 
-        epochio = analysis.EpochIO(params, paths)
+        epochio = io.EpochIO(params, paths)
         lsa = analysis.LedSpikeAnalysis()
         
         viewer.run(epochio, lsa, unchecked, uncheckedpath)
@@ -256,7 +256,7 @@ def gui_browse():
         paramnames = ["led", "protocolname", "celltype", "genotype", "cellname", "lightamplitude", "lightmean", "startdate"]
         params = dr.to_params(paramnames)
 
-        epochio = analysis.EpochIO(params, paths)
+        epochio = io.EpochIO(params, paths)
         lsa = analysis.BrowsingAnalysis()
         
         viewer.run(epochio, lsa, unchecked, uncheckedpath)

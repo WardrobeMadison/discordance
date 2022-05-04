@@ -34,7 +34,7 @@ class TestGui():
             params = params.loc[params.protocolname.isin(
                 ["LedPulseFamily", "LedPulse"])]
 
-            epochio = analysis.EpochIO(params, paths)
+            epochio = io.EpochIO(params, paths)
             wa = analysis.LedWholeAnalysis()
 
             viewer.run(epochio, wa, unchecked, uncheckedpath)
@@ -69,7 +69,7 @@ class TestGui():
             params = params.loc[params.protocolname.isin(
                 ["LedPulseFamily", "LedPulse"])]
 
-            epochio = analysis.EpochIO(params, paths)
+            epochio = io.EpochIO(params, paths)
             lsa = analysis.LedSpikeAnalysis()
 
             viewer.run(epochio, lsa, unchecked, uncheckedpath)
@@ -103,7 +103,7 @@ class TestGui():
             params = params.loc[params.protocolname.isin(
                 ["LedPulse", "LedPulseFamily"])]
 
-            epochio = analysis.EpochIO(params, paths)
+            epochio = io.EpochIO(params, paths)
 
             viewer.run(epochio, lsa, unchecked, uncheckedpath)
         except SystemExit as e:

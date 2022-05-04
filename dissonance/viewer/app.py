@@ -11,36 +11,28 @@ from PyQt5.QtWidgets import (QAbstractItemView, QApplication, QDialog,
                              QListWidgetItem, QPushButton, QScrollArea,
                              QVBoxLayout, QWidget)
 
-from ..analysis import EpochIO, IAnalysis
-from ..analysis.charting import MplCanvas
+from ..analysis import IAnalysis
+from ..io import EpochIO
 from .epochtree import EpochTreeWidget
 from .exportwindow import ExportDataWindow
 from .graphwidget import GraphWidget
 from .paramstable import ParamsTable
 
 
-
 class DissonanceUI(QWidget):
 
     def __init__(self, epochio: EpochIO, analysis: IAnalysis, unchecked: set = None, uncheckedpath: Path = None, export_dir: Path = None):
         super().__init__()
-        # EPOCH INFORMATION
+        
         self.unchecked = unchecked
         self.uncheckedpath = "unchecked.csv" if uncheckedpath is None else uncheckedpath
         self.export_dir = export_dir
 
-        # SET GEOMETRY
-        self.left = 0
-        self.top = 0
-        self.width = 1200
-        self.height = 800
-
-        # INIT UI
         self.initUI(epochio, analysis)
 
     def initUI(self, epochio, analysis):
         self.setWindowTitle("Dissonance")
-        self.setGeometry(self.left, self.top, self.width, self.height)
+        self.setGeometry(0,0,1200, 800)
 
         self.initParamsTable()
 
@@ -123,8 +115,8 @@ class DissonanceUI(QWidget):
 
         # PLOT ON A SEPARATE THREAD
         #thread = QThread(self)
-        #self.graphWidget.moveToThread(thread)
-        #thread.start()
+        # self.graphWidget.moveToThread(thread)
+        # thread.start()
 
         # ADD THREAD CONNECTIONS
         self.treeWidget.newSelectionForPlot.connect(self.graphWidget.plot)

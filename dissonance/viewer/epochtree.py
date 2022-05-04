@@ -6,7 +6,7 @@ from PyQt5.QtGui import QColor, QFont
 from PyQt5.QtWidgets import QTreeView
 
 from dissonance.analysis.analysistree import AnalysisTree
-from dissonance.analysis.baseanalysis import EpochIO
+from dissonance.io import EpochIO
 
 from ..analysis.trees.base import Node, Tree
 from ..analysis import IAnalysis

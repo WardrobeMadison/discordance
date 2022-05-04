@@ -1,5 +1,9 @@
 # TODO 
 
+## Structure changes
+
+- [ ] Merge Dissonance Reader and EpochIO?
+
 ## Review with Jenna
 
 Spike Analysis

@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import dissonance
-from dissonance import analysis, epochtypes, io, viewer
+from dissonance import analysis, io, viewer
 
 logger = dissonance.init_log()
 
@@ -33,8 +33,7 @@ paramnames = [*lsa.labels, "startdate"]
 params = dr.to_params(paramnames)
 
 # CREATE INPUT/OUTPUT OBJECT FOR QUERYING H5 FILES
-epochio = analysis.EpochIO(params, paths)
-
+epochio = io.EpochIO(params, paths)
 
 # RUN GUI
 viewer.run(epochio, lsa, unchecked, uncheckedpath)
