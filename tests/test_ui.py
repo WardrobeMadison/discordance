@@ -88,7 +88,6 @@ class TestGui():
 				paths.extend(
 					[	file
 						for ii, file in enumerate((ROOT_DIR/fldr).glob("*.h5"))
-						if ii < 5
 					]
 				)
 

@@ -1,37 +1,36 @@
-from pathlib import Path
-from typing import List, Tuple, Union, Dict, Any
-from abc import ABC, abstractproperty
-
-import pandas as pd
-import numpy as np
 import operator
+from abc import ABC, abstractproperty
 from functools import reduce
-import h5py
+from pathlib import Path
+from typing import Any, Dict, List, Tuple, Union
 
-from .trees import Node, Tree
-from ..epochtypes import groupby, EpochBlock, IEpoch, epoch_factory
-from .charting import MplCanvas
+import h5py
+import pandas as pd
+
+from ..epochtypes import EpochBlock, IEpoch, epoch_factory, groupby
 from .analysistree import AnalysisTree
+from .charting import MplCanvas
 
 
 class EpochIO(ABC):
 
     def __init__(self, params: pd.DataFrame, experimentpaths: List[Path], unchecked: set = None):
         self.files = {
-            path: h5py.File(str(path),"a")["experiment"] for path in experimentpaths
+            path: h5py.File(str(path), "a")["experiment"] for path in experimentpaths
         }
         # GROUP EPOCHS INTO FLAT LIST
         self.unchecked = set() if unchecked is None else unchecked
         self.set_frame(params)
-        
+
     def to_tree(self, name, splits) -> AnalysisTree:
         return AnalysisTree(name, splits, self.frame)
 
-    def set_frame(self, params:pd.DataFrame):
-        params.loc[:, "include"] = params.startdate.apply(lambda x: not (x in self.unchecked))
+    def set_frame(self, params: pd.DataFrame):
+        params.loc[:, "include"] = params.startdate.apply(
+            lambda x: not (x in self.unchecked))
         self.frame = params
 
-    def update(self, filters:List[Dict], paramname: str, value: Any):
+    def update(self, filters: List[Dict], paramname: str, value: Any):
         # FILTER DATATABLE TO APPLICABLE EPOCHS
         eframe = self.query(filters=filters)
 
@@ -40,10 +39,12 @@ class EpochIO(ABC):
             row["epoch"].update(paramname, value)
             # UPDATE EPOCHIO DATATABLE PARAMETERS
             if paramname in self.frame.columns:
-                self.frame.loc[self.frame.startdate == row["startdate"], paramname] = value
+                self.frame.loc[self.frame.startdate ==
+                               row["startdate"], paramname] = value
 
         # FLUSH CHANGES MADE TO ANY H5 FILES
-        for experimentgrp in self.files.values(): experimentgrp.file.flush()
+        for experimentgrp in self.files.values():
+            experimentgrp.file.flush()
 
     def query(self, filters=List[Dict], useincludeflag=True) -> pd.DataFrame:
         """Relate nodes from tree to underlying dataframe. Only passes inclued nodes
@@ -57,19 +58,19 @@ class EpochIO(ABC):
         if not isinstance(filters, list):
             filters = [filters]
 
-
         dfs = []
         for filter in filters:
-            if "Name" in filter.keys(): 
+            if "Name" in filter.keys():
                 del filter["Name"]
             if len(filter) == 1 and list(filter.keys())[0] == "startdate":
-                dfs.append(self.frame.query(f"startdate == {filter['startdate']:!r}"))
+                dfs.append(self.frame.query(
+                    f"startdate == {filter['startdate']:!r}"))
             else:
                 # DICTIONARY OF ALL VALUES
                 # BUILD FILTER CONDITION
                 # FILTERED ON INDEX SO ONLY NEED VALUES IN LABEL ORDER
                 condition = []
-                for key,value in filter.items():
+                for key, value in filter.items():
                     if value is None:
                         condition.append(
                             self.frame[key].apply(lambda x: x is None)
@@ -79,13 +80,13 @@ class EpochIO(ABC):
                             self.frame[key] == value
                         )
                 dff = self.frame.loc[reduce(operator.and_, condition), :]
-                
+
                 # FILTER FOR CHECKED VALUES
                 if useincludeflag is False:
                     dfs.append(dff)
                 else:
                     dfs.append(dff.loc[dff.include == True])
-        # CONVERT TO EPOCHS IN DATAFRAME    
+        # CONVERT TO EPOCHS IN DATAFRAME
         if len(dfs) == 0:
             raise Exception("No epochs returns")
         else:
@@ -103,9 +104,9 @@ class EpochIO(ABC):
                     print(row.exppath)
                     raise e
 
-            df["epoch"] = df.apply(lambda x: 
-                func(x),
-                axis=1)
+            df["epoch"] = df.apply(lambda x:
+                                   func(x),
+                                   axis=1)
         else:
             raise Exception("No epochs returns")
 

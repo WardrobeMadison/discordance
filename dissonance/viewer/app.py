@@ -60,7 +60,7 @@ class DissonanceUI(QWidget):
         col1 = QVBoxLayout()
         self.layout = QHBoxLayout()
         self.layout.addLayout(col0, 1)
-        self.layout.addLayout(col1, 2)
+        self.layout.addLayout(col1, 3)
         self.layout.addStretch()
         self.setLayout(self.layout)
 
@@ -69,7 +69,7 @@ class DissonanceUI(QWidget):
         col0.addWidget(self.filterfilelabel)
         col0.addWidget(treesplitlabel)
         col0.addWidget(self.treeWidget, 10)
-        col0.addWidget(self.paramstable, 4)
+        col0.addWidget(self.paramstable, 3)
         col0.minimumSize()
 
         # SECOND COLUMN
