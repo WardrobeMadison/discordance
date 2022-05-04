@@ -13,6 +13,7 @@ class IEpoch(ABC):
         self._response_ds = epochgrp["Amp1"]
 
         self.protocolname = epochgrp.attrs.get("protocolname")
+        self.backgroundval = epochgrp.attrs.get("backgroundval")
         self.cellname = epochgrp.attrs.get("cellname")
         self.celltype = epochgrp.attrs.get("celltype")
         self.genotype = epochgrp.attrs.get("genotype")

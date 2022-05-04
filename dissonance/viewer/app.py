@@ -11,13 +11,12 @@ from PyQt5.QtWidgets import (QAbstractItemView, QApplication, QDialog,
                              QListWidgetItem, QPushButton, QScrollArea,
                              QVBoxLayout, QWidget)
 
-from ..analysis import EpochIO, IAnalysis
-from ..analysis.charting import MplCanvas
+from ..analysis import IAnalysis
+from ..io import EpochIO
 from .epochtree import EpochTreeWidget
 from .exportwindow import ExportDataWindow
 from .graphwidget import GraphWidget, PlotWorker
 from .paramstable import ParamsTable
-
 
 
 class DissonanceUI(QWidget):
@@ -26,25 +25,18 @@ class DissonanceUI(QWidget):
 
     def __init__(self, epochio: EpochIO, analysis: IAnalysis, unchecked: set = None, uncheckedpath: Path = None, export_dir: Path = None):
         super().__init__()
-        # EPOCH INFORMATION
+        
         self.unchecked = unchecked
         self.uncheckedpath = "unchecked.csv" if uncheckedpath is None else uncheckedpath
         self.export_dir = export_dir
 
-        # SET GEOMETRY
-        self.left = 0
-        self.top = 0
-        self.width = 1200
-        self.height = 800
-
-        # INIT UI
         self.initUI(epochio, analysis)
 
     def initUI(self, epochio, analysis):
         self.worker = PlotWorker(analysis)
 
         self.setWindowTitle("Dissonance")
-        self.setGeometry(self.left, self.top, self.width, self.height)
+        self.setGeometry(0,0,1200, 800)
 
         self.initParamsTable()
 
@@ -64,7 +56,7 @@ class DissonanceUI(QWidget):
         col1 = QVBoxLayout()
         self.layout = QHBoxLayout()
         self.layout.addLayout(col0, 1)
-        self.layout.addLayout(col1, 2)
+        self.layout.addLayout(col1, 3)
         self.layout.addStretch()
         self.setLayout(self.layout)
 
@@ -73,7 +65,7 @@ class DissonanceUI(QWidget):
         col0.addWidget(self.filterfilelabel)
         col0.addWidget(treesplitlabel)
         col0.addWidget(self.treeWidget, 10)
-        col0.addWidget(self.paramstable, 4)
+        col0.addWidget(self.paramstable, 3)
         col0.minimumSize()
 
         # SECOND COLUMN
@@ -87,9 +79,8 @@ class DissonanceUI(QWidget):
         col1.addWidget(self.scroll_area)
 
         #canvas = MplCanvas(self.scroll_area)
-        #self.graphWidget = GraphWidget(self.scroll_area, analysis)
-        self.canvas = MplCanvas(self.scroll_area)
-        self.toolbar = NavigationToolbar(self.canvas, self)
+        self.graphWidget = GraphWidget(self.scroll_area, analysis)
+        self.toolbar = NavigationToolbar(self.graphWidget, self)
 
         # EXPORT DATA BUTTON
         self.exportdata_bttn = QPushButton("Export Data", self)
@@ -129,17 +120,8 @@ class DissonanceUI(QWidget):
 
         # PLOT ON A SEPARATE THREAD
         #thread = QThread(self)
-        #self.graphWidget.moveToThread(thread)
-        #thread.start()
-
-        # ADD THREAD CONNECTIONS
-        #self.treeWidget.newSelectionForPlot.connect(self.graphWidget.plot)
-        #self.graphWidget.currentPlots.connect(self.dialog.fillList)
-
-        # PLOT ON A SEPARATE THREAD
-        thread = QThread(self)
-        self.worker.moveToThread(thread)
-        thread.start()
+        # self.graphWidget.moveToThread(thread)
+        # thread.start()
 
         self.treeWidget.newSelectionForPlot.connect(self.plotOnCanvas)
         self.drawOnCanvas.connect(self.worker.plot)
@@ -158,10 +140,15 @@ class DissonanceUI(QWidget):
 # endregion
 
 # region SLOTS*******************************************************************
+    @pyqtSlot()
+    def redrawCanvas(self):
+        self.graphWidget.draw()
+
     @pyqtSlot(object)
     def updateTableOnTreeSelect(self, eframe):
-        epochs = eframe.epoch.values
-        self.paramstable.onNewEpochs(epochs)
+        if eframe is not None:
+            epochs = eframe.epoch.values
+            self.paramstable.onNewEpochs(epochs)
 
     @pyqtSlot()
     def on_save_bttn_click(self):

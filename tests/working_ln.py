@@ -35,7 +35,7 @@ params = dr.to_params(paramnames)
 #params = params.loc[params.protocolname.isin(["LedNoiseFamily"])]
 params = params.loc[params.protocolname == "LedNoiseFamily"]
 
-epochio = analysis.EpochIO(params, paths)
+epochio = io.EpochIO(params, paths)
 lsa = analysis.LedSpikeAnalysis()
 
 eframe = epochio.query(filters=[{"protocolname":"LedNoiseFamily"}])
