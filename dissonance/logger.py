@@ -1,11 +1,15 @@
+import os
 import sys
+from datetime import datetime
 from pathlib import Path
 import logging
 
-def init_log(logdir:Path = Path(f"~/Documents/DissonanceLogs")):
+HOME = Path.home() / "Documents/DissconaceLogs"
+
+def init_log(logdir:Path = HOME):
     # SET UP PATH INFORMATION
     logdir.mkdir(parents=True, exist_ok=True)
-    pathlog = Path(r"log_{datetime.now().strftime(r'%Y%m%d_%H%M%S')}.txt")
+    pathlog = Path(f"log_{datetime.now().strftime(r'%Y%m%d_%H%M%S')}.txt")
 
     logger = logging.getLogger()
     formatter = logging.Formatter('%(asctime)s : %(levelname)s -%(name)s : %(message)s',datefmt='%Y%m%d %I:%M:%S %p')
