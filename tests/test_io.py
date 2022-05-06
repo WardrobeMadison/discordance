@@ -23,13 +23,13 @@ def write_file(file, wodir):
 class TestIO():
 
     def test_all_to_h5(self):
-        nprocesses = 6
+        nprocesses = 4
         exclude = []
         folders = ["DR", "WT"]
         #folders = ["GA1 KO", "GG2 control", "GG2 KO"]
         #folders = ["GG2 KO", "GG2 control"]
 
-        root_dir = Path(r"/home/joe/Projects/DataStore/EPhysData")
+        root_dir = Path(r"/home/joe/Projects/DataStore/RawData")
         out_dir = Path(r"/home/joe/Projects/DataStore/MappedData")
         for folder in folders:
             wdir = root_dir / folder
@@ -42,11 +42,11 @@ class TestIO():
             func = partial(write_file, wodir=wodir)
 
             with Pool(nprocesses) as p:
-                for x in p.imap(func, files):
+                for x in p.imap_unordered(func, files):
                     print(x)
     
     def test_to_h5(self):
-        root_dir = Path(r"/home/joe/Projects/DataStore/EPhysData")
+        root_dir = Path(r"/home/joe/Projects/DataStore/RawData")
         out_dir = Path(r"/home/joe/Projects/DataStore/MappedData")
         geno = "WT"
         filename = '2021-09-11A.h5'

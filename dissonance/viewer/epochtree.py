@@ -1,15 +1,16 @@
 from datetime import datetime
-from lib2to3.pytree import Base
-from PyQt5.Qt import QStandardItem, QStandardItemModel, Qt, QAbstractItemView
+import operator
+from functools import reduce
+
+from dissonance.analysis.analysistree import AnalysisTree
+from dissonance.io import EpochIO
+from PyQt5.Qt import QAbstractItemView, QStandardItem, QStandardItemModel, Qt
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QColor, QFont
 from PyQt5.QtWidgets import QTreeView
 
-from dissonance.analysis.analysistree import AnalysisTree
-from dissonance.io import EpochIO
-
-from ..analysis.trees.base import Node, Tree
 from ..analysis import IAnalysis
+from ..analysis.trees.base import Node, Tree
 
 
 class RootItem(QStandardItem):
@@ -45,7 +46,11 @@ class GroupItem(QStandardItem):
         self.setFont(fnt)
         self.setText(self.label)
 
-        self.setFlags(self.flags() | Qt.ItemIsSelectable)
+        self.setFlags(self.flags() | Qt.ItemIsSelectable | Qt.ItemIsAutoTristate | Qt.ItemIsUserCheckable)
+
+    @property
+    def isLeaf(self):
+        return False
 
 class EpochItem(QStandardItem):
     def __init__(self, node: Node, color=QColor(0, 0, 0)):
@@ -66,6 +71,10 @@ class EpochItem(QStandardItem):
         self.setFlags(self.flags() | Qt.ItemIsUserCheckable |
                       Qt.ItemIsSelectable)
         self.setCheckState(Qt.Checked)
+
+    @property
+    def isLeaf(self):
+        return True
 
 
 class EpochTreeWidget(QTreeView):
@@ -122,24 +131,27 @@ class EpochTreeWidget(QTreeView):
                 item (QStandardItem): Selected tree node
         """
         # INCLUDE EPOCH
-        if item.checkState() == Qt.Checked:
-            if item.label in self.unchecked:
-                self.unchecked.remove(item.label)
+        if item.isLeaf:
+            if item.checkState() == Qt.Checked:
+                if item.label in self.unchecked:
+                    self.unchecked.remove(item.label)
 
-            self.at.frame.loc[
-                self.at.frame.startdate == item.label,
-                "include"
-            ] = True
+                self.epochio.frame.loc[
+                    self.epochio.frame.startdate == item.label,
+                    "include"
+                ] = True
 
-            item.setBackground(QColor(187, 177, 189))
-        # EXCLUDE EPOCH
-        else:
-            self.at.frame.loc[
-                self.at.frame.startdate == item.label,
-                "include"
-            ] = False
-            self.unchecked.add(item.label)
-            item.setBackground(QColor(255, 255, 255, 0))
+                item.setBackground(QColor(187, 177, 189))
+            # EXCLUDE EPOCH
+            else:
+                self.epochio.frame.loc[
+                    self.epochio.frame.startdate == item.label,
+                    "include"
+                ] = False
+                self.unchecked.add(item.label)
+                item.setBackground(QColor(255, 255, 255, 0))
+        else: 
+            print("figure this out")
 
     def addItems(self, parentnode: Node, parentitem: QStandardItem):
         """Translate nodes of tree to QT items for treeview

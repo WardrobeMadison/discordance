@@ -154,21 +154,68 @@ class LedWholeAnalysis(IAnalysis):
             epochs (Traces): Epochs to compare.
             canvas (MplCanvas, optional): Parent MPL canvas, figure created if not provided. Defaults to None.
         """
+        # PLOT FIT GRAPHS IN FIRST EXTRA ROWS IF NEEDED
         df = groupby(epochs, self.labels)
+        led = df.led.iloc[0]
+        protocolname = df.protocolname.iloc[0]
         n = len(set(zip(df.lightamplitude, df.lightmean)))
-        n, m = n, 3
-        axes = canvas.grid_axis(n, m)
+        m = 3
+
+        if led.lower() == "uv led" and protocolname.lower() == "ledpulse":
+            # ADD EXTRA HEADER ROWS FOR GRID SHAPE - ONE FOR EACH LIGHT MEAN
+            n += len(df.lightmean.unique())
+            axes = canvas.grid_axis(n, m)
+            axii = 0
+
+            for lightmean, frame in df.groupby("lightmean"):
+                plt = PlotCRF(axes[axii], metric = "peakamplitude")
+
+                # APPEND TRACE FOR EACH GENOTYPE
+                for geno, frame2 in frame.groupby("genotype"):
+                    plt.append_trace(frame2)
+
+                plt.ax.set_title(f"Light Mean = {lightmean}")
+
+                self.currentplots.extend([plt])
+                axii += 3
+
+        elif led.lower() == "green led" and protocolname.lower() == "ledpulsefamily":
+            # ADD AN EXTRA HEADER ROW FOR GRID SHAPE
+            n, m = len(set(zip(df.lightamplitude, df.lightmean))
+                       ) + len(df.lightmean.unique())*2, 1
+            axes = canvas.grid_axis(n, m)
+            axii = 0
+
+            for lightmean, frame in df.groupby("lightmean"):
+                plt_amp = PlotHill(axes[axii])
+                plt_wbr = PlotWeber(axes[axii+1])
+
+                # APPEND TRACE FOR EACH h
+                for geno, frame2 in frame.groupby("genotype"):
+                    plt_amp.append_trace(frame2)
+                    plt_wbr.append_trace(frame2)
+
+                plt_amp.ax.set_title(f"Light Mean = {lightmean}")
+                plt_wbr.ax.set_title(f"Light Mean = {lightmean}")
+
+                self.currentplots.extend([plt_amp,plt_wbr])
+                # THERE ARE THREE COLUMNS - THESE ARE ONLY COVERING TWO
+                axii += 3
+        else:
+            n, m = len(set(zip(df.lightamplitude, df.lightmean))), 1
+            axes = canvas.grid_axis(n, m)
+            axii = 0
 
         # PEAK AMPLITUDE SWARM PLOTS IN FIRST COLUMN
-        ii = 0
+        ii = 0 + axii
         for name, frame in df.groupby(["lightamplitude", "lightmean"]):
             plt = PlotSwarm(axes[ii], metric="peakamplitude", eframe=frame)
             ii += 3
             plt.ax.set_title(f"PA: {name}")
             self.currentplots.append(plt)
 
-        # TTP SWARM PLOTS IN Seoncd COLUMN
-        ii = 1
+        # TTP SWARM PLOTS IN SECOND COLUMN
+        ii = 1 + axii
         for name, frame in df.groupby(["lightamplitude", "lightmean"]):
             plt = PlotSwarm(axes[ii], metric="timetopeak", eframe=frame)
             plt.ax.set_title(f"TTP: {name}")
@@ -176,7 +223,7 @@ class LedWholeAnalysis(IAnalysis):
             self.currentplots.append(plt)
 
         # OVERLAPPING PSTHS IN THIRD COLUMN
-        ii = 2
+        ii = 2 + axii
         for (lightamp, lightmean), frame in df.groupby(["lightamplitude", "lightmean"]):
             axes[ii].set_title(f"{lightamp},{lightmean}")
             for geno, fframe in frame.groupby("genotype"):

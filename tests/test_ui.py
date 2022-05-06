@@ -4,6 +4,7 @@ from dissonance import analysis, init_log, io, viewer
 
 logger = init_log()
 
+#ROOT_DIR = Path("/home/joe/Projects/DataStore/MappedData")
 ROOT_DIR = Path("/home/joe/Projects/DataStore/MappedData")
 
 

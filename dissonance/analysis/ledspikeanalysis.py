@@ -79,34 +79,75 @@ class LedSpikeAnalysis(IAnalysis):
             #plt_ttp = PlotHill(axes[1], metric="timetopeak", epochs=grps)
             self.currentplots.extend([plt_amp])
 
-    def plot_genotype_comparison(self, epochs: pd.DataFrame, canvas: MplCanvas = None):
+    def plot_genotype_comparison(self, eframe: pd.DataFrame, canvas: MplCanvas = None):
         """Compare epochs by genotype
 
         Args:
             epochs (Traces): Epochs to compare.
             canvas (MplCanvas, optional): Parent MPL canvas, figure created if not provided. Defaults to None.
         """
-        df = groupby(epochs, self.labels)
+        df = groupby(eframe, self.labels)
         n = len(set(zip(df.lightamplitude, df.lightmean)))
         n, m = n, 3
-        axes = canvas.grid_axis(n, m)
+
+        # PLOT FIT GRAPHS IN FIRST ROW IF NEEDED
+        # TODO facet these plots
+        led = df.led.iloc[0]
+        protocolname = df.protocolname.iloc[0]
+        if led.lower() == "uv led" and protocolname.lower() == "ledpulse":
+            # ADD AN EXTRA HEADER ROW FOR GRID SHAPE
+            n += len(df.lightmean.unique())
+            axes = canvas.grid_axis(n, m)
+            axii = 0
+            
+            for lightmean, frame in df.groupby("lightmean"):
+                plt_amp = PlotCRF(axes[axii], metric="peakamplitude")
+                plt_ttp = PlotCRF(axes[axii+1], metric="timetopeak")
+                for geno, gframe in df.groupby("genotype"):
+
+                    plt_amp.append_trace(gframe)
+                    plt_ttp.append_trace(gframe)
+
+                self.currentplots.extend([plt_amp, plt_ttp])
+                axii += 3
+
+        elif led.lower() == "green led" and protocolname.lower() == "ledpulsefamily":
+            # ADD AN EXTRA HEADER ROW FOR GRID SHAPE
+            n  += len(df.lightmean.unique())
+            axes = canvas.grid_axis(n, m)
+            axii = 0
+
+            for lightmean, frame in df.groupby("lightmean"):
+                plt_hill = PlotHill(axes[axii])
+
+                for geno, gframe in df.groupby("genotype"):
+                    plt_hill.append_trace(gframe)
+
+                plt_hill.ax.set_title(f"lightmean={lightmean}")
+
+                self.currentplots.extend([plt_hill])
+                axii += 3
+
+            self.currentplots.extend([plt_amp])
+        else: 
+            axes = canvas.grid_axes(n,m)
 
         # PEAK AMPLITUDE SWARM PLOTS IN FIRST COLUMN
-        ii = 0
+        ii = axii
         for name, frame in df.groupby(["lightamplitude", "lightmean"]):
             plt = PlotSwarm(axes[ii], metric="peakamplitude", eframe=frame)
             ii += 3
             self.currentplots.append(plt)
 
         # TTP SWARM PLOTS IN Seoncd COLUMN
-        ii = 1
+        ii = 1 + axii
         for name, frame in df.groupby(["lightamplitude", "lightmean"]):
             plt = PlotSwarm(axes[ii], metric="timetopeak", eframe=frame)
             ii += 3
             self.currentplots.append(plt)
 
         # OVERLAPPING PSTHS IN THIRD COLUMN
-        ii = 2
+        ii = 2 + axii
         for name, frame in df.groupby(["lightamplitude", "lightmean"]):
             axes[ii].set_title(name)
             plt = PlotPsth(axes[ii])

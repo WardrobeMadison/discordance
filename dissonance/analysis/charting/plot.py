@@ -99,6 +99,7 @@ class PlotPsth(PlotBase):
 
         self.labels = []
         self.psths = []
+        self.Xs = []
 
         if epochs is not None:
             self.append_trace(epochs, label)
@@ -118,11 +119,21 @@ class PlotPsth(PlotBase):
 
         # CALCULATE TTP AND MAX PEAK
         seconds_conversion = 10000 / 100
-        ttp = (np.argmax(psth) + 1 - stimtime/100) / (seconds_conversion)
-        X = (np.arange(len(psth)) + 1 - stimtime/100) / (seconds_conversion)
+        ttp = (np.argmax(psth) - stimtime/100) / (seconds_conversion)
+        X = (np.arange(len(psth)) - stimtime/100) / (seconds_conversion)
 
-        # PLOT VALUES SHIFT BY STIM TIME
-        self.ax.axvline(ttp, linestyle='--', color=self.colors[name], alpha=0.4)
+        # PLOT VALUES SHIFT BY STIM TIME - DOTTED LINED FOR BOTH TTP AND PEAK AMP
+        peakamp = np.max(psth)
+        self.ax.axvline(
+            ttp, 
+            linestyle='--', 
+            color=self.colors[name], 
+            alpha=0.4)
+        self.ax.axhline(
+            peakamp, 
+            linestyle='--', 
+            color=self.colors[name], 
+            alpha=0.4)
         self.ax.plot(X, psth, label=f"{label} (n={n})", c=self.colors[name])
 
         # UPDATE LEGEND WITH EACH APPEND
@@ -130,21 +141,30 @@ class PlotPsth(PlotBase):
 
         # SAVE DATA FOR STORING LATER
         self.labels.append(label)
+        self.Xs.append(X)
         self.psths.append(psth)
 
-        # UPDATE AXIS TICKS
+        # ANNOYING HOW THIS IS SET UP - 
+        # DON'T WANT TO OVERRIDE TICKS FROM PREVIOUS CHART WANT TO ADD TO THEM
+        # TODO SWITCH TO SET TICK LABELS AFTER ALL TRACES ARE APPENDED
+        # MAYBE LIKE INIT -> APPEND_TRACE -> PLOT
+        cxticks = self.ax.get_xticks()
+        cxlabels = self.ax.get_xticklabels()
         xticks = (
             [min(X)]
-            + list(np.arange(0, max(X), 1)))
-        if max(X) not in xticks:
-            xticks.append(max(X))
+            + list(np.arange(0, max(X), 0.5))
+            + [ttp])
         xlabels = [f"{x:.1f}" for x in xticks]
 
-        self.ax.set_xticks(xticks)
-        self.ax.set_xticklabels(xlabels)
+        nxticks = list(set([*cxticks, *xticks]))
+        nxticklabels = list(set([*cxlabels, *xlabels]))
 
-        self.ax.set_yticks([max(psth)])
-        self.ax.set_yticklabels([f"{round(max(psth))}"])
+        self.ax.set_xticks(nxticks)
+        self.ax.set_xticklabels(nxticklabels)
+
+        # APPEND Y TICKS SO THEY ALL SHOW
+        self.ax.set_yticks([*self.ax.get_yticks(), max(psth)])
+        self.ax.set_yticklabels([*self.ax.get_yticklabels, f"{round(max(psth))}"])
 
     def to_csv(self, outputdir=None):
         columns = "Chart Label Time Value".split()
@@ -331,11 +351,12 @@ class PlotWholeTrace(PlotBase):
         self.labels.append(label)
         self.values.append(epoch.trace)
 
-        # UPDATE AXIS LEGEND
+        # UPDATE AXIS LEGEND - MOVE TO SIDE
         self.ax.legend(bbox_to_anchor=(1.04, 0.50), loc="center left")
-        xticks = [min(X)] + list(np.arange(0, max(X), 5000))[1:]
-        if max(X) not in xticks:
-            xticks.append(max(X))
+
+        # ADD X TICKS
+        xticks = [min(X)] + list(np.arange(0, max(X), 5000))
+
         xlabels = [f"{x/10000:0.1f}" for x in xticks]
         self.ax.xaxis.set_ticks(xticks)
         self.ax.xaxis.set_ticklabels(xlabels)
@@ -408,13 +429,8 @@ class PlotTrace(PlotBase):
             color=self.colors[epoch.get("genotype")[0]],
             alpha=0.4)
 
-        # FORMAT AXES
-        xticks = (
-            [min(X)]
-            + list(np.arange(0, max(X), 10000))
-        )
-        if max(X) not in xticks:
-            xticks.append(max(X))
+        # FORMAT AXES - EVERY 0.5 SECONDS FROM STIMTIME MARKED AT 0.0
+        xticks = [min(X)] + list(np.arange(0, max(X), 5000))
         xlabels = [f"{x/10000:.1f}" for x in xticks]
 
         self.ax.set_xticks(xticks)
@@ -499,12 +515,7 @@ class PlotSpikeTrain(PlotBase):
             alpha=0.4)
 
         # FORMAT AXES
-        xticks = (
-            [min(X)]
-            + list(np.arange(0, max(X), 10000))
-        )
-        if max(X) not in xticks:
-            xticks.append(max(X))
+        xticks = [min(X)] + list(np.arange(0, max(X), 5000))
         xlabels = [f"{x/10000:.1f}" for x in xticks]
 
         self.ax.set_xticks(xticks)
