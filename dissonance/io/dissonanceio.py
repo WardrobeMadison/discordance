@@ -193,7 +193,7 @@ class EpochIO:
                 del filter["Name"]
             if len(filter) == 1 and list(filter.keys())[0] == "startdate":
                 dfs.append(self.frame.query(
-                    f"startdate == {filter['startdate']:!r}"))
+                    f"startdate == '{filter['startdate']}'"))
             else:
                 # DICTIONARY OF ALL VALUES
                 # BUILD FILTER CONDITION
