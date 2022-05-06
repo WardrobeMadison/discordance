@@ -15,7 +15,7 @@ class TestLedWholeAnalysis():
     @pytest.fixture
     def setUp(self):
         self.root_dir = ROOTDIR
-        self.tree = self.load_epochs(["DR", "WT"], "wholetrace")
+        self.tree = self.load_epochs(["Test"], "wholetrace")
         self.tofind = dict(
             Name="LedWholeAnalysis",
             protocolname="LedPulse",
@@ -111,10 +111,9 @@ class TestLedWholeAnalysis():
 
 class TestLedSpikeAnalysis():
 
-    @pytest.fixture
     def setUp(self):
         self.root_dir = ROOTDIR
-        self.tree = self.load_epochs(["Test"], "spiketrace")
+        self.load_epochs(["Test"])
 
         self.tofind = dict(
             Name="LedSpikeAnalysis",
@@ -122,29 +121,13 @@ class TestLedSpikeAnalysis():
             led="UV LED",
             celltype="RGC",
             genotype="DR",
-            cellname="Cell5_20210706A",
-            lightmean=0.005,
-            lightamplitude=0.005,
-            startdate="2021-07-06 13:36:28.791547")
+            cellname="20210706A_Cell5",
+            lightmean=1000.0,
+            lightamplitude=250.0,
+            startdate="2021-07-06 13:38:29.641577")
 
-        with open("delete.txt", "w+") as fin:
-            fin.writelines(self.tree.visual)
-
-    @pytest.fixture
-    def tearDown(self):
-        ...
-
-    @pytest.fixture
-    def load_epochs(self, folders, tracetype, uncheckedpath=None, nfiles=5):
-        paramnames = (
-            "protocolname",
-            "led",
-            "celltype",
-            "genotype",
-            "cellname",
-            "lightamplitude",
-            "lightmean",
-            "startdate")
+    def load_epochs(self, folders, uncheckedpath=None, nfiles=5):
+       
         if uncheckedpath is None:
             unchecked = None
         else:
@@ -160,31 +143,39 @@ class TestLedSpikeAnalysis():
             )
 
         dr = io.DissonanceReader(paths)
-        params = dr.to_params(paramnames, filters={"tracetype": tracetype})
-        tree = analysis.LedSpikeAnalysis(params, paths)
-        return tree
+        paramnames = ["led", "protocolname", "celltype", "genotype",
+                        "cellname", "lightamplitude", "lightmean", "startdate"]
+        params = dr.to_params(paramnames, filters={
+                                "tracetype": "spiketrace"})
+        params = params.loc[params.protocolname.isin(
+            ["LedPulseFamily", "LedPulse"])]
+
+        self.epochio = io.EpochIO(params, paths)
+        self.lsa = analysis.LedSpikeAnalysis()
 
     def test_epoch_summary(self):
+        self.setUp()
         canvas = analysis.charting.MplCanvas(offline=True)
 
-        node = self.tree.select_node(**self.tofind)
+        #eframe = self.epochio.query(filters=[self.tofind])
+        eframe = self.epochio.query(filters=[self.tofind])
 
-        self.tree.plot(node, canvas)
+        self.lsa.plot("startdate", eframe, canvas)
+        canvas.draw()
 
     def test_cell_summary(self):
+        self.setUp()
         canvas = analysis.charting.MplCanvas(offline=True)
 
-        node = self.tree.select_node(
-            Name=self.tofind["Name"],
-            protocolname=self.tofind["protocolname"],
-            led=self.tofind["led"],
-            celltype=self.tofind["celltype"],
-            genotype=self.tofind["genotype"],
-            cellname=self.tofind["cellname"])
+        filter = {key:val for key,val in self.tofind.items() if key not in ["startdate", "lightmean", "lightamplitude"]}
+        eframe = self.epochio.query(filters=[filter])
 
-        self.tree.plot(node, canvas)
+        self.lsa.plot("cellname", eframe, canvas)
+        canvas.draw()
 
     def test_genotype_summary(self):
+        self.setUp()
+
         canvas = analysis.charting.MplCanvas(offline=True)
 
         # TEST CRF
@@ -195,8 +186,10 @@ class TestLedSpikeAnalysis():
             celltype="RGC",
             genotype="DR")
 
-        node = self.tree.select_node(**params)
-        self.tree.plot(node, canvas)
+        eframe = self.epochio.query(filters = [params])
+        self.lsa.plot("genotype", eframe, canvas)
+
+        canvas.draw()
 
         # TEST HILL
         params = dict(
@@ -207,16 +200,23 @@ class TestLedSpikeAnalysis():
             genotype="DR"
         )
 
-        node = self.tree.select_node(**params)
-        self.tree.plot(node, canvas)
+        eframe = self.epochio.query(filters = [params])
+        self.lsa.plot("genotype", eframe, canvas)
+
+        canvas.draw()
 
     def test_genotype_comparison(self):
+        self.setUp()
+
         canvas = analysis.charting.MplCanvas(offline=True)
 
-        node = self.tree.select_node(
+        params = dict(
             Name=self.tofind["Name"],
             protocolname=self.tofind["protocolname"],
             led=self.tofind["led"],
             celltype=self.tofind["celltype"])
 
-        self.tree.plot(node, canvas)
+        eframe = self.epochio.query(filters = [params])
+        self.lsa.plot("genotype", eframe, canvas)
+
+        canvas.draw()

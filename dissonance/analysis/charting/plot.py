@@ -100,6 +100,7 @@ class PlotPsth(PlotBase):
         self.labels = []
         self.psths = []
         self.Xs = []
+        self.cntr = 0
 
         if epochs is not None:
             self.append_trace(epochs, label)
@@ -108,6 +109,7 @@ class PlotPsth(PlotBase):
         return f"{type(self).__name__}({','.join(map(str,self.labels))})"
 
     def append_trace(self, epochs:Union[SpikeEpoch, SpikeEpochs], label):
+        self.cntr += 1
         if isinstance(epochs, IEpoch):
             n = 1
         else:
@@ -129,20 +131,20 @@ class PlotPsth(PlotBase):
             linestyle='--', 
             color=self.colors[name], 
             alpha=0.4)
-        self.ax.axhline(
-            peakamp, 
-            linestyle='--', 
-            color=self.colors[name], 
-            alpha=0.4)
-        self.ax.plot(X, psth, label=f"{label} (n={n})", c=self.colors[name])
+        self.ax.plot(X, psth, label=f"{label}(n={n})\nttp={ttp}, pa={peakamp}", c=self.colors[name])
 
         # UPDATE LEGEND WITH EACH APPEND
-        self.ax.legend()
+        # TEXT BOX TO THE LEFT
+        self.ax.legend(bbox_to_anchor = (1.04, 0.5), loc="center left")
 
         # SAVE DATA FOR STORING LATER
         self.labels.append(label)
         self.Xs.append(X)
         self.psths.append(psth)
+
+        if self.cntr == 1:
+            # SHADE STIM TIME
+            self.ax.axvspan(0, (stimtime / 10000), alpha=0.05, color='black')
 
         # ANNOYING HOW THIS IS SET UP - 
         # DON'T WANT TO OVERRIDE TICKS FROM PREVIOUS CHART WANT TO ADD TO THEM
@@ -152,19 +154,16 @@ class PlotPsth(PlotBase):
         cxlabels = self.ax.get_xticklabels()
         xticks = (
             [min(X)]
-            + list(np.arange(0, max(X), 0.5))
-            + [ttp])
-        xlabels = [f"{x:.1f}" for x in xticks]
+            + list(np.arange(0, max(X), 0.5)))
+        xlabels = [plt.Text(x, f"{x:.1f}") for x in xticks]
+        #nxticklabels = list(set([*cxlabels, *xlabels, plt.Text(ttp, f"{ttp:0.2f}")]))
 
-        nxticks = list(set([*cxticks, *xticks]))
-        nxticklabels = list(set([*cxlabels, *xlabels]))
-
-        self.ax.set_xticks(nxticks)
-        self.ax.set_xticklabels(nxticklabels)
+        self.ax.set_xticks(xticks)
+        #self.ax.set_xticklabels(nxticklabels)
 
         # APPEND Y TICKS SO THEY ALL SHOW
-        self.ax.set_yticks([*self.ax.get_yticks(), max(psth)])
-        self.ax.set_yticklabels([*self.ax.get_yticklabels, f"{round(max(psth))}"])
+        #self.ax.set_yticks(list(set([*self.ax.get_yticks(), np.max(psth)])))
+        #self.ax.set_yticklabels([*self.ax.get_yticklabels, f"{round(max(psth))}"])
 
     def to_csv(self, outputdir=None):
         columns = "Chart Label Time Value".split()
@@ -356,8 +355,8 @@ class PlotWholeTrace(PlotBase):
 
         # ADD X TICKS
         xticks = [min(X)] + list(np.arange(0, max(X), 5000))
-
         xlabels = [f"{x/10000:0.1f}" for x in xticks]
+
         self.ax.xaxis.set_ticks(xticks)
         self.ax.xaxis.set_ticklabels(xlabels)
         self.ax.set_xlim((min(X), max(X)))

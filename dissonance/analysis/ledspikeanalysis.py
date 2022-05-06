@@ -43,7 +43,6 @@ class LedSpikeAnalysis(IAnalysis):
         axes = canvas.grid_axis(1, 2)
         plttr = PlotSpikeTrain(axes[0], epoch)
         pltpsth = PlotPsth(axes[1], epoch, label=epoch.startdate)
-        canvas.draw()
 
         self.currentplots.append(plttr)
         self.currentplots.append(pltpsth)

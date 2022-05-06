@@ -432,7 +432,7 @@ class SymphonyReader:
     def _update_attrs(self, protocol: h5py.Group, cell: h5py.Group, epoch: h5py.Group, epochgrp: h5py.Group):
         # ADD EPOCH ATTRIBUTES
         epochgrp.attrs["path"] = epoch.h5name
-        epochgrp.attrs["cellname"] = cell.cellname
+        epochgrp.attrs["cellname"] = cell.cellkey
         epochgrp.attrs["celltype"] = cell.celltype
         epochgrp.attrs["genotype"] = "PleaseAddGenotype"
         epochgrp.attrs["tracetype"] = epoch.tracetype

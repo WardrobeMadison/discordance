@@ -10,13 +10,13 @@ init_log()
 class TestAddInfo:
 
     def setUp(self):
-        self.raw_dir = Path(r"/home/joe/Projects/DataStore/EPhysData")
+        self.raw_dir = Path(r"/home/joe/Projects/DataStore/RawData")
         self.map_dir = Path(r"/home/joe/Projects/DataStore/MappedData")
         self.folders = ["WT", "DR"]
         #folders = ["GG2 control", "GG2 KO"]
 
     def test_update_rstarr_file(self):
-        root_dir = Path(r"/home/joe/Projects/DataStore/EPhysData")
+        root_dir = Path(r"/home/joe/Projects/DataStore/RawData")
         out_dir = Path(r"/home/joe/Projects/DataStore/MappedData")
         geno = "WT"
         filename = '2021-09-11A.h5'

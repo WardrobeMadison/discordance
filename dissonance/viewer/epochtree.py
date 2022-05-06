@@ -46,7 +46,9 @@ class GroupItem(QStandardItem):
         self.setFont(fnt)
         self.setText(self.label)
 
-        self.setFlags(self.flags() | Qt.ItemIsSelectable | Qt.ItemIsAutoTristate | Qt.ItemIsUserCheckable)
+        self.setFlags(self.flags() 
+            | Qt.ItemIsSelectable | Qt.ItemIsAutoTristate | Qt.ItemIsUserCheckable)
+        self.setCheckState(Qt.Checked)
 
     @property
     def isLeaf(self):
@@ -65,7 +67,6 @@ class EpochItem(QStandardItem):
         self.setForeground(color)
         self.setBackground(QColor(187, 177, 189))
         self.setFont(fnt)
-        # self.setText(epoch.startdate)
         self.setText(f"startdate={self.label}")
 
         self.setFlags(self.flags() | Qt.ItemIsUserCheckable |
