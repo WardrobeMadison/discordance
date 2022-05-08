@@ -121,11 +121,11 @@ class PlotPsth(PlotBase):
 
         # CALCULATE TTP AND MAX PEAK
         seconds_conversion = 10000 / 100
-        ttp = (np.argmax(psth) - stimtime/100) / (seconds_conversion)
+        ttp = (epochs.timetopeak - stimtime/100) / seconds_conversion
         X = (np.arange(len(psth)) - stimtime/100) / (seconds_conversion)
 
         # PLOT VALUES SHIFT BY STIM TIME - DOTTED LINED FOR BOTH TTP AND PEAK AMP
-        peakamp = np.max(psth)
+        peakamp = epochs.peakamplitude
         self.ax.axvline(
             ttp, 
             linestyle='--', 
@@ -710,7 +710,6 @@ class PlotCRF(PlotBase):
         self.metric = metric
 
         self.set_axis_labels()
-        self.ax.legend()
 
         self.colors = Pallette(igor)
 
@@ -781,9 +780,10 @@ class PlotCRF(PlotBase):
             self.ax.spines["bottom"].set_bounds(min(X_), max(X_))
             self.ax.set_xticks(X_)
             self.ax.set_xticklabels([f"{int(x*100)}%" for x in X])
+        
+        self.ax.legend()
 
     def set_axis_labels(self):
-        self.ax.legend()
         self.ax.set_xlabel("Percent Contrast")
         if self.metric.lower() == "timetopeak":
             self.ax.set_ylabel("Seconds")
@@ -794,10 +794,10 @@ class PlotCRF(PlotBase):
 
     def t_test(self):
         g1, g2 = self.labels[:2]
-        v1 = self.peaksamps[g1]
-        v2 = self.peaksamps[g2]
+        v1 = self.peakamps[g1]
+        v2 = self.peakamps[g2]
 
-        for a1, a2 in zip(v1, v2):
+        for ii, (a1, a2) in enumerate(zip(v1, v2)):
             stat, p = ttest_ind(
                 a1, a2)
             stars = p_to_star(p)
@@ -809,7 +809,7 @@ class PlotCRF(PlotBase):
                 np.mean(a2) + sem(a2))
 
             self.ax.text(
-                self.xvalues[0],  # ASSUME IN SAME ORDER
+                self.xvalues[0][ii],  # ASSUME IN SAME ORDER
                 ymax*1.05,
                 stars,
                 ha='center',

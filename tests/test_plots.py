@@ -7,7 +7,8 @@ import pytest
 import sys
 sys.path.append("..")
 
-ROOTDIR = Path("/home/joe/Projects/DataStore/MappedData")
+#ROOTDIR = Path("/home/joe/Projects/DataStore/MappedData")
+ROOTDIR = Path("/Users/jnagy2/Projects/Dissonance/Data/MappedData")
 
 
 class TestLedWholeAnalysis():

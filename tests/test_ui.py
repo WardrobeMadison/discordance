@@ -2,12 +2,11 @@ from pathlib import Path
 
 from dissonance import analysis, init_log, io, viewer
 
+from .constants import MAPPED_DIR
+
 logger = init_log()
 
-#ROOT_DIR = Path("/home/joe/Projects/DataStore/MappedData")
-ROOT_DIR = Path("/home/joe/Projects/DataStore/MappedData")
 FOLDERS = ["DR","WT"]
-
 
 class TestGui():
 
@@ -24,7 +23,7 @@ class TestGui():
             for fldr in folders:
                 paths.extend(
                     [file
-                     for ii, file in enumerate((ROOT_DIR/fldr).glob("*.h5"))
+                     for ii, file in enumerate((MAPPED_DIR/fldr).glob("*.h5"))
                      ]
                 )
 
@@ -59,7 +58,7 @@ class TestGui():
             for fldr in folders:
                 paths.extend(
                     [file
-                     for ii, file in enumerate((ROOT_DIR/fldr).glob("*.h5"))
+                     for ii, file in enumerate((MAPPED_DIR/fldr).glob("*.h5"))
                      ]
                 )
 
@@ -94,7 +93,7 @@ class TestGui():
                 paths.extend(
                     [
 						file
-                    	for ii, file in enumerate((ROOT_DIR/fldr).glob("*.h5"))
+                    	for ii, file in enumerate((MAPPED_DIR/fldr).glob("*.h5"))
                      ]
                 )
 

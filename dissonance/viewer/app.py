@@ -170,9 +170,10 @@ class DissonanceUI(QWidget):
             self, "QFileDialog.getSaveFileName()", "", "All Files (*);;Text Files (*.txt)", options=options)
         self.uncheckedpath = fileName
         self.filterfilelabel.setText(self.uncheckedpath)
+
+        frame = self.treeWidget.epochio.frame
         if fileName:
-            (self.analysis.frame.loc[~self.analysis.frame.include, "startdate"].to_csv(
-                fileName, index=False))
+            (frame.loc[~frame.include, "startdate"].to_csv(fileName, index=False))
 
     @pyqtSlot()
     def on_export_bttn_click(self):

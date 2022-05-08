@@ -30,6 +30,6 @@ class GraphWidget(MplCanvas):
         self.analysis.plot(level, eframe, self)
         self.currentplots = self.analysis.currentplots
 
-        self.redrawCanvas.emit()
+        self.draw()
         self.currentPlots.emit(self.currentplots)
 
