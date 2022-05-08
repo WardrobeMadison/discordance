@@ -1,4 +1,5 @@
 from typing import List, Tuple
+from wsgiref.simple_server import WSGIRequestHandler
 
 import numpy as np
 from ..funks.psth import calculate_psth
@@ -47,11 +48,12 @@ class WholeEpoch(IEpoch):
 
     @property
     def timetopeak(self) -> float:
+        rng = self.peak_window_range
         if self._timetopeak is None:
             if self.holdingpotential == "inhibition":
-                self._timetopeak  = np.argmax(self.trace)
+                self._timetopeak  = rng[0] + np.argmax(self.trace[rng[0]:rng[1]])
             else: 
-                self._timetopeak  = np.argmin(self.trace)
+                self._timetopeak  = rng[0] + np.argmin(self.trace[rng[0]:rng[1]])
         return self._timetopeak
 
     @property
@@ -63,17 +65,20 @@ class WholeEpoch(IEpoch):
 
     @property
     def peakamplitude(self) -> float:
+        rng = self.peak_window_range
         if self._peakamplitude is None:
             if self.holdingpotential == "inhibition":
-                self._peakamplitude  = np.max(self.trace)
+                self._peakamplitude  = np.max(self.trace[rng[0]:rng[1]])
             else: 
-                self._peakamplitude  = np.min(self.trace)
+                self._peakamplitude  = np.min(self.trace[rng[0]:rng[1]])
         return self._peakamplitude
 
     @property
     def width_at_half_max(self) -> float:
+        rng = self.peak_window_range
         if self._widthathalfmax is None:
-            self._widthathalfmax, self._widthrange = calc_width_at_half_max(self.trace, self.holdingpotential)
+            self._widthathalfmax, self._widthrange = calc_width_at_half_max(self.trace[rng[0]:rng[1]], self.holdingpotential)
+            self._widthrange = (rng[0] + self._widthrange[0], rng[1] + self._widthrange[1])
         return self._widthathalfmax
 
     @property
@@ -90,10 +95,29 @@ class WholeEpochs(EpochBlock):
         self.backgroundval = epochs[0].backgroundval
         self._widthathalfmax = None
         self._widthrange = None
+        self.peak_window_range = epochs[0].peak_window_range
 
     @property
     def trace(self) -> float:
         return np.mean(self.traces, axis=0)
+
+    @property
+    def width_at_half_max(self) -> float:
+        rng = self.peak_window_range
+        if self._widthathalfmax is None:
+            self._widthathalfmax, self._widthrange = calc_width_at_half_max(self.trace[rng[0]:rng[1]], self.holdingpotential)
+            self._widthrange = (rng[0] + self._widthrange[0], rng[1] + self._widthrange[1])
+        return self._widthathalfmax
+
+    @property
+    def timetopeak(self) -> float:
+        rng = self.peak_window_range
+        if self._timetopeak is None:
+            if self.holdingpotential == "inhibition":
+                self._timetopeak  = rng[0] + np.argmax(self.trace[rng[0]:rng[1]])
+            else: 
+                self._timetopeak  = rng[0] + np.argmin(self.trace[rng[0]:rng[1]])
+        return self._timetopeak
 
     @property
     def widthrange(self) -> float:
@@ -103,27 +127,13 @@ class WholeEpochs(EpochBlock):
         return self._widthrange
 
     @property
-    def width_at_half_max(self) -> float:
-        if self._widthathalfmax is None:
-            self._widthathalfmax, self._widthrange = calc_width_at_half_max(self.trace, self.holdingpotential)
-        return self._widthathalfmax
-
-    @property 
     def peakamplitude(self) -> float:
-        if self.holdingpotential == "inhibition":
-            self._peakamplitude  = np.max(self.trace)
-        else: 
-            self._peakamplitude  = np.min(self.trace)
+        rng = self.peak_window_range
+        if self._peakamplitude is None:
+            if self.holdingpotential == "inhibition":
+                self._peakamplitude  = np.max(self.trace[rng[0]:rng[1]])
+            else: 
+                self._peakamplitude  = np.min(self.trace[rng[0]:rng[1]])
         return self._peakamplitude
-
-    @property 
-    def timetopeak(self) -> float:
-        if self.holdingpotential == "inhibition":
-            self._timetopeak  = np.argmax(self.trace)
-        else: 
-            self._timetopeak  = np.argmin(self.trace)
-        return self._timetopeak
-
-
 
            

@@ -6,6 +6,7 @@ logger = init_log()
 
 #ROOT_DIR = Path("/home/joe/Projects/DataStore/MappedData")
 ROOT_DIR = Path("/home/joe/Projects/DataStore/MappedData")
+FOLDERS = ["DR","WT"]
 
 
 class TestGui():
@@ -17,7 +18,7 @@ class TestGui():
             unchecked = None
             uncheckedpath = None
 
-            folders = ["DR", "WT"]
+            folders = FOLDERS
             #folders = ["GG2 control", "GG2 KO"]
             paths = []
             for fldr in folders:
@@ -52,7 +53,7 @@ class TestGui():
             unchecked = None
             uncheckedpath = None
 
-            folders = ["DR", "WT"]
+            folders = FOLDERS
             #folders = ["GG2 control", "GG2 KO"]
             paths = []
             for fldr in folders:
@@ -86,13 +87,14 @@ class TestGui():
             unchecked = None
             uncheckedpath = None
 
-            folders = ["DR", "WT"]
+            folders = FOLDERS
             #folders = ["GG2 control", "GG2 KO"]
             paths = []
             for fldr in folders:
                 paths.extend(
-                    [file
-                     for ii, file in enumerate((ROOT_DIR/fldr).glob("*.h5"))
+                    [
+						file
+                    	for ii, file in enumerate((ROOT_DIR/fldr).glob("*.h5"))
                      ]
                 )
 
