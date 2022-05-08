@@ -1,15 +1,10 @@
-from datetime import datetime
-from lib2to3.pytree import Base
-from PyQt5.Qt import QStandardItem, QStandardItemModel, Qt, QAbstractItemView
+from dissonance.io import EpochIO
+from PyQt5.Qt import QAbstractItemView, QStandardItem, QStandardItemModel, Qt
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QColor, QFont
 from PyQt5.QtWidgets import QTreeView
 
-from dissonance.analysis.analysistree import AnalysisTree
-from dissonance.io import EpochIO
-
-from ..analysis.trees.base import Node, Tree
-from ..analysis import IAnalysis
+from ..analysis.trees.base import Node
 
 
 class RootItem(QStandardItem):
@@ -27,6 +22,7 @@ class RootItem(QStandardItem):
         self.setFont(fnt)
         self.setText(self.label)
         self.setFlags(self.flags() & ~Qt.ItemIsSelectable)
+
 
 class GroupItem(QStandardItem):
     def __init__(self, node: Node, color=QColor(0, 0, 0)):
@@ -46,6 +42,7 @@ class GroupItem(QStandardItem):
         self.setText(self.label)
 
         self.setFlags(self.flags() | Qt.ItemIsSelectable)
+
 
 class EpochItem(QStandardItem):
     def __init__(self, node: Node, color=QColor(0, 0, 0)):
@@ -108,13 +105,13 @@ class EpochTreeWidget(QTreeView):
     @pyqtSlot(str, object)
     def updateTree(self, paramname, value):
         self.epochio.update(
-            filters = [node.path for node in self.selectedNodes],
-            paramname = paramname, value = value)
+            filters=[node.path for node in self.selectedNodes],
+            paramname=paramname, value=value)
 
         # REFRESH AND REATTATCH TREE
         self.plantTree(self.epochio)
 
-    #@pyqtSlot()
+    # @pyqtSlot()
     def onCheckToggle(self, item: QStandardItem):
         """Update unchecked list on toggle
 
@@ -176,15 +173,17 @@ class EpochTreeWidget(QTreeView):
     @pyqtSlot()
     def onTreeSelect(self):
         # SELECT V MULTI SELECT
-        #self.newselection.emit(self.selected_nodes)
+        # self.newselection.emit(self.selected_nodes)
         nodes = self.selectedNodes
         if len(nodes) == 0:
             eframe = None
         elif len(nodes) == 1:
             if "startdate" in nodes[0].path.keys():
-                eframe = self.epochio.query(filters=[node.path for node in nodes], useincludeflag=False)
+                eframe = self.epochio.query(
+                    filters=[node.path for node in nodes], useincludeflag=False)
             else:
-                eframe = self.epochio.query(filters=[node.path for node in nodes])
+                eframe = self.epochio.query(
+                    filters=[node.path for node in nodes])
         else:
             eframe = self.epochio.query(filters=[node.path for node in nodes])
 
