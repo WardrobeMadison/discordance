@@ -54,6 +54,12 @@ class GroupItem(QStandardItem):
     def isLeaf(self):
         return False
 
+    def toggleCheck(self):
+        if self.checkState() == Qt.Checked:
+            self.setBackground(QColor(187, 177, 189))
+        else:
+            self.setBackground(QColor(255, 255, 255, 0))
+
 class EpochItem(QStandardItem):
     def __init__(self, node: Node, color=QColor(0, 0, 0)):
         super().__init__()
@@ -77,6 +83,11 @@ class EpochItem(QStandardItem):
     def isLeaf(self):
         return True
 
+    def toggleCheck(self):
+        if self.checkState() == Qt.Checked:
+            self.setBackground(QColor(187, 177, 189))
+        else:
+            self.setBackground(QColor(255, 255, 255, 0))
 
 class EpochTreeWidget(QTreeView):
 
@@ -124,35 +135,41 @@ class EpochTreeWidget(QTreeView):
         # REFRESH AND REATTATCH TREE
         self.plantTree(self.epochio)
 
-    #@pyqtSlot()
+    #@pyqtSlot(QStandardItem)
     def onCheckToggle(self, item: QStandardItem):
         """Update unchecked list on toggle
 
         Args:
                 item (QStandardItem): Selected tree node
         """
-        # INCLUDE EPOCH
+        item.toggleCheck()
+        include = item.checkState() == Qt.Checked
+
         if item.isLeaf:
-            if item.checkState() == Qt.Checked:
-                if item.label in self.unchecked:
+            if include:
+                if item.node.label in self.unchecked:
                     self.unchecked.remove(item.label)
-
-                self.epochio.frame.loc[
-                    self.epochio.frame.startdate == item.label,
-                    "include"
-                ] = True
-
-                item.setBackground(QColor(187, 177, 189))
-            # EXCLUDE EPOCH
             else:
-                self.epochio.frame.loc[
-                    self.epochio.frame.startdate == item.label,
-                    "include"
-                ] = False
                 self.unchecked.add(item.label)
-                item.setBackground(QColor(255, 255, 255, 0))
+
+            self.epochio.frame.loc[
+                self.epochio.frame.startdate == item.label,
+                "include"] = include
         else: 
+            self.recursiveCheckToggle(item)
             print("figure this out")
+
+    def recursiveCheckToggle(self, item: QStandardItem):
+
+        checkState = item.checkState()
+        nrows = item.rowCount()
+        ncols = item.columnCount()
+        
+        for cc in range(ncols):
+            for rr in range(nrows):
+                child = item.child(rr, cc)
+                child.setCheckState(checkState)
+                self.onCheckToggle(child)
 
     def addItems(self, parentnode: Node, parentitem: QStandardItem):
         """Translate nodes of tree to QT items for treeview

@@ -19,6 +19,33 @@ from .graphwidget import GraphWidget
 from .paramstable import ParamsTable
 
 
+STYLE = """
+    QTreeView::branch:has-siblings:!adjoins-item {
+    border-image: url(vline.png) 0;
+}
+
+QTreeView::branch:has-siblings:adjoins-item {
+    border-image: url(branch-more.png) 0;
+}
+
+QTreeView::branch:!has-children:!has-siblings:adjoins-item {
+    border-image: url(branch-end.png) 0;
+}
+
+QTreeView::branch:has-children:!has-siblings:closed,
+QTreeView::branch:closed:has-children:has-siblings {
+        border-image: none;
+        image: url(branch-closed.png);
+}
+
+QTreeView::branch:open:has-children:!has-siblings,
+QTreeView::branch:open:has-children:has-siblings  {
+        border-image: none;
+        image: url(branch-open.png);
+}
+"""
+
+
 class DissonanceUI(QWidget):
 
     def __init__(self, epochio: EpochIO, analysis: IAnalysis, unchecked: set = None, uncheckedpath: Path = None, export_dir: Path = None):
@@ -157,5 +184,6 @@ class DissonanceUI(QWidget):
 
 def run(epochio, analysis, unchecked, uncheckedpath: Path = None):
     app = QApplication(sys.argv)
+    #app.setStyleSheet(STYLE)
     ex = DissonanceUI(epochio, analysis, unchecked, uncheckedpath)
     sys.exit(app.exec_())

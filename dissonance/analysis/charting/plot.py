@@ -131,7 +131,7 @@ class PlotPsth(PlotBase):
             linestyle='--', 
             color=self.colors[name], 
             alpha=0.4)
-        self.ax.plot(X, psth, label=f"{label}(n={n})\nttp={ttp}, pa={peakamp}", c=self.colors[name])
+        self.ax.plot(X, psth, label=f"{label}(n={n})\nttp={ttp:.1f}, pa={peakamp:.1f}", c=self.colors[name])
 
         # UPDATE LEGEND WITH EACH APPEND
         # TEXT BOX TO THE LEFT
@@ -710,6 +710,7 @@ class PlotCRF(PlotBase):
         self.metric = metric
 
         self.set_axis_labels()
+        self.ax.legend()
 
         self.colors = Pallette(igor)
 
@@ -766,7 +767,7 @@ class PlotCRF(PlotBase):
             self.ax.errorbar(
                 X_, Y,
                 yerr=sems,
-                label=genotype,
+                label=f"{genotype} (n = {len(peakamps)})",
                 color=self.colors[genotype])
 
             self.labels.append(genotype)

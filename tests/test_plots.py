@@ -211,12 +211,12 @@ class TestLedSpikeAnalysis():
         canvas = analysis.charting.MplCanvas(offline=True)
 
         params = dict(
-            Name=self.tofind["Name"],
-            protocolname=self.tofind["protocolname"],
-            led=self.tofind["led"],
-            celltype=self.tofind["celltype"])
+            Name="LedSpikeAnalysis",
+            protocolname="LedPulse",
+            led="UV LED",
+            celltype="RGC\ON-alpha")
 
         eframe = self.epochio.query(filters = [params])
-        self.lsa.plot("genotype", eframe, canvas)
+        self.lsa.plot("celltype", eframe, canvas)
 
         canvas.draw()
