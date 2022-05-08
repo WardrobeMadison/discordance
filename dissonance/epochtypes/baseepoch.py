@@ -37,6 +37,18 @@ class IEpoch(ABC):
             if self.lightmean != 0.0
             else 0.0)
 
+    @property
+    def peak_window_range(self) -> Tuple[int, int]:
+        if self.celltype == r"RGC\OFF-sustained":
+            return (int(self.pretime+self.stimtime), len(self))
+        elif self.celltype == r"RGC\OFF-transient":
+            return (int(self.pretime + self.stimtime), len(self))
+        elif self.celltype == r"RGC\ON-alpha":
+            return (int(self.pretime), int(self.pretime+self.stimtime))
+        else:
+            return (0, len(self))
+
+
     def __hash__(self):
         return hash(self.startdate)
 

@@ -166,14 +166,18 @@ class EpochIO:
         for _, row in eframe.iterrows():
             # UPDATE H5 GROUP ATTRIBUTES
             row["epoch"].update(paramname, value)
+            #updatedfiles.add(row["epoch"].)
             # UPDATE EPOCHIO DATATABLE PARAMETERS
             if paramname in self.frame.columns:
                 self.frame.loc[self.frame.startdate ==
                                row["startdate"], paramname] = value
 
+        updatedfiles = eframe.exppath.unique()
+
         # FLUSH CHANGES MADE TO ANY H5 FILES
-        for experimentgrp in self.files.values():
-            experimentgrp.file.flush()
+        for path, experimentgrp in self.files.items():
+            if path in updatedfiles:
+                experimentgrp.file.flush()
 
     def query(self, filters=List[Dict], useincludeflag=True) -> pd.DataFrame:
         """Relate nodes from tree to underlying dataframe. Only passes inclued nodes

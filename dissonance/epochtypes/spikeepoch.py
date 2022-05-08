@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Tuple
 
 import numpy as np
 from ..funks.psth import calculate_psth
@@ -26,11 +26,13 @@ class SpikeEpoch(IEpoch):
 
     @property
     def timetopeak(self) -> np.array:
-        return np.argmax(self.psth)
+        rng = self.peak_window_range
+        return rng[0]//100 + np.argmax(self.psth[rng[0]//100:rng[1]//100])
 
     @property
     def peakamplitude(self) -> np.array:
-        return np.max(self.psth)
+        rng = self.peak_window_range
+        return np.max(self.psth[rng[0]//100:rng[1]//100])
 
     @property
     def type(self) -> str:
@@ -69,6 +71,7 @@ class SpikeEpochs(EpochBlock):
         self._psth: np.array = None
         self._psths: np.array = None
         self._hillfit:np.array = None
+        self.rng = traces[0].peak_window_range
 
     @property
     def psth(self):
@@ -91,8 +94,8 @@ class SpikeEpochs(EpochBlock):
 
     @property
     def timetopeak(self) -> np.array:
-        return np.argmax(self.psth)
+        return self.rng[0]//100 + np.argmax(self.psth[self.rng[0]//100:self.rng[1]//100])
 
     @property
     def peakamplitude(self) -> np.array:
-        return np.max(self.psth)
+        return np.max(self.psth[self.rng[0]//100:self.rng[1]//100])

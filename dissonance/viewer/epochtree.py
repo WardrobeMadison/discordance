@@ -80,7 +80,6 @@ class EpochTreeWidget(QTreeView):
         self.setHeaderHidden(True)
 
         self.unchecked = set() if unchecked is None else unchecked
-        self.epochio = epochio
 
         self.createModel(epochio)
         self.initConnections()
@@ -96,6 +95,7 @@ class EpochTreeWidget(QTreeView):
         self.plantTree(epochio)
 
     def plantTree(self, epochio: EpochIO):
+        self.epochio = epochio
         self.tree = epochio.to_tree(self.name, self.splits)
         # REMOVE DATA CURRENTLY IN TREE MODEL
         self.treeModel.removeRows(0, self.treeModel.rowCount())
@@ -126,16 +126,16 @@ class EpochTreeWidget(QTreeView):
             if item.label in self.unchecked:
                 self.unchecked.remove(item.label)
 
-            self.at.frame.loc[
-                self.at.frame.startdate == item.label,
+            self.epochio.frame.loc[
+                self.epochio.frame.startdate == item.label,
                 "include"
             ] = True
 
             item.setBackground(QColor(187, 177, 189))
         # EXCLUDE EPOCH
         else:
-            self.at.frame.loc[
-                self.at.frame.startdate == item.label,
+            self.epochio.frame.loc[
+                self.epochio.frame.startdate == item.label,
                 "include"
             ] = False
             self.unchecked.add(item.label)
