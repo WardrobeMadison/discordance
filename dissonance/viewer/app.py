@@ -1,5 +1,4 @@
 import sys
-from functools import lru_cache
 from pathlib import Path
 
 from matplotlib.backends.backend_qt5agg import \
@@ -59,7 +58,7 @@ class DissonanceUI(QWidget):
 
     def initUI(self, epochio, analysis):
         self.setWindowTitle("Dissonance")
-        self.setGeometry(0,0,1200, 800)
+        self.setGeometry(0,0,1200,800)
 
         self.initParamsTable()
 
@@ -79,7 +78,7 @@ class DissonanceUI(QWidget):
         col1 = QVBoxLayout()
         self.layout = QHBoxLayout()
         self.layout.addLayout(col0, 1)
-        self.layout.addLayout(col1, 3)
+        self.layout.addLayout(col1, 4)
         self.layout.addStretch()
         self.setLayout(self.layout)
 
@@ -87,8 +86,8 @@ class DissonanceUI(QWidget):
         col0.addWidget(savebttn)
         col0.addWidget(self.filterfilelabel)
         col0.addWidget(treesplitlabel)
-        col0.addWidget(self.treeWidget, 10)
-        col0.addWidget(self.paramstable, 3)
+        col0.addWidget(self.treeWidget, 3)
+        col0.addWidget(self.paramstable, 1)
         col0.minimumSize()
 
         # SECOND COLUMN

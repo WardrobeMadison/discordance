@@ -119,11 +119,11 @@ class LedWholeAnalysis(IAnalysis):
 
             for lightmean, frame in grps.groupby("lightmean"):
 
-                plt_amp = PlotHill(axes[axii], eframe=grps)
+                plt_amp = PlotHill(axes[axii], eframe=frame)
                 plt_amp.ax.set_title(f"Light Mean = {lightmean}")
                 axii += 1
 
-                plt_wbr = PlotWeber(axes[axii], eframe=grps)
+                plt_wbr = PlotWeber(axes[axii], eframe=frame)
                 plt_wbr.ax.set_title(f"Light Mean = {lightmean}")
                 axii += 1
 

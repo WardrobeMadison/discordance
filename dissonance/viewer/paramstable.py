@@ -21,6 +21,8 @@ class ParamsTable(QTableWidget):
         "led",
         "lightamplitude",
         "lightmean",
+        #"lightamplitudeSU",
+        #"lightmeanSU",
         "pretime",
         "stimtime",
         "samplerate",

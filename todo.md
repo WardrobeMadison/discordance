@@ -66,5 +66,4 @@ Whole Cell Analysis
 ## DAY 2
 - [-] Automatic plot update on uncheck Maybe add an uncheck button?
 - [ ] Create logging for each session
-- [ ] Check on 6_ file that doesn't have light mean, and other files with bad headers
 - [ ] Information theory analysis

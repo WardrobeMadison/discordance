@@ -8,6 +8,9 @@ from dissonance import epochtypes, io, viewer, init_log
 
 logger = init_log()
 
+ROOT_DIR = Path(r"/Users/jnagy2/Projects/Dissonance/Data/RawData")
+OUT_DIR = Path(r"/Users/jnagy2/Projects/Dissonance/Data/MappedData")
+
 def write_file(file, wodir):
     try:
         print(file)
@@ -23,18 +26,16 @@ def write_file(file, wodir):
 class TestIO():
 
     def test_all_to_h5(self):
-        nprocesses = 4
+        nprocesses = 2
         exclude = []
         folders = ["DR", "WT"]
         #folders = ["GA1 KO", "GG2 control", "GG2 KO"]
-        #folders = ["GG2 KO", "GG2 control"]
+        folders = ["GG2 KO", "GG2 control"]
 
-        root_dir = Path(r"/home/joe/Projects/DataStore/RawData")
-        out_dir = Path(r"/home/joe/Projects/DataStore/MappedData")
         for folder in folders:
-            wdir = root_dir / folder
+            wdir = ROOT_DIR / folder
 
-            wodir = (out_dir / folder)
+            wodir = (OUT_DIR / folder)
             wodir.mkdir(parents=True, exist_ok=True)
 
             files = [file for file in wdir.glob(

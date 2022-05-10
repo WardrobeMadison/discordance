@@ -129,7 +129,8 @@ class LedSpikeAnalysis(IAnalysis):
 
             self.currentplots.extend([plt_amp])
         else: 
-            axes = canvas.grid_axes(n,m)
+            axes = canvas.grid_axis(n,m)
+            axii = 0
 
         # PEAK AMPLITUDE SWARM PLOTS IN FIRST COLUMN
         ii = axii

@@ -770,7 +770,7 @@ class PlotCRF(PlotBase):
                 color=self.colors[genotype])
 
             self.labels.append(genotype)
-            self.xvalues.append(X)
+            self.xvalues.append(X_)
             self.yvalues.append(Y)
 
             if self.cntr == 2:
@@ -797,6 +797,7 @@ class PlotCRF(PlotBase):
         v1 = self.peakamps[g1]
         v2 = self.peakamps[g2]
 
+        ylim = 0.0
         for ii, (a1, a2) in enumerate(zip(v1, v2)):
             stat, p = ttest_ind(
                 a1, a2)
@@ -808,12 +809,16 @@ class PlotCRF(PlotBase):
                 np.mean(a1) + sem(a1),
                 np.mean(a2) + sem(a2))
 
+            ylim = max(ylim, ymax) if ymax > 0 else min(ylim, ymax)
+
             self.ax.text(
                 self.xvalues[0][ii],  # ASSUME IN SAME ORDER
                 ymax*1.05,
                 stars,
                 ha='center',
                 va='bottom', color='k', rotation=90)
+
+        self.ax.set_ylim((0, ylim))
 
     def to_csv(self):
         ...

@@ -6,7 +6,7 @@ from .constants import MAPPED_DIR
 
 logger = init_log()
 
-FOLDERS = ["DR","WT"]
+FOLDERS = ["WT","DR"]
 
 class TestGui():
 
@@ -18,7 +18,6 @@ class TestGui():
             uncheckedpath = None
 
             folders = FOLDERS
-            #folders = ["GG2 control", "GG2 KO"]
             paths = []
             for fldr in folders:
                 paths.extend(
@@ -53,7 +52,6 @@ class TestGui():
             uncheckedpath = None
 
             folders = FOLDERS
-            #folders = ["GG2 control", "GG2 KO"]
             paths = []
             for fldr in folders:
                 paths.extend(
@@ -87,7 +85,6 @@ class TestGui():
             uncheckedpath = None
 
             folders = FOLDERS
-            #folders = ["GG2 control", "GG2 KO"]
             paths = []
             for fldr in folders:
                 paths.extend(
