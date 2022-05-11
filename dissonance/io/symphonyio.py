@@ -208,9 +208,8 @@ class Epoch:
         for name in self.group["stimuli"]:
             yield Stimulus(self.group[f"stimuli/{name}"])
 
-    @property
-    def ndf(self):
-        return self.group["protocolParameters"].attrs.get("ndf", "None")
+    def protocol_parameters(self, key):
+        return self.group["protocolParameters"].attrs.get(key, "None")
 
 class Background:
 
@@ -451,17 +450,22 @@ class SymphonyReader:
         epochgrp.attrs["stimtime"] = protocol.get("stimTime", 0.0)
         epochgrp.attrs["samplerate"] = protocol.get("sampleRate", 0.0)
         epochgrp.attrs["tailtime"] = protocol.get("tailTime", 0.0)
-        epochgrp.attrs["ndf"] = epoch.ndf
+        epochgrp.attrs["ndf"] = epoch.protocol_parameters("ndf")
         epochgrp.attrs["holdingpotential"] = epoch.holdingpotential
 
     def _rstarr_conversion(self, protocol, epoch, epochgrp):
-        # SOMTIMES LIGHT AMPLITUDE IS CALLED SOMETHING ELSE
-        lightamp = protocol.get("lightAmplitude", None)
-        if lightamp is None:
-            lightamp = protocol.get("firstLightAmplitude", None)
-        if lightamp is None:
-            lightamp = 0.0
-            logging.info(f"{str(epoch.startdate)}: no lightamplitude.")
+        # HACK IF LEDPULSEFAMILY THEN LIGHTAMPLITUDE IS IN THE EPOCH FOLDER
+        # TODO CHANGE READER TO FIND PARAMETERS BASED ON PROTOCOL
+        # TODO CHANGE EPOCH CLASSES TO VARY BASED ON PROTOCOL, CELL, ETC...
+        if protocol.name == "LedPulseFamily":
+            lightamp = epoch.protocol_parameters("lightAmplitude")
+        else:
+            lightamp = protocol.get("lightAmplitude", None)
+            if lightamp is None:
+                lightamp = protocol.get("firstLightAmplitude", None)
+            if lightamp is None:
+                lightamp = 0.0
+                logging.info(f"{str(epoch.startdate)}: no lightamplitude.")
 
         lightmean = protocol.get("lightMean", None)
         if lightmean is None:
