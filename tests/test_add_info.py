@@ -5,15 +5,17 @@ from dissonance import io, init_log
 from pathlib import Path
 from dissonance.io import DissonanceUpdater, SymphonyReader
 
+from .constants import MAPPED_DIR, ROOT_DIR, RAW_DIR
+
 init_log()
 
 class TestAddInfo:
 
     def setUp(self):
-        self.raw_dir = Path(r"/home/joe/Projects/DataStore/RawData")
-        self.map_dir = Path(r"/home/joe/Projects/DataStore/MappedData")
-        self.folders = ["WT", "DR"]
-        #folders = ["GG2 control", "GG2 KO"]
+        self.raw_dir = RAW_DIR
+        self.map_dir = MAPPED_DIR
+        #self.folders = ["WT", "DR"]
+        self.folders = ["GG2 control", "GG2 KO"]
 
     def test_update_rstarr_file(self):
         root_dir = Path(r"/home/joe/Projects/DataStore/RawData")

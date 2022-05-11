@@ -720,6 +720,7 @@ class PlotCRF(PlotBase):
         # for writing to csv
         self.labels = []
         self.lightmean = 0.0
+        self.ymax = 0.0
         self.xvalues = []
         self.yvalues = []
 
@@ -780,6 +781,11 @@ class PlotCRF(PlotBase):
             self.ax.spines["bottom"].set_bounds(min(X_), max(X_))
             self.ax.set_xticks(X_)
             self.ax.set_xticklabels([f"{int(x*100)}%" for x in X])
+
+            # SET Y LIMITS
+            ## MAX OR MIN BASED ON SIGN OF Y - ALWAYS WANT FROM 0 UP REGARDLESS OF SIGN
+            self.ymax = max(self.ymax, np.max(Y)) if np.max(Y) > 0.0 else min(self.max, np.min(Y))
+            self.ax((0, self.ymax))
         
         self.ax.legend()
 

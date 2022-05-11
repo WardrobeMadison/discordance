@@ -6,7 +6,8 @@ from .constants import MAPPED_DIR
 
 logger = init_log()
 
-FOLDERS = ["WT","DR"]
+#FOLDERS = ["WT","DR"]
+FOLDERS = ["GG2 KO", "GG2 control"]
 
 class TestGui():
 

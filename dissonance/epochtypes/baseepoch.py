@@ -39,6 +39,11 @@ class IEpoch(ABC):
 
     @property
     def peak_window_range(self) -> Tuple[int, int]:
+        defaultrange =  (0, len(self))
+        if (
+            self.tracetype == "wholetrace"
+            and self.protocolname == "LedPulseFamily"):
+            return defaultrange
         if self.celltype == r"RGC\OFF-sustained":
             return (int(self.pretime+self.stimtime), len(self))
         elif self.celltype == r"RGC\OFF-transient":
@@ -46,8 +51,7 @@ class IEpoch(ABC):
         elif self.celltype == r"RGC\ON-alpha":
             return (int(self.pretime), int(self.pretime+self.stimtime))
         else:
-            return (0, len(self))
-
+            return defaultrange
 
     def __hash__(self):
         return hash(self.startdate)

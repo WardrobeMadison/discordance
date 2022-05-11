@@ -78,7 +78,7 @@ class WholeEpoch(IEpoch):
         rng = self.peak_window_range
         if self._widthathalfmax is None:
             self._widthathalfmax, self._widthrange = calc_width_at_half_max(self.trace[rng[0]:rng[1]], self.holdingpotential)
-            self._widthrange = (rng[0] + self._widthrange[0], rng[1] + self._widthrange[1])
+            self._widthrange = (rng[0] + self._widthrange[0], rng[0] + self._widthrange[1])
         return self._widthathalfmax
 
     @property
@@ -95,6 +95,8 @@ class WholeEpochs(EpochBlock):
         self.backgroundval = epochs[0].backgroundval
         self._widthathalfmax = None
         self._widthrange = None
+        self._timetopeak = None
+        self._peakamplitude = None
         self.peak_window_range = epochs[0].peak_window_range
 
     @property
@@ -106,7 +108,7 @@ class WholeEpochs(EpochBlock):
         rng = self.peak_window_range
         if self._widthathalfmax is None:
             self._widthathalfmax, self._widthrange = calc_width_at_half_max(self.trace[rng[0]:rng[1]], self.holdingpotential)
-            self._widthrange = (rng[0] + self._widthrange[0], rng[1] + self._widthrange[1])
+            self._widthrange = (rng[0] + self._widthrange[0], rng[0] + self._widthrange[1])
         return self._widthathalfmax
 
     @property

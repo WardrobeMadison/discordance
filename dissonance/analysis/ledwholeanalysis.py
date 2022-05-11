@@ -240,7 +240,7 @@ class LedWholeAnalysis(IAnalysis):
 
     @property
     def labels(self):
-        return ["holdingpotential", "protocolname", "led", "celltype", "genotype", "cellname", "lightamplitude", "lightmean"]
+        return ["holdingpotential", "protocolname", "led", "celltype", "genotype", "cellname", "lightmean", "lightamplitude"]
 
     @property
     def tracestype(self): return WholeEpochs
