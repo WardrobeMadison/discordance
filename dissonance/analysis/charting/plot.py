@@ -131,7 +131,7 @@ class PlotPsth(PlotBase):
             linestyle='--', 
             color=self.colors[name], 
             alpha=0.4)
-        self.ax.plot(X, psth, label=f"{label}(n={n})\nttp={ttp:.1f}, pa={peakamp:.1f}", c=self.colors[name])
+        self.ax.plot(X, psth, label=f"{label}(n={n})\nttp={ttp:.1f}, pa={peakamp:.1f}", color=self.colors[name])
 
         # UPDATE LEGEND WITH EACH APPEND
         # TEXT BOX TO THE LEFT
@@ -234,7 +234,7 @@ class PlotRaster(PlotBase):
             toplt.append((spikes, y))
 
         for x, y in toplt:
-            self.ax.scatter(x, y, marker="|", c=self.colors[genotype])
+            self.ax.scatter(x, y, marker="|", color=self.colors[genotype])
             self.values.append(y)
 
         title = f"{epochs.get_unique('lightamplitude')[0]}, {epochs.get_unique('lightmean')[0]}"
@@ -276,7 +276,7 @@ class PlotRaster(PlotBase):
 class PlotWholeTrace(PlotBase):
     cmap = plt.get_cmap("tab10")
 
-    def __init__(self, ax:Axes, epoch:Union[WholeEpoch, WholeEpochs]=None, igor=False, cellsummary=False):
+    def __init__(self, ax:Axes, epoch:Union[WholeEpoch, WholeEpochs]=None, igor=False, summarytype="epoch"):
         self.ax = ax
         self.ax.grid(False)
         self.ax.margins(x=0, y=0)
@@ -284,7 +284,7 @@ class PlotWholeTrace(PlotBase):
         self.ax.spines["left"].set_visible(False)
 
         # IF SUMMARIZING CELL NEED A DIFFERENT COLOR FOR EACH CELL, NOT GENOTYPE
-        self.cellsummary = cellsummary
+        self.summarytype = summarytype
         self.colors = Pallette(igor)
 
         # LISTS USED IN EXPORTING DATA
@@ -309,16 +309,26 @@ class PlotWholeTrace(PlotBase):
             label = epoch.startdate
             genotype = epoch.genotype
         else:
-            if self.cellsummary:
+            if self.summarytype == "cellname":
+                label = epoch.get("cellname")[0]
+            elif self.summarytype == "genotype":
                 label = epoch.get("cellname")[0]
             else:
                 label = f'({epoch.get("lightamplitude")[0]}, {epoch.get("lightmean")[0]})'
             genotype = epoch.get("genotype")[0]
 
-        if self.cellsummary:
+        if self.summarytype == "cellname":
             color = self.cmap(self.cntr)
         else:
             color = self.colors[genotype]
+
+        # PLOT HALF WIDTH
+        whm = epoch.width_at_half_max
+        start, stop = epoch.widthrange
+        peakamp = epoch.peakamplitude
+
+        metricstr = f"whm={whm},ttp={start},pa={peakamp:.0f}"
+        label += "\n"+metricstr
 
         # PLOT TRACE VALUES
         X = np.arange(len(epoch.trace)) - stimtime
@@ -327,10 +337,6 @@ class PlotWholeTrace(PlotBase):
             epoch.trace, label=label,
             color=color,
             alpha=0.4)
-
-        # PLOT HALF WIDTH
-        whm = epoch.width_at_half_max
-        start, stop = epoch.widthrange
 
         # HORIZONTAL LINE ACROSS HALF MAX
         y1, y2 = epoch.trace[start], epoch.trace[stop]
@@ -344,7 +350,7 @@ class PlotWholeTrace(PlotBase):
         self.ax.scatter(
             epoch.timetopeak - stimtime, epoch.peakamplitude,
             marker="x",
-            c=color)
+            color=color)
 
         # APPEND VALUES NEEDED FOR WRITING OUT
         self.labels.append(label)
@@ -418,7 +424,7 @@ class PlotTrace(PlotBase):
             self.ax.scatter(
                 epoch.spikes - stimtime,
                 y,
-                marker="x", c=self.colors[epoch.genotype])
+                marker="x", color=self.colors[epoch.genotype])
 
         # PLOT TRACE VALUES
         X = np.arange(len(epoch.trace)) - stimtime
@@ -503,7 +509,7 @@ class PlotSpikeTrain(PlotBase):
             self.ax.scatter(
                 epoch.spikes - stimtime,
                 y,
-                marker="x", c=self.colors[epoch.genotype])
+                marker="x", color=self.colors[epoch.genotype])
 
         # PLOT TRACE VALUES
         X = np.arange(len(epoch.trace)) - stimtime
@@ -604,12 +610,19 @@ class PlotSwarm(PlotBase):
             semval = sem(values)
 
             # CHANGE SIGN OF AXIS IF NEEDED
-            ymax = max(ymax, np.max(values)) if meanval >= 0 else min(
-                ymax, np.max(values))
-            toppoint = max(toppoint, meanval +
-                           semval) if meanval >= 0 else min(toppoint, meanval-semval)
-            toppoint = max(toppoint, ymax) if toppoint >= 0 else min(
-                toppoint, ymax)
+            # Compare within current genotype and then to other values
+            ymax = (
+                max(ymax, np.max(values)) 
+                if meanval >= 0 
+                else min(ymax, np.min(values)))
+            toppoint = (
+                    max(toppoint, meanval + semval) 
+                    if meanval >= 0 else 
+                    min(toppoint, meanval-semval))
+            toppoint = (
+                max(toppoint, ymax) 
+                if toppoint >= 0 else 
+                min(toppoint, ymax))
 
             toplt.append(
                 dict(
@@ -632,7 +645,7 @@ class PlotSwarm(PlotBase):
                 np.repeat(ii, len(values)),
                 values,
                 alpha=0.25,
-                c=self.colors[name])
+                color=self.colors[name])
 
             self.values.extend(toplt)
 
@@ -657,7 +670,7 @@ class PlotSwarm(PlotBase):
             self.ax.plot(
                 [x1, x1, x2, x2],
                 [ay, ay+h, ay+h, ay],
-                lw=1.5, c=col)
+                lw=1.5, color=col)
 
             self.ax.text(
                 (x1+x2)*.5,
@@ -717,6 +730,11 @@ class PlotCRF(PlotBase):
         self.peakamps = defaultdict(list)
         self.cntr = 0
 
+        # funky x axis for this
+        self.xticks = [-1, -0.75, -0.50, -0.25, 0.25, 0.50, 0.75, 1]
+        self.pos = np.arange(8)
+        self.xdict = dict(zip(self.xticks, self.pos))
+
         # for writing to csv
         self.labels = []
         self.lightmean = 0.0
@@ -736,22 +754,23 @@ class PlotCRF(PlotBase):
         Y = []
         sems = []
         genotype = eframe.genotype.iloc[0]
+
         for (lightamp, lightmean), frame in eframe.groupby(["lightamplitude", "lightmean"]):
-            self.lightmean = lightmean
             if lightmean != 0:
                 contrast = lightamp / lightmean
 
-                # GET PEAK AMPLITUDE FROM EACH PSTH - USED IN SEM
-                peakamps = np.array([
-                    epoch.peakamplitude if self.metric == "peakamplitude" else epoch.timetopeak
-                    for epoch in frame.epoch.values
-                ])
+                if contrast in self.xticks:
+                    # GET PEAK AMPLITUDE FROM EACH PSTH - USED IN SEM
+                    peakamps = np.array([
+                        epoch.peakamplitude if self.metric == "peakamplitude" else epoch.timetopeak
+                        for epoch in frame.epoch.values
+                    ])
 
-                X.append(contrast)
-                Y.append(np.mean(peakamps))
-                sems.append(0.0 if len(peakamps) == 1 else sem(peakamps))
+                    X.append(contrast)
+                    Y.append(np.mean(peakamps))
+                    sems.append(0.0 if len(peakamps) == 1 else sem(peakamps))
 
-                self.peakamps[genotype].append(peakamps)
+                    self.peakamps[genotype].append(peakamps)
 
         # SORT VALUES ALONG X AXIS
         if len(X) > 0:
@@ -763,7 +782,7 @@ class PlotCRF(PlotBase):
             Y = Y[indexes]
 
             # PLOT CRF EVENLY - IGNORE CONTRAST VALUES
-            X_ = np.arange(len(X))
+            X_ = [self.xdict.get(x, 0.0) for x in X]
             self.ax.errorbar(
                 X_, Y,
                 yerr=sems,
@@ -771,23 +790,25 @@ class PlotCRF(PlotBase):
                 color=self.colors[genotype])
 
             self.labels.append(genotype)
-            self.xvalues.append(X_)
+            self.xvalues.append(X)
             self.yvalues.append(Y)
 
-            if self.cntr == 2:
-                self.t_test()
-
             # FORMAT X AXIS
-            self.ax.spines["bottom"].set_bounds(min(X_), max(X_))
-            self.ax.set_xticks(X_)
-            self.ax.set_xticklabels([f"{int(x*100)}%" for x in X])
+            # TODO HOW TO REMOVE 0? 
+            self.ax.spines["bottom"].set_bounds(0, 7)
+            self.ax.set_xticks(np.arange(8))
+            self.ax.set_xticklabels([f"{x*100:.0f}%" for x in self.xticks])
 
             # SET Y LIMITS
             ## MAX OR MIN BASED ON SIGN OF Y - ALWAYS WANT FROM 0 UP REGARDLESS OF SIGN
-            self.ymax = max(self.ymax, np.max(Y)) if np.max(Y) > 0.0 else min(self.max, np.min(Y))
-            self.ax((0, self.ymax))
+            #self.ymax = max(self.ymax, np.max(Y)) if np.max(Y) > 0.0 else min(self.ymax, np.min(Y))
+            #self.ax.set_ylim((0, self.ymax))
         
-        self.ax.legend()
+            self.ax.legend()
+            
+            if self.cntr == 2:
+                self.t_test()
+
 
     def set_axis_labels(self):
         self.ax.set_xlabel("Percent Contrast")
@@ -811,20 +832,20 @@ class PlotCRF(PlotBase):
 
             # GETS POSITION TO WRITE STARS
             # ON TOP MOST ERROR BAR
-            ymax = max(
-                np.mean(a1) + sem(a1),
-                np.mean(a2) + sem(a2))
+            ymax = np.sign(np.mean(a1)) * max(
+                (np.abs(np.mean(a1)) + sem(a1)),
+                (np.abs(np.mean(a2)) + sem(a2)))
 
             ylim = max(ylim, ymax) if ymax > 0 else min(ylim, ymax)
 
             self.ax.text(
-                self.xvalues[0][ii],  # ASSUME IN SAME ORDER
+                ii,  # ASSUME IN SAME ORDER
                 ymax*1.05,
                 stars,
                 ha='center',
                 va='bottom', color='k', rotation=90)
 
-        self.ax.set_ylim((0, ylim))
+        self.ax.set_ylim((0, ylim * 1.08))
 
     def to_csv(self):
         ...
@@ -899,7 +920,7 @@ class PlotHill(PlotBase):
 
 class PlotWeber(PlotBase):
 
-    def __init__(self, ax:Axes, eframe:pd.DataFrame, igor=False):
+    def __init__(self, ax:Axes, eframe:pd.DataFrame=None, igor=False):
         self.ax = ax
         self.fits: Dict[str, WeberEquation] = dict()
 

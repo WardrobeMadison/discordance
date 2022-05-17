@@ -60,11 +60,7 @@ class IEpoch(ABC):
         return f"Epoch(cell_name={self.cellname}, start_date={self.startdate})"
 
     def __len__(self):
-        try:
-            return int(self.pretime + self.stimtime + self.tailtime)
-        except TypeError as e:
-            print(e)
-            return 0.0
+        return len(self.trace)
 
     def update(self, paramname, value):
         if paramname in set(["genotype", "celltype"]):
@@ -153,7 +149,7 @@ class EpochBlock(ABC):
         # PAD ALL VALUES TO STRETCH INTO FULL ARRAY
         return np.vstack(
             [
-                np.pad(epoch.trace, (0, self.trace_len - len(epoch)))
+                np.pad(epoch.trace, (0, 0 if self.trace_len == len(epoch) else self.trace_len - len(epoch)))
                 for epoch in self._epochs
             ])
 

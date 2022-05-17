@@ -49,6 +49,7 @@ class LedWholeAnalysis(IAnalysis):
         """
         # GROUP EPOCHS UP TO LIGHT AMP AND MEAN
         grps = groupby(eframe, self.labels)
+        grps = grps.sort_values(["lightmean", "lightamplitude"], ascending=[True, False])
 
         # BUILD GRID
         n = grps.shape[0]
@@ -69,6 +70,7 @@ class LedWholeAnalysis(IAnalysis):
         """
         # GROUP EPOCHS UP TO LIGHT AMP AND MEAN
         grps = groupby(eframe, self.labels)
+        grps = grps.sort_values(["lightmean", "lightamplitude"], ascending=[True, False])
 
         # BUILD GRID
         n = grps.shape[0]
@@ -136,7 +138,7 @@ class LedWholeAnalysis(IAnalysis):
         # AVERAGE TRACE ON EVERY PLOT
         # ITERATE THROUGH EVERY AMP X MEAN COMBO
         for (lightamp, lightmean), frame in grps.groupby(["lightamplitude", "lightmean"]):
-            plt = PlotWholeTrace(axes[axii], cellsummary=True)
+            plt = PlotWholeTrace(axes[axii], summarytype=True)
 
             # APPEND THE AVERAGE TRACE FOR EACH CELL
             for _, row in frame.iterrows():
@@ -168,7 +170,7 @@ class LedWholeAnalysis(IAnalysis):
             axii = 0
 
             for lightmean, frame in df.groupby("lightmean"):
-                plt = PlotCRF(axes[axii], metric = "peakamplitude")
+                #plt = PlotCRF(axes[axii], metric = "peakamplitude")
 
                 # APPEND TRACE FOR EACH GENOTYPE
                 for geno, frame2 in frame.groupby("genotype"):
@@ -178,31 +180,46 @@ class LedWholeAnalysis(IAnalysis):
 
                 self.currentplots.extend([plt])
                 axii += 3
+        elif led.lower() == "uv led" and protocolname.lower() == "ledpulsefamily":
+            # ADD AN EXTRA HEADER ROW FOR GRID SHAPE
+            n= len(set(zip(df.lightamplitude, df.lightmean))
+                       ) + len(df.lightmean.unique())*2
+            axes = canvas.grid_axis(n, m)
+            axii = 0
+
+            for lightmean, frame in df.groupby("lightmean"):
+                plt_wbr = PlotWeber(axes[axii])
+
+                # APPEND TRACE FOR EACH h
+                for geno, frame2 in frame.groupby("genotype"):
+                    plt_wbr.append_trace(frame2)
+
+                plt_wbr.ax.set_title(f"Light Mean = {lightmean}")
+
+                self.currentplots.extend([plt_wbr])
+                # THERE ARE THREE COLUMNS - THESE ARE ONLY COVERING TWO
+                axii += 3
 
         elif led.lower() == "green led" and protocolname.lower() == "ledpulsefamily":
             # ADD AN EXTRA HEADER ROW FOR GRID SHAPE
-            n, m = len(set(zip(df.lightamplitude, df.lightmean))
-                       ) + len(df.lightmean.unique())*2, 1
+            n = len(set(zip(df.lightamplitude, df.lightmean))
+                       ) + len(df.lightmean.unique())*2
             axes = canvas.grid_axis(n, m)
             axii = 0
 
             for lightmean, frame in df.groupby("lightmean"):
                 plt_amp = PlotHill(axes[axii])
-                plt_wbr = PlotWeber(axes[axii+1])
 
                 # APPEND TRACE FOR EACH h
                 for geno, frame2 in frame.groupby("genotype"):
                     plt_amp.append_trace(frame2)
-                    plt_wbr.append_trace(frame2)
 
                 plt_amp.ax.set_title(f"Light Mean = {lightmean}")
-                plt_wbr.ax.set_title(f"Light Mean = {lightmean}")
 
-                self.currentplots.extend([plt_amp,plt_wbr])
+                self.currentplots.extend([plt_amp])
                 # THERE ARE THREE COLUMNS - THESE ARE ONLY COVERING TWO
                 axii += 3
         else:
-            n, m = len(set(zip(df.lightamplitude, df.lightmean))), 1
             axes = canvas.grid_axis(n, m)
             axii = 0
 

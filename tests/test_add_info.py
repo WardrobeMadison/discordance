@@ -33,7 +33,6 @@ class TestAddInfo:
             rdr.update_metadata(mapfile, attrs=True)
 
     def test_update_rstarr_files(self):
-
         self.setUp()
         for rawfile, mapfile in self.zip_directories(self.raw_dir, self.map_dir):
             rdr = SymphonyReader(rawfile)

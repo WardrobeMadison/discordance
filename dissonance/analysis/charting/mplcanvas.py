@@ -22,7 +22,7 @@ class MplCanvas(FigureCanvas):
         if self.offline:
             self.fig, self.axes = plt.subplots(m,n, tight_layout=True, figsize=(width,height))
         else:
-            self.fig = Figure(constrained_layout=True) #figsize=(width,height))
+            self.fig = Figure(tight_layout=True) #figsize=(width,height))
             self.axes = None
         
         # SET BASE DIMENSIONS OF SUBPLOT

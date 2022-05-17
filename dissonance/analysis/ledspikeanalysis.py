@@ -49,6 +49,7 @@ class LedSpikeAnalysis(IAnalysis):
 
     def plot_genotype_summary(self, eframe: pd.DataFrame, canvas):
         grps = groupby(eframe, self.labels)
+        grps = grps.sort_values(["lightmean", "lightamplitude"], ascending=[True, False])
 
         # PLOT FIT GRAPHS IN FIRST ROW IF NEEDED
         led = grps.led.iloc[0]
@@ -86,6 +87,7 @@ class LedSpikeAnalysis(IAnalysis):
             canvas (MplCanvas, optional): Parent MPL canvas, figure created if not provided. Defaults to None.
         """
         df = groupby(eframe, self.labels)
+        grps = grps.sort_values(["lightmean", "lightamplitude"], ascending=[True, False])
         n = len(set(zip(df.lightamplitude, df.lightmean)))
         n, m = n, 3
 
@@ -95,11 +97,11 @@ class LedSpikeAnalysis(IAnalysis):
         protocolname = df.protocolname.iloc[0]
         if led.lower() == "uv led" and protocolname.lower() == "ledpulse":
             # ADD AN EXTRA HEADER ROW FOR GRID SHAPE
-            n += len(df.lightmean.unique())
+            n += len([x for x in df.lightmean.unique() if x!= 0.0])
             axes = canvas.grid_axis(n, m)
             axii = 0
             
-            for lightmean, frame in df.groupby("lightmean"):
+            for lightmean, frame in df.groupby("lightmean", sort=False):
                 plt_amp = PlotCRF(axes[axii], metric="peakamplitude")
                 plt_ttp = PlotCRF(axes[axii+1], metric="timetopeak")
                 for geno, gframe in df.groupby("genotype"):
@@ -116,10 +118,10 @@ class LedSpikeAnalysis(IAnalysis):
             axes = canvas.grid_axis(n, m)
             axii = 0
 
-            for lightmean, frame in df.groupby("lightmean"):
+            for lightmean, frame in df.groupby("lightmean", sort=False):
                 plt_hill = PlotHill(axes[axii])
 
-                for geno, gframe in df.groupby("genotype"):
+                for geno, gframe in df.groupby("genotype", sort=False):
                     plt_hill.append_trace(gframe)
 
                 plt_hill.ax.set_title(f"lightmean={lightmean}")
@@ -134,21 +136,22 @@ class LedSpikeAnalysis(IAnalysis):
 
         # PEAK AMPLITUDE SWARM PLOTS IN FIRST COLUMN
         ii = axii
-        for name, frame in df.groupby(["lightamplitude", "lightmean"]):
+        grpd = df.groupby(["lightmean", "lightamplitude"], sort = False)
+        for name, frame in grpd:
             plt = PlotSwarm(axes[ii], metric="peakamplitude", eframe=frame)
             ii += 3
             self.currentplots.append(plt)
 
         # TTP SWARM PLOTS IN Seoncd COLUMN
         ii = 1 + axii
-        for name, frame in df.groupby(["lightamplitude", "lightmean"]):
+        for name, frame in grpd:
             plt = PlotSwarm(axes[ii], metric="timetopeak", eframe=frame)
             ii += 3
             self.currentplots.append(plt)
 
         # OVERLAPPING PSTHS IN THIRD COLUMN
         ii = 2 + axii
-        for name, frame in df.groupby(["lightamplitude", "lightmean"]):
+        for name, frame in grpd:
             axes[ii].set_title(name)
             plt = PlotPsth(axes[ii])
             for geno, fframe in frame.groupby("genotype"):
