@@ -87,9 +87,9 @@ class LedSpikeAnalysis(IAnalysis):
             canvas (MplCanvas, optional): Parent MPL canvas, figure created if not provided. Defaults to None.
         """
         df = groupby(eframe, self.labels)
-        grps = grps.sort_values(["lightmean", "lightamplitude"], ascending=[True, False])
+        df = df.sort_values(["lightmean", "lightamplitude"], ascending=[True, False])
         n = len(set(zip(df.lightamplitude, df.lightmean)))
-        n, m = n, 3
+        n, m = n, 2
 
         # PLOT FIT GRAPHS IN FIRST ROW IF NEEDED
         # TODO facet these plots
@@ -110,7 +110,7 @@ class LedSpikeAnalysis(IAnalysis):
                     plt_ttp.append_trace(gframe)
 
                 self.currentplots.extend([plt_amp, plt_ttp])
-                axii += 3
+                axii += 2
 
         elif led.lower() == "green led" and protocolname.lower() == "ledpulsefamily":
             # ADD AN EXTRA HEADER ROW FOR GRID SHAPE
@@ -127,7 +127,7 @@ class LedSpikeAnalysis(IAnalysis):
                 plt_hill.ax.set_title(f"lightmean={lightmean}")
 
                 self.currentplots.extend([plt_hill])
-                axii += 3
+                axii += 2
 
             self.currentplots.extend([plt_amp])
         else: 
@@ -139,27 +139,16 @@ class LedSpikeAnalysis(IAnalysis):
         grpd = df.groupby(["lightmean", "lightamplitude"], sort = False)
         for name, frame in grpd:
             plt = PlotSwarm(axes[ii], metric="peakamplitude", eframe=frame)
-            ii += 3
+            ii += 2
             self.currentplots.append(plt)
 
         # TTP SWARM PLOTS IN Seoncd COLUMN
         ii = 1 + axii
         for name, frame in grpd:
             plt = PlotSwarm(axes[ii], metric="timetopeak", eframe=frame)
-            ii += 3
+            ii += 2
             self.currentplots.append(plt)
 
-        # OVERLAPPING PSTHS IN THIRD COLUMN
-        ii = 2 + axii
-        for name, frame in grpd:
-            axes[ii].set_title(name)
-            plt = PlotPsth(axes[ii])
-            for geno, fframe in frame.groupby("genotype"):
-                # SHOULD ONLY BE ONE GENOTYPE HERE
-                epoch = fframe.iloc[0, -1]
-                plt.append_trace(epoch, label=geno)
-            self.currentplots.append(plt)
-            ii += 3
 
     def plot_summary_cell(self, eframe: pd.DataFrame, canvas: MplCanvas = None):
         """Plot faceted mean psth

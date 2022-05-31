@@ -1,0 +1,19 @@
+axes.titlesize : 22
+axes.labelsize : 20
+axes.location: 'left'
+
+lines.linewidth : 2
+lines.markersize : 10
+
+xtick.labelsize : 18
+ytick.labelsize : 18
+
+figure.figsize : 10, 6
+figure.titlesize: 24
+figure.autolayout: True
+
+font.size: 18
+
+patch.facecolor: 'xkcd:white'
+
+savefig.dpi: 600

@@ -98,7 +98,7 @@ class EpochBlock(ABC):
 
     def __init__(self, epochs: List[IEpoch]):
         self._epochs: List[IEpoch] = epochs
-        self._epchs = sorted(self._epochs, key=lambda x: x.number)
+        self._epochs = sorted(self._epochs, key=lambda x: x.number)
 
         if len(epochs) > 0:
             self.key = epochs[0].startdate

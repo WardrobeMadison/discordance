@@ -1,4 +1,5 @@
 from pathlib import Path
+import pandas as pd
 
 from dissonance import analysis, init_log, io, viewer
 
@@ -7,16 +8,15 @@ from .constants import MAPPED_DIR
 logger = init_log()
 
 #FOLDERS = ["WT","DR"]
-FOLDERS = ["GG2 KO", "GG2 control"]
+FOLDERS = ["GA1 KO", "GA1 control"]
+UNCHECKEDPATH = Path("JennaBegins.txt")
+UNCHECKED = set(pd.read_csv(UNCHECKEDPATH, parse_dates=["startdate"]).iloc[:, 0].values)
 
 class TestGui():
 
     def test_window_wholecell(self):
         try:
             #uncheckedpath = Path("DemoForJenna.txt")
-            #unchecked = io.read_unchecked_file(uncheckedpath)
-            unchecked = None
-            uncheckedpath = None
 
             folders = FOLDERS
             paths = []
@@ -35,10 +35,10 @@ class TestGui():
             params = params.loc[params.protocolname.isin(
                 ["LedPulseFamily", "LedPulse"])]
 
-            epochio = io.EpochIO(params, paths)
+            epochio = io.EpochIO(params, paths, unchecked=UNCHECKED)
             wa = analysis.LedWholeAnalysis()
 
-            viewer.run(epochio, wa, unchecked, uncheckedpath)
+            viewer.run(epochio, wa, UNCHECKED, UNCHECKEDPATH)
         except SystemExit as e:
             ...
         finally:
@@ -46,11 +46,6 @@ class TestGui():
 
     def test_window_spikecell(self):
         try:
-
-            #uncheckedpath = Path("DemoForJenna.txt")
-            #unchecked = io.read_unchecked_file(uncheckedpath)
-            unchecked = None
-            uncheckedpath = None
 
             folders = FOLDERS
             paths = []
@@ -69,10 +64,66 @@ class TestGui():
             params = params.loc[params.protocolname.isin(
                 ["LedPulseFamily", "LedPulse"])]
 
-            epochio = io.EpochIO(params, paths)
+            epochio = io.EpochIO(params, paths, UNCHECKED)
             lsa = analysis.LedSpikeAnalysis()
 
-            viewer.run(epochio, lsa, unchecked, uncheckedpath)
+            viewer.run(epochio, lsa, UNCHECKED, UNCHECKEDPATH)
+        except SystemExit as e:
+            ...
+        finally:
+            assert True
+    
+    def test_window_saccadecell(self):
+        try:
+
+            folders = FOLDERS
+            paths = []
+            for fldr in folders:
+                paths.extend(
+                    [file
+                     for ii, file in enumerate((MAPPED_DIR/fldr).glob("*.h5"))
+                     ]
+                )
+
+            dr = io.DissonanceReader(paths)
+            paramnames = ["holdingpotential", "led", "protocolname", "celltype", "genotype",
+                          "cellname", "lightamplitude", "lightmean", "startdate"]
+            params = dr.to_params(paramnames)
+            params = params.loc[params.protocolname.isin(
+                ["SaccadeTrajectory2"])]
+
+            epochio = io.EpochIO(params, paths, UNCHECKED)
+            lsa = analysis.SaccadeAnalysis()
+
+            viewer.run(epochio, lsa, UNCHECKED, UNCHECKEDPATH)
+        except SystemExit as e:
+            ...
+        finally:
+            assert True
+
+    def test_window_chirpcell(self):
+        try:
+
+            folders = FOLDERS
+            paths = []
+            for fldr in folders:
+                paths.extend(
+                    [file
+                     for ii, file in enumerate((MAPPED_DIR/fldr).glob("*.h5"))
+                     ]
+                )
+
+            dr = io.DissonanceReader(paths)
+            paramnames = ["holdingpotential", "led", "protocolname", "celltype", "genotype",
+                          "cellname", "lightamplitude", "lightmean", "startdate"]
+            params = dr.to_params(paramnames)
+            params = params.loc[params.protocolname.isin(
+                ["ChirpStimulusLED"])]
+
+            epochio = io.EpochIO(params, paths, UNCHECKED)
+            lsa = analysis.ChirpAnalysis()
+
+            viewer.run(epochio, lsa, UNCHECKED, UNCHECKEDPATH)
         except SystemExit as e:
             ...
         finally:
@@ -80,11 +131,6 @@ class TestGui():
 
     def test_window_browsing(self):
         try:
-            #uncheckedpath = Path("DemoForJenna.txt")
-            #unchecked = io.read_unchecked_file(uncheckedpath)
-            unchecked = None
-            uncheckedpath = None
-
             folders = FOLDERS
             paths = []
             for fldr in folders:
@@ -103,9 +149,9 @@ class TestGui():
             params = params.loc[params.protocolname.isin(
                 ["LedPulse", "LedPulseFamily"])]
 
-            epochio = io.EpochIO(params, paths)
+            epochio = io.EpochIO(params, paths, UNCHECKED)
 
-            viewer.run(epochio, lsa, unchecked, uncheckedpath)
+            viewer.run(epochio, lsa, UNCHECKED, UNCHECKEDPATH)
         except SystemExit as e:
             ...
         finally:

@@ -25,14 +25,18 @@ class SpikeEpoch(IEpoch):
         return self._psth
 
     @property
-    def timetopeak(self) -> np.array:
+    def timetopeak(self) -> float:
         rng = self.peak_window_range
         return rng[0]//100 + np.argmax(self.psth[rng[0]//100:rng[1]//100])
 
     @property
-    def peakamplitude(self) -> np.array:
+    def peakamplitude(self) -> float:
         rng = self.peak_window_range
         return np.max(self.psth[rng[0]//100:rng[1]//100])
+
+    @property
+    def timetopeaksec(self) -> float:
+        return (self.timetopeak * 100 - self.pretime) / 10000
 
     @property
     def type(self) -> str:
@@ -93,9 +97,15 @@ class SpikeEpochs(EpochBlock):
         return np.array(self._psths, dtype=float)
 
     @property
-    def timetopeak(self) -> np.array:
+    def timetopeak(self) -> float:
         return self.rng[0]//100 + np.argmax(self.psth[self.rng[0]//100:self.rng[1]//100])
 
     @property
-    def peakamplitude(self) -> np.array:
+    def peakamplitude(self) -> float:
         return np.max(self.psth[self.rng[0]//100:self.rng[1]//100])
+
+    @property
+    def timetopeaksec(self) -> float:
+        self.pretime = self.epochs[0].pretime
+        return (self.timetopeak * 100 - self.pretime) / 10000
+

@@ -27,9 +27,14 @@ class GraphWidget(MplCanvas):
 
     @pyqtSlot(str, object)
     def plot(self, level: str, eframe: pd.DataFrame):
-        self.analysis.plot(level, eframe, self)
-        self.currentplots = self.analysis.currentplots
+        try: 
+            self.analysis.plot(level, eframe, self)
+            self.currentplots = self.analysis.currentplots
 
-        self.draw()
-        self.currentPlots.emit(self.currentplots)
+            self.draw()
+            self.currentPlots.emit(self.currentplots)
+        except Exception as e:
+            print(e)
+            
+
 

@@ -14,15 +14,22 @@ class WeberEquation:
 			raise Exception("Fit Weber function first.")
 		return self.equation(X, self.beta)
 
+	def invequation(self, x):
+		return self.beta * (1/x - 1)
+
+	@property
+	def ihalf(self):
+		return self.invequation(0.5)
+
 	def fit(self, X, Y, p0 = (-1,), **kwargs):
 		# NORMALIZE FIT DATA
 		X_, Y_ = self.normalize(X, Y)
 
 		fit = curve_fit(self.equation, X_, Y_, p0 = p0, **kwargs)
 
-		#You can get the residual sum of squares (ss_tot) with
-		#You can get the total sum of squares (ss_tot) with
 		self.beta = fit[0][0]
+
+		# CALCULATE RSQUARED
 		residuals = Y_ - self(X_)
 		ss_res = np.sum(residuals**2)
 		ss_tot = np.sum((Y_ - np.mean(Y_))**2)

@@ -3,11 +3,13 @@ from typing import Any, Dict, List, Tuple, Union
 
 import pandas as pd
 
+from dissonance.analysis.charting.plot import PlotWeberCoeff
+
 from ..epochtypes import EpochBlock, WholeEpoch, WholeEpochs, groupby
 from .trees import Node
 from .baseanalysis import IAnalysis
 from .charting import (MplCanvas, PlotCRF, PlotHill, PlotSwarm, PlotWeber,
-                       PlotWholeTrace)
+                       PlotWholeTrace, PlotContrastResponses, PlotWholeCRF, PlotCellWeber)
 
 
 class LedWholeAnalysis(IAnalysis):
@@ -39,7 +41,7 @@ class LedWholeAnalysis(IAnalysis):
     def plot_single_epoch(self, eframe, canvas):
         epoch = eframe.epoch.iloc[0]
         axes = canvas.grid_axis(1, 1)
-        plttr = PlotWholeTrace(axes[0], epoch)
+        plttr = PlotWholeTrace(axes[0], epoch, summarytype="epoch")
         canvas.draw()
 
         self.currentplots.append(plttr)
@@ -60,7 +62,7 @@ class LedWholeAnalysis(IAnalysis):
         for ii, row in grps.iterrows():
             epochs = row["epoch"]
 
-            pltraster = PlotWholeTrace(axes[axii], epochs)
+            pltraster = PlotWholeTrace(axes[axii], epochs, summarytype="block")
             axii += 1
 
             self.currentplots.extend([pltraster])
@@ -73,15 +75,26 @@ class LedWholeAnalysis(IAnalysis):
         grps = grps.sort_values(["lightmean", "lightamplitude"], ascending=[True, False])
 
         # BUILD GRID
-        n = grps.shape[0]
-        axes = canvas.grid_axis(n, 1)
-        axii = 0
+        led = eframe.led.iloc[0]
+        protocolname = eframe.protocolname.iloc[0]
+        if led.lower() == "uv led" and protocolname.lower() == "ledpulsefamily":
+            n = grps.shape[0]
+            axes = canvas.grid_axis(n+1, 1)
+            axii = 0
+
+            plt = PlotCellWeber(axes[0], eframe)
+            axii += 1
+
+        else:
+            n = grps.shape[0]
+            axes = canvas.grid_axis(n, 1)
+            axii = 0
 
         # PLOT AVERAGE TRACE FOR EACH LIGHT AMP AND MEAN COMBO
         for ii, row in grps.iterrows():
             epochs = row["epoch"]
 
-            pltraster = PlotWholeTrace(axes[axii], epochs)
+            pltraster = PlotWholeTrace(axes[axii], epochs, summarytype="cellname")
             pltraster.ax.set_title(
                 f"({row['lightamplitude'], row['lightmean']})")
             axii += 1
@@ -101,44 +114,59 @@ class LedWholeAnalysis(IAnalysis):
         if led.lower() == "uv led" and protocolname.lower() == "ledpulse":
             # ADD EXTRA HEADER ROWS FOR GRID SHAPE - ONE FOR EACH LIGHT MEAN
             n, m = len(set(zip(grps.lightamplitude, grps.lightmean))
-                       ) + len(grps.lightmean.unique()), 1
+                       ) + len(grps.lightmean.unique()) * 2, 1
             axes = canvas.grid_axis(n, m)
             axii = 0
 
             for lightmean, frame in grps.groupby("lightmean"):
-                plt = PlotCRF(axes[axii], metric="peakamplitude", eframe=frame)
-                plt.ax.set_title(f"Light Mean = {lightmean}")
+                plt = PlotWholeCRF(axes[axii], metric="peakamplitude", eframe=frame)
                 axii += 1
 
                 self.currentplots.extend([plt])
 
-        elif led.lower() == "green led" and protocolname.lower() == "ledpulsefamily":
+        elif led.lower() == "uv led" and protocolname.lower() == "ledpulsefamily":
             # ADD AN EXTRA HEADER ROW FOR GRID SHAPE
+            # WEBER IS ONE CHART ONLY FOR ONE LIGHTMEAN
             n, m = len(set(zip(grps.lightamplitude, grps.lightmean))
-                       ) + len(grps.lightmean.unique())*2, 1
+                       ) + len(grps.lightmean.unique())+ 1, 1
             axes = canvas.grid_axis(n, m)
             axii = 0
 
-            for lightmean, frame in grps.groupby("lightmean"):
+            # WEBER IS PLOTTED FOR ALL LIGHT MEANS AT 100 PCT CONTRAST
+            plt_wbr = PlotWeber(axes[axii], eframe=grps)
+            self.currentplots.extend([plt_wbr])
+            axii += 1
 
+        elif led.lower() == "green led" and protocolname.lower() == "ledpulsefamily":
+            # ADD AN EXTRA HEADER ROW FOR GRID SHAPE
+            # HILL GETS ON CHART PER LIGHT MEAN
+            n, m = len(set(zip(grps.lightamplitude, grps.lightmean))
+                       ) + len(grps.lightmean.unique()) * 2, 1
+            axes = canvas.grid_axis(n, m)
+            axii = 0
+
+            # GRAPH HILL ONCE FOR EACH LIGHT MEAN
+            for lightmean, frame in grps.groupby("lightmean"):
                 plt_amp = PlotHill(axes[axii], eframe=frame)
                 plt_amp.ax.set_title(f"Light Mean = {lightmean}")
                 axii += 1
-
-                plt_wbr = PlotWeber(axes[axii], eframe=frame)
-                plt_wbr.ax.set_title(f"Light Mean = {lightmean}")
-                axii += 1
-
-                self.currentplots.extend([plt_amp, plt_wbr])
+                self.currentplots.extend([plt_amp])
         else:
-            n, m = len(set(zip(grps.lightamplitude, grps.lightmean))), 1
+            n, m = len(set(zip(grps.lightamplitude, grps.lightmean))) + len(grps.lightmean.unique()), 1
             axes = canvas.grid_axis(n, m)
             axii = 0
+
+        # CONTRAST EXEMPLAR TRACES
+        for lightmean, frame in grps.groupby("lightmean"):
+            #plt = PlotContrastResponses(axes[axii], eframe=frame)
+            #plt.ax.set_title(f"Contrast tRtesponse Traces: {lightmean}")
+            #self.currentplots.append(plt)
+            axii += 1
 
         # AVERAGE TRACE ON EVERY PLOT
         # ITERATE THROUGH EVERY AMP X MEAN COMBO
         for (lightamp, lightmean), frame in grps.groupby(["lightamplitude", "lightmean"]):
-            plt = PlotWholeTrace(axes[axii], summarytype=True)
+            plt = PlotWholeTrace(axes[axii], summarytype="cellname")
 
             # APPEND THE AVERAGE TRACE FOR EACH CELL
             for _, row in frame.iterrows():
@@ -170,35 +198,37 @@ class LedWholeAnalysis(IAnalysis):
             axii = 0
 
             for lightmean, frame in df.groupby("lightmean"):
-                #plt = PlotCRF(axes[axii], metric = "peakamplitude")
 
                 # APPEND TRACE FOR EACH GENOTYPE
+                plt = PlotWholeCRF(axes[axii], metric = "peakamplitude", igor=True)
                 for geno, frame2 in frame.groupby("genotype"):
                     plt.append_trace(frame2)
 
                 plt.ax.set_title(f"Light Mean = {lightmean}")
 
                 self.currentplots.extend([plt])
+                plt.to_igor(Path("."))
                 axii += 3
         elif led.lower() == "uv led" and protocolname.lower() == "ledpulsefamily":
             # ADD AN EXTRA HEADER ROW FOR GRID SHAPE
             n= len(set(zip(df.lightamplitude, df.lightmean))
-                       ) + len(df.lightmean.unique())*2
+                       )  + 1
             axes = canvas.grid_axis(n, m)
             axii = 0
 
-            for lightmean, frame in df.groupby("lightmean"):
-                plt_wbr = PlotWeber(axes[axii])
+            # PLOT WEBER ONCE
+            plt_wbr = PlotWeber(axes[axii])
+            for geno, framef in df.groupby("genotype"):
+                plt_wbr.append_trace(framef)
+            self.currentplots.append(plt_wbr)
 
-                # APPEND TRACE FOR EACH h
-                for geno, frame2 in frame.groupby("genotype"):
-                    plt_wbr.append_trace(frame2)
+            axii += 1
 
-                plt_wbr.ax.set_title(f"Light Mean = {lightmean}")
+            # THIS IS A HACK PLOT
+            plt_coeff = PlotWeberCoeff(plt_wbr.fits)
+            plt_coeff.plot(axes[axii])
 
-                self.currentplots.extend([plt_wbr])
-                # THERE ARE THREE COLUMNS - THESE ARE ONLY COVERING TWO
-                axii += 3
+            axii += 2
 
         elif led.lower() == "green led" and protocolname.lower() == "ledpulsefamily":
             # ADD AN EXTRA HEADER ROW FOR GRID SHAPE
@@ -247,7 +277,7 @@ class LedWholeAnalysis(IAnalysis):
                 # SHOULD ONLY BE ONE GENOTYPE HERE
                 epoch = fframe.iloc[0, -1]
 
-                plt = PlotWholeTrace(axes[ii], epoch)
+                plt = PlotWholeTrace(axes[ii], epoch, summarytype="genotype")
                 plt.ax.set_title(name)
                 self.currentplots.append(plt)
             ii += 3

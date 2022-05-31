@@ -90,13 +90,11 @@ class EpochTreeWidget(QTreeView):
     newSelection = pyqtSignal(object)
     newSelectionForPlot = pyqtSignal(str, object)
 
-    def __init__(self, name, splits, epochio: EpochIO, unchecked: set = None):
+    def __init__(self, name, splits, epochio: EpochIO):
         super().__init__()
         self.name = name
         self.splits = splits
         self.setHeaderHidden(True)
-
-        self.unchecked = set() if unchecked is None else unchecked
 
         self.createModel(epochio)
         self.initConnections()
@@ -119,6 +117,7 @@ class EpochTreeWidget(QTreeView):
         # TRANSLATE TREE TO Qt Items ITEMS
         rootNode = self.treeModel.invisibleRootItem()
         root = RootItem(self.tree)
+        self._exclude = self.epochio.frame.loc[~self.epochio.frame.include, "startdate"].values
         self.addItems(self.tree, root)
         rootNode.appendRow(root)
 
@@ -142,12 +141,6 @@ class EpochTreeWidget(QTreeView):
         include = item.checkState() == Qt.Checked
 
         if item.isLeaf:
-            if include:
-                if item.node.label in self.unchecked:
-                    self.unchecked.remove(item.label)
-            else:
-                self.unchecked.add(item.label)
-
             self.epochio.frame.loc[
                 self.epochio.frame.startdate == item.label,
                 "include"] = include
@@ -177,9 +170,8 @@ class EpochTreeWidget(QTreeView):
         for ii, node in enumerate(parentnode):
             if node.isleaf:
                 item = EpochItem(node)
-                if self.unchecked is not None:
-                    if node.uid in self.unchecked:
-                        item.setCheckState(Qt.Unchecked)
+                if node.uid in self._exclude:
+                    item.setCheckState(Qt.Unchecked)
                 parentitem.appendRow(item)
             else:
                 item = GroupItem(node)

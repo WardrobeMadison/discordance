@@ -85,6 +85,22 @@ class WholeEpoch(IEpoch):
     def type(self) -> str:
         return "WholeTrace"
 
+    @property
+    def flashintensity(self) -> float:
+        return ((self.lightamplitude  + self.lightmean) * (self.stimtime / 10000))
+
+    @property
+    def gain(self) -> float:
+        return self.peakamplitude / self.flashintensity
+
+    @property
+    def crf_value(self) -> float:
+        rng = self.peak_window_range
+        if "ON" in self.celltype and self.lightamplitude < 0:
+            return np.max(self.trace[rng[0]:rng[1]])
+        else:
+            return self.peakamplitude
+
 class WholeEpochs(EpochBlock):
 
     type = "wholetrace"
@@ -97,7 +113,10 @@ class WholeEpochs(EpochBlock):
         self._widthrange = None
         self._timetopeak = None
         self._peakamplitude = None
+        
+        # ASSUME THE SAME FOR ALL UNDERYLHIN
         self.peak_window_range = epochs[0].peak_window_range
+        self.flashintensity = epochs[0].flashintensity
 
     @property
     def trace(self) -> float:
@@ -137,5 +156,21 @@ class WholeEpochs(EpochBlock):
             else: 
                 self._peakamplitude  = np.min(self.trace[rng[0]:rng[1]])
         return self._peakamplitude
+
+    @property
+    def gain(self) -> float:
+        return self.peakamplitude / self.flashintensity
+
+    @property
+    def crf_value(self) -> float:
+        rng = self.peak_window_range
+
+        lightamp = self._epochs[0].lightamplitude
+        celltype = self._epochs[0].celltype
+
+        if "ON" in celltype and lightamp < 0:
+            return np.max(self.trace[rng[0]:rng[1]])
+        else:
+            return self.peakamplitude
 
            

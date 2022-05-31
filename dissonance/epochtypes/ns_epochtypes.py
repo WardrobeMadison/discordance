@@ -9,6 +9,8 @@ import numpy as np
 from . import baseepoch as bt 
 from . import spikeepoch as st
 from . import wholeepoch as wt
+from . import sacaadeepoch as sa
+from . import chirpepoch as ce
 
 def groupby(frame:pd.DataFrame, grpkeys) -> pd.DataFrame:
 	"""
@@ -19,6 +21,8 @@ def groupby(frame:pd.DataFrame, grpkeys) -> pd.DataFrame:
 
 	if epochtype == wt.WholeEpoch: types = wt.WholeEpochs
 	elif epochtype == st.SpikeEpoch: types = st.SpikeEpochs
+	elif epochtype == sa.SaccadeEpoch: types = sa.SaccadeEpochs
+	elif epochtype == ce.ChirpEpoch: types = ce.ChirpEpochs
 	else: types = None
 
 	data = []

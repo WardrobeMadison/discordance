@@ -155,8 +155,8 @@ class EpochIO:
         return AnalysisTree(name, splits, self.frame)
 
     def set_frame(self, params: pd.DataFrame):
-        params.loc[:, "include"] = params.startdate.apply(
-            lambda x: not (x in self.unchecked))
+        params["include"] = True
+        params.loc[params.startdate.isin(self.unchecked), "include"] = False
         self.frame = params
 
     def update(self, filters: List[Dict], paramname: str, value: Any):
@@ -166,7 +166,7 @@ class EpochIO:
         for _, row in eframe.iterrows():
             # UPDATE H5 GROUP ATTRIBUTES
             row["epoch"].update(paramname, value)
-            #updatedfiles.add(row["epoch"].)
+            # updatedfiles.add(row["epoch"].)
             # UPDATE EPOCHIO DATATABLE PARAMETERS
             if paramname in self.frame.columns:
                 self.frame.loc[self.frame.startdate ==
@@ -215,13 +215,15 @@ class EpochIO:
                 dff = self.frame.loc[reduce(operator.and_, condition), :]
 
                 # FILTER FOR CHECKED VALUES
-                if useincludeflag is False:
-                    dfs.append(dff)
+                if useincludeflag:
+                    df = dff.loc[dff.include == True]
+                    dfs.append(df)
                 else:
-                    dfs.append(dff.loc[dff.include == True])
+                    dfs.append(dff)
         # CONVERT TO EPOCHS IN DATAFRAME
         if len(dfs) == 0:
-            raise Exception("No epochs returns")
+            #raise Exception("No epochs returns")
+            print("No epochs returns")
         else:
             df = (pd.concat(dfs))
             df = df.reset_index(drop=True)
@@ -241,6 +243,7 @@ class EpochIO:
                                    func(x),
                                    axis=1)
         else:
-            raise Exception("No epochs returns")
+            #raise Exception("No epochs returns")
+            print("No epochs returns")
 
         return df

@@ -3,6 +3,7 @@ import logging
 import re
 from pathlib import Path
 from typing import Dict, Iterator
+from datetime import date
 
 import h5py
 import numpy as np
@@ -11,7 +12,7 @@ from dissonance.funks import detect_spikes
 
 logger = logging.getLogger(__name__)
 
-def get_rstarr_map():
+def read_rstarr_table():
     rstarrdf = pd.read_csv(
         Path(__file__).parent.parent.parent / "data/rstarrmap.txt", 
         delimiter="\t",
@@ -23,13 +24,24 @@ def get_rstarr_map():
             lightamplitude_rstarr=float,
             lightmean=float,
             lightmean_rstarr=float))
+    return rstarrdf
+
+
+def rstarr_map_to_dict(df:pd.DataFrame, valdate) -> Dict:
+    dff = df.loc[
+        (df.startdate <= valdate) & (df.enddate > valdate)
+    ]
+
+    if dff.shape[0] == 0: raise Exception(f"{valdate} returned no records")
+
+
     rstarrmap = dict()
-    for _, row in rstarrdf.iterrows():
+    for _, row in dff.iterrows():
         rstarrmap[(row["protocolname"], row["led"], row["lightamplitude"], row["lightmean"])] = (
             row["lightamplitude_rstarr"], row["lightmean_rstarr"])
     return rstarrmap
 
-RSTARRMAP = get_rstarr_map()
+
 S1 = np.dtype("|S1")
 
 
@@ -303,11 +315,16 @@ class Stimulus:
 
 class SymphonyReader:
 
-    def __init__(self, path):
+    def __init__(self, path:Path, rstarrdf:pd.DataFrame):
         self.finpath = path
         self.fin = h5py.File(path)
         self.exp = Experiment(self.fin)
         self.fout = None
+
+        redate = re.compile(r"^(\d\d\d\d)-(\d\d)-(\d\d).*$")
+        matches = redate.match(path.name)
+        self.expdate = f"{matches[1]}-{matches[2]}-{matches[3]}"
+        self.rstarmap = rstarr_map_to_dict(rstarrdf, self.expdate)
 
     def reader(self):
         ii = 0
@@ -477,11 +494,11 @@ class SymphonyReader:
 
         try:
             epochgrp.attrs["lightamplitude"], epochgrp.attrs["lightmean"] = (
-                RSTARRMAP[
+                self.rstarmap[
                     (protocol.name, protocol["led"], lightamp, lightmean)])
         except KeyError:
             logging.warning(
-                f"RStarrConversionError: {','.join(map(str, (protocol.name, protocol['led'],lightamp, lightmean)))}")
+                f"RStarrConversionError: {','.join(map(str, (self.expdate, protocol.name, protocol['led'],lightamp, lightmean)))}")
             epochgrp.attrs["lightamplitude"], epochgrp.attrs["lightmean"] = -10000, -10000
 
     def to_db(self):

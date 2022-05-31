@@ -67,7 +67,7 @@ class DissonanceUI(QWidget):
         savebttn.clicked.connect(self.on_save_bttn_click)
 
         self.treeWidget = EpochTreeWidget(
-            str(analysis), analysis.labels, epochio, unchecked=self.unchecked)
+            str(analysis), analysis.labels, epochio)
         treesplitlabel = QLabel(", ".join(self.treeWidget.tree.labels), self)
         # LABEL FOR CURRENT FILE BEING USED TO STORE STARTDATES OF UNCHECK EPOCHS
         self.filterfilelabel = QLabel(str(self.uncheckedpath))
@@ -157,9 +157,12 @@ class DissonanceUI(QWidget):
 
     @pyqtSlot(object)
     def updateTableOnTreeSelect(self, eframe):
-        if eframe is not None:
-            epochs = eframe.epoch.values
-            self.paramstable.onNewEpochs(epochs)
+        try:
+            if eframe is not None:
+                epochs = eframe.epoch.values
+                self.paramstable.onNewEpochs(epochs)
+        except Exception as e:
+            print(e)
 
     @pyqtSlot()
     def on_save_bttn_click(self):
@@ -183,7 +186,10 @@ class DissonanceUI(QWidget):
 
 
 def run(epochio, analysis, unchecked, uncheckedpath: Path = None):
-    app = QApplication(sys.argv)
-    #app.setStyleSheet(STYLE)
-    ex = DissonanceUI(epochio, analysis, unchecked, uncheckedpath)
+    try:
+        app = QApplication(sys.argv)
+        #app.setStyleSheet(STYLE)
+        ex = DissonanceUI(epochio, analysis, unchecked, uncheckedpath)
+    except Exception as e:
+        print(e)
     sys.exit(app.exec_())
