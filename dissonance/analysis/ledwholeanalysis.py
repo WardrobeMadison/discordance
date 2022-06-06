@@ -207,7 +207,7 @@ class LedWholeAnalysis(IAnalysis):
                 plt.ax.set_title(f"Light Mean = {lightmean}")
 
                 self.currentplots.extend([plt])
-                plt.to_igor(Path("."))
+                #plt.to_igor(Path("."))
                 axii += 3
         elif led.lower() == "uv led" and protocolname.lower() == "ledpulsefamily":
             # ADD AN EXTRA HEADER ROW FOR GRID SHAPE

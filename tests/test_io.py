@@ -53,8 +53,10 @@ class TestIO():
     def test_to_h5(self):
 
         rstarrdf = io.read_rstarr_table()
-        geno = "GA1 control"
-        #filename = "2022-05-04B.h5"
-        filename = "2022-05-26B.h5"
+        #geno = "GG2 KO"
+        #filename = "2022-06-03B.h5"
+
+        geno = "GG2 control"
+        filename = "2022-06-02B.h5"
 
         write_file((ROOT_DIR/geno) / filename, (OUT_DIR/geno), rstarrdf)

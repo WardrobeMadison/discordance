@@ -41,7 +41,7 @@ class IEpoch(ABC):
     def peak_window_range(self) -> Tuple[int, int]:
         defaultrange =  (0, len(self))
         if (
-            self.tracetype == "wholetrace"
+            (self.tracetype == "wholetrace" or self.tracetype == "spiketrace")
             and self.protocolname == "LedPulseFamily"):
             return defaultrange
         if self.celltype == r"RGC\OFF-sustained":

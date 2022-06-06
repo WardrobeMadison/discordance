@@ -1,6 +1,7 @@
 axes.titlesize : 22
 axes.labelsize : 20
-axes.location: 'left'
+axes.spines.top : False
+axes.spines.right : False
 
 lines.linewidth : 2
 lines.markersize : 10
@@ -8,11 +9,19 @@ lines.markersize : 10
 xtick.labelsize : 18
 ytick.labelsize : 18
 
+xtick.direction: in
+ytick.direction: in
+
+
 figure.figsize : 10, 6
 figure.titlesize: 24
 figure.autolayout: True
 
 font.size: 18
+font.family : 'sans-serif'
+font.sans-serif: 'Arial'
+
+legend.frameon : False
 
 patch.facecolor: 'xkcd:white'
 

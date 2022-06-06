@@ -100,7 +100,9 @@ class WholeEpoch(IEpoch):
             return np.max(self.trace[rng[0]:rng[1]])
         else:
             return self.peakamplitude
-
+    @property
+    def timetopeaksec(self) -> float:
+        return (self.timetopeak * 100 - self.pretime) / 10000
 class WholeEpochs(EpochBlock):
 
     type = "wholetrace"
@@ -172,5 +174,10 @@ class WholeEpochs(EpochBlock):
             return np.max(self.trace[rng[0]:rng[1]])
         else:
             return self.peakamplitude
+
+    @property
+    def timetopeaksec(self) -> float:
+        self.pretime = self.epochs[0].pretime
+        return (self.timetopeak * 100 - self.pretime) / 10000
 
            

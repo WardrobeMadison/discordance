@@ -36,6 +36,9 @@ class Pallette:
 
     black = "#000000"
     red = "#CC0000"
+    green =  "#6a9a23"
+    purple= "#441488"
+
     orange = "#FFA500"
 
     ccolors = dict()
@@ -62,9 +65,9 @@ class Pallette:
         if self.igor:
             color = None
             if any([x in value for x in ["control", "DR"]]):
-                color =  self.black
+                color =  self.green
             elif any([x in value for x in ["WT", "GA1", "KO"]]):
-                color =  self.red
+                color =  self.purple
             else:
                 color = self.orange
             return color
@@ -97,7 +100,7 @@ class PlotPsth(PlotBase):
         self.ax: Axes = ax
 
         self.ax.grid(False)
-        self.ax.margins(x=0, y=0)
+        self.ax.margins( y=0)
         self.ax.set_ylabel("Hz / s")
         self.ax.set_xlabel("10ms bins")
 
@@ -407,7 +410,7 @@ class PlotTrace(PlotBase):
 
         self.ax.set_ylabel("pA")
         self.ax.set_xlabel("seconds")
-        self.ax.margins(x=0, y=0)
+        self.ax.margins(y=0)
         self.ax.spines["left"].set_visible(False)
         self.ax.get_yaxis().set_visible(False)
 
@@ -492,7 +495,7 @@ class PlotSpikeTrain(PlotBase):
 
         self.ax.set_ylabel("pA")
         self.ax.set_xlabel("seconds")
-        self.ax.margins(x=0, y=0)
+        self.ax.margins( y=0)
         self.ax.spines["left"].set_visible(False)
         self.ax.get_yaxis().set_visible(False)
 
@@ -575,10 +578,10 @@ class PlotSwarm(PlotBase):
     def __init__(self, ax: Axes, metric: str = "peakamplitude", eframe:pd.DataFrame=None, igor=False):
         self.ax: Axes = ax
         self.metric = metric
-        self.ax.margins(y=0)
+        #self.ax.margins(y=0)
 
         # INITIAL AXIS SETTINGS
-        self.ax.spines["bottom"].set_visible(False)
+        #self.ax.spines["bottom"].set_visible(False)
         self.ax.grid(False)
 
         self.colors = Pallette(igor)
@@ -605,7 +608,7 @@ class PlotSwarm(PlotBase):
         toplt = []
         ymax = 0.0
         toppoint = 0.0  # NEED AXIS TO BE % ABOVE SEM BAR
-        for ii, (name, frame) in enumerate(eframe.groupby("genotype")):
+        for ii, (name, frame) in enumerate(eframe.groupby("genotype",sort=False)):
             celltraces = frame.epoch.values
 
             if self.metric == "peakamplitude":
@@ -649,10 +652,13 @@ class PlotSwarm(PlotBase):
             self.ax.bar(ii,
                         height=meanval,
                         yerr=semval,
-                        capsize=12,
+                        #capsize=12,
                         tick_label=name,
                         alpha=0.5,
-                        color=self.colors[name])
+                        edgecolor=self.colors[name],
+                        linewidth = 2,
+                        capsize=5,
+                        color='None')
 
             # PLOT SCATTER
             self.ax.scatter(
@@ -702,13 +708,12 @@ class PlotSwarm(PlotBase):
         self.ax.xaxis.set_ticks_position('none')
         self.ax.set_xticks(np.arange(len(toplt)), dtype=float)
         self.ax.set_xticklabels([x["label"] for x in toplt])
-        self.ax.set_xlabel("Background (R*/S-Cone/sec)")
 
         # Y AXIS FORMAT
         ymax = toppoint * 1.20
         self.ax.set_ylim((0.0, ymax))
         if self.metric == "peakamplitude":
-            self.ax.set_ylabel("pA")
+            self.ax.set_ylabel("Response (Hz)")
         else:
             self.ax.set_ylabel("seconds")
 
@@ -768,6 +773,7 @@ class PlotWholeCRF(PlotBase):
         Y = []
         sems = []
         genotype = eframe.genotype.iloc[0]
+        samplesize = 0
 
         for (lightamp, lightmean), frame in eframe.groupby(["lightamplitude", "lightmean"]):
             if lightmean != 0:
@@ -785,6 +791,8 @@ class PlotWholeCRF(PlotBase):
                     sems.append(0.0 if len(peakamps) == 1 else sem(peakamps))
 
                     self.peakamps[genotype].append(peakamps)
+
+                    samplesize = max(samplesize, np.max(peakamps))
 
         # SORT VALUES ALONG X AXIS
         if len(X) > 0:
@@ -829,10 +837,9 @@ class PlotWholeCRF(PlotBase):
                 locator = MaxNLocator(prune="both", nbins=4)
                 self.ax.yaxis.set_major_locator(locator)
         
-            self.ax.legend()
-            
             if self.cntr == 2:
                 self.t_test()
+
 
 
     def set_axis_labels(self):
@@ -1060,7 +1067,7 @@ class PlotCellWeber(PlotBase):
 
     def __init__(self, ax:Axes, eframe:pd.DataFrame=None, igor=False):
         self.ax = ax
-        self.fits: Dict[str, Dict[str, WeberEquation]] = defaultdict(dict)
+        self.fits: Dict[str, Dict[str, WeberEquation]] = defaultdict(list)
 
         self.ax.set_yscale("log")
         self.ax.set_xscale("log")
@@ -1106,7 +1113,7 @@ class PlotCellWeber(PlotBase):
         weber = WeberEquation()
         weber.fit(X, Y)
 
-        self.fits[genotype]["cellname"] = weber
+        self.fits[genotype].append(weber)
 
         # PLOT LINE AND AVERAGES
         topltX = np.arange(50000)
@@ -1260,7 +1267,7 @@ class PlotWeber(PlotBase):
             weber = WeberEquation()
             weber.fit(X, Y)
 
-            self.fits[genotype]["cellname"] = weber
+            self.fits[genotype][cellname] = weber
 
         # GET VALUES FOR A TTEST
         minamp0 = eframe.loc[(eframe.lightmean == 0.0), "lightamplitude"].min()
@@ -1371,13 +1378,16 @@ class PlotWeberCoeff:
         Ys = []
         Ss = []
         Xs = []
-        for ii, (genotype, fits) in enumerate(self.coeffs.items()):
+        xlabels = []
+        for ii, (genotype, fits) in enumerate(sorted(self.coeffs.items(), reverse=True)):
             Y = [
                 fit.ihalf
-                for cellname, fit in fits.items()]
+                for cellname, fit in fits.items()
+                if cellname != "20210818A2_Cell2"]
             Ys.append(np.mean(Y))
             Ss.append(Y)
             Xs.append(genotype)
+            xlabels.append(genotype)
 
             semval = sem(Y)
 
@@ -1385,9 +1395,11 @@ class PlotWeberCoeff:
                 height=np.mean(Y),
                 yerr=semval,
                 capsize=12,
-                tick_label=genotype,
-                alpha=0.5,
-                color=self.colors[genotype])
+                linewidth=2,
+                edgecolor=self.colors[genotype],
+                color = 'None',
+                label=genotype,
+                tick_label=genotype)
 
             # PLOT SCATTER
             self.ax.scatter(
@@ -1400,6 +1412,34 @@ class PlotWeberCoeff:
             self.ax.text(ii, 0, f"n={len(Y)}",
                             ha='center', va='bottom', color='k')
 
+        # TTEST
+        stat, p = ttest_ind(
+            Ss[0], Ss[1])
+
+        stars = p_to_star(p)
+        #stars = f"p={p:0.03f}" if stars == "ns" and p < 0.06 else stars
+        # PLOT SIGNFICANCE LABEL
+        # HACK PERCENT TO PUT ABOVE MAX POINT. DOESN'T WORK WELL FOR SMALL VALUES
+        _, toppoint = ax.get_ylim()
+        toppoint = max(np.max(Ss[0]), np.max(Ss[1]))
+        pct = 0.05
+        ay, h, col = toppoint + toppoint * pct, toppoint * pct, 'k'
+
+        ax.plot(
+            [0,0,1,1],
+            [ay, ay+h, ay+h, ay],
+            lw=1.5, color=col)
+
+        ax.text(
+            0.5,
+            ay+h,
+            stars,
+            ha='center',
+            va='bottom')
+
+        self.ax.set_xticks([0,1])
+        self.ax.tick_params(axis='x', which='both', length=0)
+        self.ax.set_xticklabels(xlabels)
 
 class PlotContrastResponses(PlotBase):
     cmap = plt.get_cmap("tab10")
@@ -1452,6 +1492,7 @@ class PlotContrastResponses(PlotBase):
 
         self.ax.xaxis.set_ticks(xticks)
         self.ax.xaxis.set_ticklabels(xlabels)
+
 
 
     def to_csv(self, *args, **kwargs):

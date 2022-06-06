@@ -8,8 +8,8 @@ from .constants import MAPPED_DIR
 logger = init_log()
 
 #FOLDERS = ["WT","DR"]
-FOLDERS = ["GA1 KO", "GA1 control"]
-UNCHECKEDPATH = Path("JennaBegins.txt")
+FOLDERS = ["GG2 KO", "GG2 control"]
+UNCHECKEDPATH = Path("WHOLECELLFILTERS.txt")
 UNCHECKED = set(pd.read_csv(UNCHECKEDPATH, parse_dates=["startdate"]).iloc[:, 0].values)
 
 class TestGui():

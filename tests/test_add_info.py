@@ -33,7 +33,7 @@ class TestAddInfo:
         rdr.update_rstarr((self.map_dir / geno) / filename)
 
     def test_update_params_files(self):
-
+        self.setUp()
         for rawfile, mapfile in self.zip_directories(self.raw_dir, self.map_dir):
             rdr = SymphonyReader(rawfile, self.rstarrdf)
             rdr.update_metadata(mapfile, attrs=True)
@@ -75,12 +75,16 @@ class TestAddInfo:
                 up.add_genotype(flder)
 
     def test_add_genotype_file(self):
-        genodir = MAPPED_DIR / "GA1 control"
-        geno = "GA1 control"
+        #geno = "GG2 KO"
+        #genodir = MAPPED_DIR / geno
+        #filename = "2022-06-03B.h5"
 
-        for filename in ["2022-05-26B.h5"]:
-            up = DissonanceUpdater(genodir / filename)
-            up.add_genotype(geno)
+        genodir = MAPPED_DIR / "GG2 control"
+        geno = "GG2 control"
+        filename = "2022-06-02B.h5"
+
+        up = DissonanceUpdater(genodir / filename)
+        up.add_genotype(geno)
 
 
     def test_update_cell_labels(self):
